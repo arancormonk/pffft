@@ -10,6 +10,7 @@
 - [Brief Description](#brief-description)
 - [Why does it exist?](#why-does-it-exist)
 - [CMake](#cmake)
+- [Performance and architecture notes](#performance-and-architecture-notes)
 - [Using pffft in your CMake project](#using-pffft-in-your-cmake-project)
 - [History / Origin / Changes](#history--origin--changes)
 - [Comparison with other FFTs](#comparison-with-other-ffts)
@@ -26,8 +27,8 @@
 PFFFT does 1D Fast Fourier Transforms, of single precision real and
 complex vectors. It tries do it fast, it tries to be correct, and it
 tries to be small. Computations do take advantage of SSE1/AVX/AVX2 instructions
-on x86 cpus, Altivec on powerpc cpus, and NEON on ARM cpus
-(including Apple Silicon). The license is BSD-like.
+on x86 cpus, Altivec on powerpc cpus, NEON on ARM cpus
+(including Apple Silicon), and WASM SIMD on WebAssembly. The license is BSD-like.
 
 PFFFT is a fork of [Julien Pommier's library on bitbucket](https://bitbucket.org/jpommier/pffft/)
 with some changes and additions.
@@ -140,6 +141,7 @@ Some of the options:
 * `DISABLE_SIMD_AVX` to disable AVX CPU features (default: OFF)
 * `PFFFT_USE_SIMD_NEON` to force using NEON on ARM (requires PFFFT_USE_SIMD) (default: OFF)
 * `PFFFT_USE_SCALAR_VECT` to use 4-element vector scalar operations (if no other SIMD) (default: ON)
+* `PFFFT_USE_WASM_RELAXED_SIMD` to use WebAssembly Relaxed SIMD multiply-add instructions, which may be fused when supported by the runtime (default: OFF)
 
 Options can be passed to `cmake` at command line, e.g.
 ```
@@ -179,7 +181,87 @@ cmake --build .
 ctest
 ```
 
-WASM SIMD is enabled automatically. Emscripten provides NEON-to-WASM SIMD translation via [SIMDe](https://github.com/simd-everywhere/simde) (SIMD Everywhere) compatibility headers, so pffft's NEON code paths are reused for WebAssembly.
+WASM SIMD is enabled automatically when building with Emscripten; see
+[Performance and architecture notes](#performance-and-architecture-notes) for
+the Relaxed SIMD option and the non-CMake build flags.
+
+## Performance and architecture notes
+
+Compiler- and architecture-specific tips for getting the best performance out
+of pffft.
+
+### x86: enable FMA
+
+On x86 the fused multiply-add paths are **opt-in**, and the default build does
+not get them. `VMADD`/`VMSUB` -- used by the complex multiply at the heart of
+`pffft_zconvolve*()` and of every radix codelet -- lower to a real FMA
+instruction only when the compiler guarantees FMA3:
+
+| compiler | how to enable |
+| --- | --- |
+| gcc / clang | `-DTARGET_C_ARCH=haswell` (or a later `-march` value) |
+| MSVC | `-DTARGET_C_ARCH=AVX2` |
+
+Without it, each fused operation costs a separate multiply plus add. Measured
+on the `pffft_zconvolve_accumulate()` inner loop, identical for gcc 12 and
+clang 14, x86-64 and i686, float (SSE) and double (AVX): **20 floating point
+operations per iteration instead of 12**.
+
+```
+cmake -DTARGET_C_ARCH=haswell -DTARGET_CXX_ARCH=haswell ..
+```
+
+This is not the default on purpose: FMA3 requires an Intel Haswell (2013) or
+AMD Piledriver CPU, so enabling it unconditionally would break older hardware.
+`cmake` prints a reminder when the selected x86 architecture has no FMA.
+
+Note that FMA changes results by up to one ULP, since it rounds once where the
+separate multiply and add round twice.
+
+### ARMv7 (32-bit ARM): prefer clang over gcc
+
+On 32-bit ARM, **gcc emits very inefficient assembly**, with a lot more
+operations that clang does. Measured over the whole float translation unit,
+both at `-O3 -march=armv7-a -mfpu=neon`:
+
+| | 64-bit `vldr`/`vstr` | 128-bit `vld1`/`vst1` |
+| --- | --- | --- |
+| gcc 12.2 | 1600 | 344 |
+| clang 14 | 181 | 797 |
+
+GCC's bad code generation affects roughly 19 functions, including the hot ones
+(`pffft_real_finalize`, `pffft_real_preprocess`, `pffft_cplx_finalize`,
+`pffft_zreorder`, `passf4_ps`, `radf4_ps`, ...). This caveat applies to all versions
+including GCC 16.1 (newest at time of writing), so this is not about old toolchains.
+
+There is a GCC [ticket](https://gcc.gnu.org/bugzilla/show_bug.cgi?id=43725)
+reporting this since 2010 and it hasn't been fixed since. No flag changes it
+(fourteen combinations were tried, including `-mtune=cortex-a9/a15`, `-mcpu=...`,
+`-mfpu=neon-vfpv4`, `-mvectorize-with-neon-quad`, `-m[no-]unaligned-access`, `-O2`,
+and the Raspberry Pi 3/4 presets). It doesn't seem like this problem is ever going
+to be fixed, see [this comment](https://gcc.gnu.org/bugzilla/show_bug.cgi?id=43725#c1)
+by the ARM maintainer. So we recommend to **use Clang when targeting ARMv7**.
+
+`cmake` prints a reminder when it sees gcc targeting ARMv7. Note that this applies
+only to 32-bit ARM, on AArch64 both compilers are fine.
+
+### WebAssembly: SIMD backend and Relaxed SIMD
+
+pffft has a dedicated WASM SIMD backend using native `wasm_simd128.h`
+intrinsics for both float and double precision.
+
+> **Performance tip:** enable [Relaxed SIMD](https://github.com/WebAssembly/relaxed-simd) for a measured **6-11% throughput gain** on FFT sizes of 1024 and up, on [runtimes that support it](https://caniuse.com/mdn-webassembly_relaxed-simd) (e.g. V8/Chrome, Node.js):
+>
+> ```sh
+> emcmake cmake -DPFFFT_USE_WASM_RELAXED_SIMD=ON ..
+> ```
+>
+> This uses relaxed multiply-add instructions, which the runtime may fuse into a single-rounding FMA, or fall back to a two-rounding multiply followed by add/subtract. It is **off by default** because relaxed SIMD results are not guaranteed bit-identical across engines or hardware (unlike the default WASM SIMD path); enable it only if your application tolerates ULP-level differences between runtimes.
+
+If you build for Emscripten without the bundled CMake config (e.g. a raw
+`emcc`/Makefile/Bazel invocation), compile with `-msimd128 -DPFFFT_ENABLE_WASM=1`
+to select the WASM SIMD backend; the previous `PFFFT_ENABLE_NEON` recipe no
+longer enables it and now silently falls back to scalar code.
 
 ## Using pffft in your CMake project
 

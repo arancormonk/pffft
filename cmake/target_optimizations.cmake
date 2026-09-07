@@ -47,6 +47,7 @@ string(TOLOWER "${CMAKE_SYSTEM_PROCESSOR}" CMAKE_SYSTEM_PROCESSOR_LOWER)
 if ( (CMAKE_SYSTEM_PROCESSOR_LOWER STREQUAL "i686") OR (CMAKE_SYSTEM_PROCESSOR_LOWER STREQUAL "x86_64")
     # On Windows CMake emits "AMD64" (64-bit) or "x86" (32-bit) rather than the above
     OR (CMAKE_SYSTEM_PROCESSOR_LOWER STREQUAL "amd64") OR (CMAKE_SYSTEM_PROCESSOR_LOWER STREQUAL "x86") )
+    set(PFFFT_TARGET_IS_X86 TRUE)
     set(GCC_MARCH_DESC "native/SSE2:pentium4/SSE3:core2/SSE4:nehalem/AVX:sandybridge/AVX2:haswell")
     set(GCC_MARCH_VALUES "none;native;pentium4;core2;nehalem;sandybridge;haswell" CACHE INTERNAL "List of possible architectures")
     set(GCC_EXTRA_VALUES "" CACHE INTERNAL "List of possible EXTRA options")
@@ -59,6 +60,7 @@ elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64" OR CMAKE_SYSTEM_PROCESSOR MATCH
         set(GCC_EXTRA_VALUES "" CACHE INTERNAL "List of possible additional options")
     endif()
 elseif (CMAKE_SYSTEM_PROCESSOR MATCHES "armv7l")
+    set(PFFFT_TARGET_IS_ARMV7 TRUE)
     set(GCC_MARCH_DESC "native/ARMwNEON:armv7-a")
     set(GCC_MARCH_VALUES "none;native;armv7-a" CACHE INTERNAL "List of possible architectures")
     set(GCC_EXTRA_VALUES "none;neon_vfpv4;neon_rpi3_a53;neon_rpi4_a72" CACHE INTERNAL "List of possible additional options")
@@ -120,13 +122,75 @@ else()
 endif()
 
 ######################################################
+# x86: FMA is opt-in and easy to miss.
+#
+# The SSE-float and AVX-double VMADD/VMSUB macros lower to true FMA only when
+# the compiler guarantees FMA3 -- gcc/clang via -march=haswell or later, MSVC
+# via /arch:AVX2. Without it every fused op costs a separate multiply plus add,
+# which in the frequency-domain multiply loops means 20 floating point
+# operations per iteration instead of 12 (measured on gcc 12 and clang 14,
+# x86-64 and i686, float and double alike).
+#
+# The default is deliberately left alone: FMA3 needs Haswell (2013) or
+# Piledriver, and raising the baseline would break older CPUs. So just say so.
+if (PFFFT_TARGET_IS_X86)
+    set(_pffft_have_fma FALSE)
+    if (CMAKE_C_COMPILER_ID MATCHES "MSVC")
+        set(_pffft_fma_arch "AVX2")
+        if ("${TARGET_C_ARCH}" MATCHES "AVX2|AVX512|AVX10")
+            set(_pffft_have_fma TRUE)
+        endif()
+    else()
+        set(_pffft_fma_arch "haswell")
+        # "native" is resolved by the compiler on the build machine, so whether
+        # it implies FMA is unknown here -- stay quiet rather than guess wrong
+        if ( ("${TARGET_C_ARCH}" STREQUAL "haswell") OR ("${TARGET_C_ARCH}" STREQUAL "native") )
+            set(_pffft_have_fma TRUE)
+        endif()
+    endif()
+    if (NOT _pffft_have_fma)
+        message(STATUS "pffft: TARGET_C_ARCH='${TARGET_C_ARCH}' has no FMA;"
+                       " use -DTARGET_C_ARCH=${_pffft_fma_arch} for ~40% fewer FP ops"
+                       " in the convolution loops (requires Haswell/Piledriver or later)")
+    endif()
+endif()
+
+######################################################
+# ARMv7: gcc moves 128-bit NEON vectors in 64-bit pieces.
+#
+# Not a gcc bug. float32x4_t is specified to be laid out as a NEON register
+# stored with VSTM, which on big-endian differs from what VST1 produces, so for
+# a plain v4sf array access gcc restricts itself to the layout-compatible forms:
+# vld1.64/vst1.64, or a vldr/vstr pair whenever a nonzero immediate offset is
+# needed, since vld1.64 has no offset addressing mode. Any loop touching a
+# pointer more than once per iteration hits the latter. clang takes a different
+# position and uses vld1.32 for the same code. See GCC PR43725 comment 1.
+#
+# Measured with gcc 12.2 over the whole float translation unit: 1600 vldr/vstr
+# and 344 vld1/vst1, against clang 14's 181 and 797 -- about twice the
+# load/store operations for the same bytes, spread over ~19 functions. No flag
+# changes it (14 combinations tried), and gcc 16.1.0 behaves like 12.2. The
+# alternative to switching compilers would be to load/store through
+# vld1q_f32()/vst1q_f32() intrinsics, which this library does not do.
+if (PFFFT_TARGET_IS_ARMV7 AND CMAKE_C_COMPILER_ID STREQUAL "GNU")
+    message(STATUS "pffft: gcc moves 128-bit NEON vectors in 64-bit pieces on ARMv7"
+                   " (see GCC PR43725), roughly doubling load/store work across the"
+                   " transform; clang is recommended here (CC=clang CXX=clang++)")
+endif()
+
+######################################################
 
 function(target_set_c_arch_flags target)
-    # Emscripten WASM SIMD via NEON emulation
+    # Emscripten WASM SIMD
     if (EMSCRIPTEN)
-        message(STATUS "Emscripten detected: enabling WASM SIMD with NEON emulation for C target ${target}")
         target_compile_options(${target} PRIVATE "-msimd128")
-        target_compile_definitions(${target} PRIVATE PFFFT_ENABLE_NEON=1)
+        target_compile_definitions(${target} PRIVATE PFFFT_ENABLE_WASM=1)
+        if (PFFFT_USE_WASM_RELAXED_SIMD)
+            message(STATUS "Emscripten detected: enabling WASM SIMD + Relaxed SIMD for C target ${target}")
+            target_compile_options(${target} PRIVATE "-mrelaxed-simd")
+        else()
+            message(STATUS "Emscripten detected: enabling WASM SIMD for C target ${target}")
+        endif()
         return()
     endif()
     if ( ("${TARGET_C_ARCH}" STREQUAL "") OR ("${TARGET_C_ARCH}" STREQUAL "none") )
@@ -165,11 +229,16 @@ function(target_set_c_arch_flags target)
 endfunction()
 
 function(target_set_cxx_arch_flags target)
-    # Emscripten WASM SIMD via NEON emulation
+    # Emscripten WASM SIMD
     if (EMSCRIPTEN)
-        message(STATUS "Emscripten detected: enabling WASM SIMD with NEON emulation for C++ target ${target}")
         target_compile_options(${target} PRIVATE "-msimd128")
-        target_compile_definitions(${target} PRIVATE PFFFT_ENABLE_NEON=1)
+        target_compile_definitions(${target} PRIVATE PFFFT_ENABLE_WASM=1)
+        if (PFFFT_USE_WASM_RELAXED_SIMD)
+            message(STATUS "Emscripten detected: enabling WASM SIMD + Relaxed SIMD for C++ target ${target}")
+            target_compile_options(${target} PRIVATE "-mrelaxed-simd")
+        else()
+            message(STATUS "Emscripten detected: enabling WASM SIMD for C++ target ${target}")
+        endif()
         return()
     endif()
     if ( ("${TARGET_CXX_ARCH}" STREQUAL "") OR ("${TARGET_CXX_ARCH}" STREQUAL "none") )

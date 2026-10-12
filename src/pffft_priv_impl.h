@@ -345,6 +345,7 @@ static NEVER_INLINE(void) passf8_ps(int ido, int l1, const v4sf * RESTRICT cc, v
   const float nfsign = -fsign;
 
   assert(ido == 2 && l1 == 1);
+  (void)l1; /* otherwise unused when assertions are disabled */
 
   /* Load 8 inputs: cc[leg*ido + 0] = real, cc[leg*ido + 1] = imag */
   v4sf x0r = cc[0*ido+0], x0i = cc[0*ido+1];

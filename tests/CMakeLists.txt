@@ -191,3 +191,18 @@ if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang" AND NOT MSVC)
   endif()
   add_test(NAME test_simd_unfused COMMAND test_simd_unfused)
 endif()
+
+# Keep direct C99 source consumers warning-clean, also with NDEBUG.
+if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang" AND NOT MSVC)
+  foreach(mode scalar simd)
+    add_library(test_strict_${mode} OBJECT
+      ${PFFFT_SOURCE_DIR}/src/pffft.c ${PFFFT_SOURCE_DIR}/src/pffft_common.c)
+    target_include_directories(test_strict_${mode} PRIVATE ${PFFFT_SOURCE_DIR}/include/pffft)
+    target_compile_definitions(test_strict_${mode} PRIVATE NDEBUG PFFFT_STATIC_DEFINE)
+    target_compile_options(test_strict_${mode} PRIVATE -Wall -Wextra -Wpedantic
+      -Wstrict-prototypes -Wold-style-definition -Werror -Wno-vla)
+    if(mode STREQUAL "scalar")
+      target_compile_definitions(test_strict_${mode} PRIVATE PFFFT_SIMD_DISABLE=1)
+    endif()
+  endforeach()
+endif()

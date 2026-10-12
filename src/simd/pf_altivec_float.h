@@ -54,8 +54,13 @@ typedef union v4sf_union {
 #  define VZERO() ((vector float) vec_splat_u8(0))
 #  define VMUL(a,b) vec_madd(a,b, VZERO())
 #  define VADD(a,b) vec_add(a,b)
+#if defined(PFFFT_DISABLE_FMA)
+#  define VMADD(a,b,c) vec_add(c,VMUL(a,b))
+#  define VMSUB(a,b,c) vec_sub(c,VMUL(a,b))
+#else
 #  define VMADD(a,b,c) vec_madd(a,b,c)
 #  define VMSUB(a,b,c) vec_nmsub(a,b,c)
+#endif
 #  define VSUB(a,b) vec_sub(a,b)
 inline v4sf ld_ps1(const float *p) { v4sf v=vec_lde(0,p); return vec_splat(vec_perm(v, v, vec_lvsl(0, p)), 0); }
 #  define LD_PS1(p) ld_ps1(&p)

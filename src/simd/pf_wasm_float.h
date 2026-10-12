@@ -59,7 +59,7 @@ typedef union v4sf_union {
 #  define VADD(a,b) wasm_f32x4_add(a,b)
 #  define VSUB(a,b) wasm_f32x4_sub(a,b)
 /* Use relaxed FMA when available, otherwise emulate with mul+add/sub */
-#ifdef __wasm_relaxed_simd__
+#if defined(__wasm_relaxed_simd__) && !defined(PFFFT_DISABLE_FMA)
 #  define VMADD(a,b,c) wasm_f32x4_relaxed_madd(a,b,c)
 #  define VMSUB(a,b,c) wasm_f32x4_relaxed_nmadd(a,b,c)
 #else

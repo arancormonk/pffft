@@ -55,7 +55,7 @@
   https://learn.microsoft.com/en-us/cpp/preprocessor/predefined-macros
   https://learn.microsoft.com/en-us/cpp/build/reference/arch-x64
 */
-#if defined(__FMA__) || (defined(_MSC_VER) && !defined(__clang__) && defined(__AVX2__))
+#if !defined(PFFFT_DISABLE_FMA) && (defined(__FMA__) || (defined(_MSC_VER) && !defined(__clang__) && defined(__AVX2__)))
 #  define PFFFT_X86_HAVE_FMA 1
 #endif
 

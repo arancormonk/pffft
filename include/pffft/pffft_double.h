@@ -272,10 +272,10 @@ extern "C" {
   PFFFT_EXPORT void PFFFT_DEPRECATED pffftd_zconvolve_no_accu(const PFFFTD_Setup *setup, const double *dft_a, const double *dft_b, double *dft_ab, double scaling);
 
   /* return 4 or 1 wether support AVX instructions was enabled when building pffft-double.c */
-  PFFFT_EXPORT int pffftd_simd_size();
+  PFFFT_EXPORT int pffftd_simd_size(void);
 
   /* return string identifier of used architecture (AVX/..) */
-  PFFFT_EXPORT const char * pffftd_simd_arch();
+  PFFFT_EXPORT const char * pffftd_simd_arch(void);
 
   /* simple helper to get minimum possible fft size */
   PFFFT_EXPORT int pffftd_min_fft_size(pffft_transform_t transform);

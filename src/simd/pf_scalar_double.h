@@ -58,7 +58,7 @@ typedef union v4sf_union {
 #  define VARCH "4xScalar"
 #  define VREQUIRES_ALIGN 0
 
-  static ALWAYS_INLINE(v4sf) VZERO() {
+  static ALWAYS_INLINE(v4sf) VZERO(void) {
     v4sf r = { 0.f, 0.f, 0.f, 0.f };
     return r;
   }

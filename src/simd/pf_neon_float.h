@@ -36,7 +36,7 @@
 /*
   ARM NEON support macros
 */
-#if !defined(SIMD_SZ) && !defined(PFFFT_SIMD_DISABLE) && defined(PFFFT_ENABLE_NEON) && (defined(__arm__) || defined(__aarch64__) || defined(__arm64__))
+#if !defined(SIMD_SZ) && !defined(PFFFT_SIMD_DISABLE) && defined(PFFFT_ENABLE_NEON) && (defined(__ARM_NEON) || defined(__ARM_NEON__) || defined(__aarch64__) || defined(__arm64__) || defined(_M_ARM64) || defined(_M_ARM64EC))
 #pragma message( __FILE__ ": ARM NEON macros are defined" )
 
 #  include <arm_neon.h>
@@ -55,7 +55,10 @@ typedef union v4sf_union {
 #  define VMUL(a,b) vmulq_f32(a,b)
 #  define VADD(a,b) vaddq_f32(a,b)
 /* Use true fused multiply-add when available (AArch64 always, ARMv7 with VFPv4+) */
-#if defined(__aarch64__) || defined(__arm64__) || defined(__ARM_FEATURE_FMA)
+#if defined(PFFFT_DISABLE_FMA)
+#  define VMADD(a,b,c) vaddq_f32(c,vmulq_f32(a,b))
+#  define VMSUB(a,b,c) vsubq_f32(c,vmulq_f32(a,b))
+#elif defined(__aarch64__) || defined(__arm64__) || defined(_M_ARM64) || defined(_M_ARM64EC) || defined(__ARM_FEATURE_FMA)
 #  define VMADD(a,b,c) vfmaq_f32(c,a,b)
 #  define VMSUB(a,b,c) vfmsq_f32(c,a,b)
 #else
@@ -72,7 +75,7 @@ typedef union v4sf_union {
    AArch64: use intrinsics (the 32-bit asm syntax is invalid there). */
 #if defined(__arm__) && !defined(__aarch64__) && !defined(__arm64__) && (defined(__GNUC__) || defined(__clang__))
 #  define VTRANSPOSE4(x0,x1,x2,x3) { __asm__("vtrn.32 %q0, %q1;\n vtrn.32 %q2,%q3\n vswp %f0,%e2\n vswp %f1,%e3" : "+w"(x0), "+w"(x1), "+w"(x2), "+w"(x3)::); }
-#elif defined(__aarch64__) || defined(__arm64__)
+#elif defined(__aarch64__) || defined(__arm64__) || defined(_M_ARM64) || defined(_M_ARM64EC)
 /* AArch64: use trn1/trn2 at 32-bit and 64-bit granularity.
    This avoids float32x4x2_t struct intermediates from vzipq, giving
    the compiler single-vector results and better register allocation.

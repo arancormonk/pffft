@@ -544,3 +544,10 @@ an explanation of why the change was not ported.
 | 2025-02-12 | `0d7449a` | Dan Raviv | Fix MSVC `/fp:strict` C2099 errors | `4d1c78d` | cherry-picked |
 | 2025-12-19 | `c306b13` | Julien Pommier | Fix implicit double-to-float conversions | `31be131` | cherry-picked (fftpack.c portion) |
 | 2026-01-05 | `0979688` | Julien Pommier | Fix alignment for small `size_t` platforms | `a9786ad` | already uses `uintptr_t` |
+
+For reproducible unfused arithmetic, configure `PFFFT_DISABLE_FMA=ON` and
+disable compiler contraction (for GCC/Clang, `-ffp-contract=off`). This option
+disables explicit FMA in x86, NEON, AltiVec and relaxed WebAssembly SIMD
+backends; it defaults to OFF. Direct source builds may define
+`PFFFT_DISABLE_FMA=1` instead. Setup allocation failures return NULL and
+release all partial allocations.

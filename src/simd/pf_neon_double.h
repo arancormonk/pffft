@@ -40,7 +40,7 @@
   NEON 64bit support macros — native AArch64 implementation.
   Packs 4 doubles into a pair of float64x2_t (2x 128-bit NEON registers).
 */
-#if !defined(SIMD_SZ) && !defined(PFFFT_SIMD_DISABLE) && defined(PFFFT_ENABLE_NEON) && (defined(__aarch64__) || defined(__arm64__) || defined(_M_ARM64))
+#if !defined(SIMD_SZ) && !defined(PFFFT_SIMD_DISABLE) && defined(PFFFT_ENABLE_NEON) && (defined(__aarch64__) || defined(__arm64__) || defined(_M_ARM64) || defined(_M_ARM64EC))
 
 #pragma message (__FILE__ ": NEON double macros are defined" )
 
@@ -66,8 +66,13 @@ typedef union v4sf_union {
 #  define VZERO() ((v4sf){ vdupq_n_f64(0), vdupq_n_f64(0) })
 #  define VMUL(a,b) ((v4sf){ vmulq_f64((a).lo, (b).lo), vmulq_f64((a).hi, (b).hi) })
 #  define VADD(a,b) ((v4sf){ vaddq_f64((a).lo, (b).lo), vaddq_f64((a).hi, (b).hi) })
+#if defined(PFFFT_DISABLE_FMA)
+#  define VMADD(a,b,c) VADD(c,VMUL(a,b))
+#  define VMSUB(a,b,c) VSUB(c,VMUL(a,b))
+#else
 #  define VMADD(a,b,c) ((v4sf){ vfmaq_f64((c).lo, (a).lo, (b).lo), vfmaq_f64((c).hi, (a).hi, (b).hi) })
 #  define VMSUB(a,b,c) ((v4sf){ vfmsq_f64((c).lo, (a).lo, (b).lo), vfmsq_f64((c).hi, (a).hi, (b).hi) })
+#endif
 #  define VSUB(a,b) ((v4sf){ vsubq_f64((a).lo, (b).lo), vsubq_f64((a).hi, (b).hi) })
 #  define LD_PS1(p) ((v4sf){ vdupq_n_f64(p), vdupq_n_f64(p) })
 #  define VLOAD_UNALIGNED(ptr)  ((v4sf){ vld1q_f64((const double*)(ptr)), vld1q_f64((const double*)(ptr) + 2) })

@@ -15,6 +15,7 @@ option(PFFFT_USE_TYPE_FLOAT  "activate single precision 'float'?" ON)
 option(PFFFT_USE_TYPE_DOUBLE "activate 'double' precision float?" ON)
 
 # architecture/optimization options
+option(PFFFT_DISABLE_FMA "Disable explicit SIMD fused multiply-add (also use compiler contraction flags for reproducibility)" OFF)
 option(PFFFT_USE_SIMD        "use SIMD (SSE/AVX/NEON/ALTIVEC) CPU features? - " ON)
 option(PFFFT_USE_SCALAR_VECT "use 4-element vector scalar operations (if no other SIMD)" ON)
 option(PFFFT_USE_WASM_RELAXED_SIMD "use WebAssembly Relaxed SIMD for higher performance? requires a browser/runtime with Relaxed SIMD support" OFF)
@@ -169,6 +170,9 @@ add_library(PFFFT ${FLOAT_SOURCES} ${DOUBLE_SOURCES} src/pffft_common.c src/pfff
 add_library(PFFFT::PFFFT ALIAS PFFFT)
 set_target_properties(PFFFT PROPERTIES OUTPUT_NAME "pffft")
 target_compile_definitions(PFFFT PRIVATE _USE_MATH_DEFINES)
+if(PFFFT_DISABLE_FMA)
+  target_compile_definitions(PFFFT PRIVATE PFFFT_DISABLE_FMA=1)
+endif()
 target_activate_c_compiler_warnings(PFFFT)
 if (PFFFT_USE_SCALAR_VECT)
   target_compile_definitions(PFFFT PRIVATE PFFFT_SCALVEC_ENABLED=1)

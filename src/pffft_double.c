@@ -112,6 +112,11 @@
 #include "simd/pf_double.h"
 
 /* have code comparable with this definition */
+#if defined(__clang__)
+#  if __has_warning("-Wkeyword-macro")
+#    pragma clang diagnostic ignored "-Wkeyword-macro"  /* deliberate */
+#  endif
+#endif
 #define float double
 #define SETUP_STRUCT               PFFFTD_Setup
 #define FUNC_NEW_SETUP             pffftd_new_setup

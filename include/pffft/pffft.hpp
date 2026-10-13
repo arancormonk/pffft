@@ -802,6 +802,7 @@ inline Fft<T>::Fft(int length, int stackThresholdLen)
   static_assert( sizeof(Complex) == 2 * sizeof(Scalar), "pffft requires sizeof(std::complex<>) == 2 * sizeof(Scalar)" );
 #elif defined(__GNUC__)
   char static_assert_like[(sizeof(Complex) == 2 * sizeof(Scalar)) ? 1 : -1]; // pffft requires sizeof(std::complex<>) == 2 * sizeof(Scalar)
+  (void)static_assert_like;
 #endif
   prepareLength(length);
 }
@@ -1179,6 +1180,9 @@ class PFAlloc {
     PFAlloc() {
     }
     PFAlloc(const PFAlloc&) {
+    }
+    PFAlloc& operator= (const PFAlloc&) {
+        return *this;
     }
     template <class U>
       PFAlloc (const PFAlloc<U>&) {

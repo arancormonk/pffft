@@ -177,7 +177,7 @@ extern "C" {
   PFFASTCONV_EXPORT void pffastconv_free(void *);
 
   /* return 4 or 1 wether support SSE/Altivec instructions was enabled when building pffft.c */
-  PFFASTCONV_EXPORT int pffastconv_simd_size();
+  PFFASTCONV_EXPORT int pffastconv_simd_size(void);
 
 
 #ifdef __cplusplus

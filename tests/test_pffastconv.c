@@ -290,7 +290,6 @@ int slow_conv_A(void * setup, const float * input, int len, float *output, const
     else
     {
       const int M = Nr & (~3);
-      /* printf("A: Nr = %d, M = %d, H[M] = %f, H[M+1] = %f, H[M+2] = %f, H[M+3] = %f\n", Nr, M, Hrev[M], Hrev[M+1], Hrev[M+2], Hrev[M+3] ); */
       for ( i = 0; i <= lenNr; ++i )
       {
         float tailSum = 0.0;
@@ -412,7 +411,6 @@ int slow_conv_B(void * setup, const float * input, int len, float *output, const
       else
       {
         const int M = Nr & (~3);
-        /* printf("B: Nr = %d\n", Nr ); */
         for ( i = 0; i <= lenNr; ++i )
         {
           float tailSum = 0.0;
@@ -494,7 +492,6 @@ int test(int FILTERLEN, int convFlags, const int testOutLen, int printDbg, int p
   const char * convText[NUMY]     = { "R(non-simd)",  "A(non-simd)",  "B(non-simd)",  "fast_conv_64",     "fast_conv_128",    "fast_conv_256",    "fast_conv_512",    "fast_conv_1K",     "fast_conv_2K",        "fast_conv_4K",      "fast_conv_8K",      "fast_conv_16K",      "fast_conv_32K",      "fast_conv_64K",       };
   int    aFastAlgo[NUMY]          = { 0,              0,              0,              1,                  1,                  1,                  1,                  1,                  1,                     1,                   1,                   1,                    1,                    1,                     };
   void * aSetupCfg[NUMY]          = { NULL,           NULL,           NULL,           NULL,               NULL,               NULL,               NULL,               NULL,               NULL,                  NULL,                NULL,                NULL,                 NULL,                 NULL,                  };
-//int    aBlkLen[NUMY]            = { 1024,           1024,           1024,           64,                 128,                256,                512,                1024,               2048,                  4096,                8192,                16384,                32768,                65536,                 };
   int    aBlkLen[NUMY]            = { 8192,           8192,           8192,           64,                 128,                256,                512,                1024,               2048,                  4096,                8192,                16384,                32768,                65536,                 };
 #if 1
   int    aRunAlgo[NUMY]           = { 1,              1,              1,              FILTERLEN<64,       FILTERLEN<128,      FILTERLEN<256,      FILTERLEN<512,      FILTERLEN<1024,     FILTERLEN<2048,        FILTERLEN<4096,      FILTERLEN<8192,      FILTERLEN<16384,      FILTERLEN<32768,      FILTERLEN<65536,       };
@@ -683,7 +680,6 @@ int test(int FILTERLEN, int convFlags, const int testOutLen, int printDbg, int p
           if ( yRangeMin > Yvals[i] )  yRangeMin = Yvals[i];
         }
         yErrLimit = fabsf(yRangeMax - yRangeMin) / ( 100.0F * 1000.0F );
-        /* yErrLimit = 0.01F; */
         if (testOutLen) {
           if (1) {
             printf("reference output len = %" PRId64 " smp\n", outN[0]);

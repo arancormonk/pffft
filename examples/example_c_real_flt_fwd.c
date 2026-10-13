@@ -37,7 +37,7 @@ void c_forward_real_float(const int transformLen)
   float *W = (float*)pffft_aligned_malloc(transformLen * sizeof(float));
 
   /* prepare some input data */
-  for (int k = 0; k < transformLen; k += 2)
+  for (int k = 0; k + 1 < transformLen; k += 2)
   {
     X[k] = k;
     X[k+1] = -1-k;
@@ -48,7 +48,7 @@ void c_forward_real_float(const int transformLen)
 
   /* print spectral output */
   printf("output should be complex spectrum with %d complex bins\n", transformLen /2);
-  for (int k = 0; k < transformLen; k += 2)
+  for (int k = 0; k + 1 < transformLen; k += 2)
     printf("Y[%d] = %f + i * %f\n", k/2, Y[k], Y[k+1]);
 
   pffft_aligned_free(W);

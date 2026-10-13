@@ -777,7 +777,7 @@ static void radb2(integer ido, integer l1, const real *cc, real *ch, const real 
         ch_ref(i, k, 2) = wa1[i - 2] * ti2 + wa1[i - 1] * tr2;
       }
     }
-    if (ido % 2 == 1) return;
+    if (ido % 2 != 0) return;
   }
   for (k = 1; k <= l1; ++k) {
     ch_ref(ido, k, 1) = cc_ref(ido, 1, k) + cc_ref(ido, 1, k);
@@ -922,7 +922,7 @@ static void radb4(integer ido, integer l1, const real *cc, real *ch,
         ch_ref(i, k, 4) = wa3[i - 2] * ci4 + wa3[i - 1] * cr4;
       }
     }
-    if (ido % 2 == 1) return;
+    if (ido % 2 != 0) return;
   }
   for (k = 1; k <= l1; ++k) {
     ti1 = cc_ref(1, 2, k) + cc_ref(1, 4, k);
@@ -1287,7 +1287,7 @@ static void radf2(integer ido, integer l1, const real *cc, real *ch,
         ch_ref(ic - 1, 2, k) = cc_ref(i - 1, k, 1) - tr2;
       }
     }
-    if (ido % 2 == 1) {
+    if (ido % 2 != 0) {
       return;
     }
   }
@@ -1442,7 +1442,7 @@ static void radf4(integer ido, integer l1, const real *cc, real *ch,
         ch_ref(ic, 2, k) = tr4 - ti3;
       }
     }
-    if (ido % 2 == 1) {
+    if (ido % 2 != 0) {
       return;
     }
   }
@@ -2794,7 +2794,7 @@ int main(void)
       for (k = 2; k <= ns2; ++k) {
         arg1 = (real) (k - 1) * arg;
         sum = sum + x[(k << 1) - 3] * cos(arg1) - x[(k << 1) - 2] *
-          (real)sin(arg1);
+          sin(arg1);
       }
     L108:
       if (modn == 0) {
@@ -2832,7 +2832,7 @@ int main(void)
       y[i - 1] = 0.;
       arg1 = (real) i * dt;
       for (k = 1; k <= nm1; ++k) {
-        y[i - 1] += x[k - 1] * (real)sin((real) k * arg1);
+        y[i - 1] += x[k - 1] * (real)sin((double) k * arg1);
       }
       y[i - 1] += y[i - 1];
     }
@@ -2903,7 +2903,7 @@ int main(void)
       x[i - 1] = 0.;
       arg = dt * (real) i;
       for (k = 1; k <= n; ++k) {
-        x[i - 1] += y[k - 1] * (real)sin((real) (k + k - 1) * arg);
+        x[i - 1] += y[k - 1] * (real)sin((double) (k + k - 1) * arg);
       }
       x[i - 1] *= 4;
     }
@@ -2922,7 +2922,7 @@ int main(void)
       arg = (real) (i + i - 1) * dt;
       y[i - 1] = (real) pow(-1, i+1) * .5 * x[n - 1];
       for (k = 1; k <= nm1; ++k) {
-        y[i - 1] += x[k - 1] * (real)sin((real) k * arg);
+        y[i - 1] += x[k - 1] * (real)sin((double) k * arg);
       }
       y[i - 1] += y[i - 1];
     }

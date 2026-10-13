@@ -574,7 +574,6 @@ double bench_shift_limited_unroll_B_sse_inp(const int B, const int N, const bool
     *state = shift_limited_unroll_B_sse_init(-0.0009F, 0.0F);
 
     shift_recursive_osc_init(0.001F, 0.0F, &gen_conf, &gen_state);
-    //shift_recursive_osc_init(0.0F, 0.0F, &gen_conf, &gen_state);
     gen_recursive_osc_c(input, N, &gen_conf, &gen_state);
 
     double T = bench_core_shift_limited_unroll_B_sse_inplace(
@@ -802,7 +801,13 @@ int main(int argc, char **argv)
     if (1 < argc)
         B = atoi(argv[1]);
     if (2 < argc)
-        N = atoi(argv[2]) * 1024 * 1024;
+    {
+        // up to 1024 MSamples (8 GByte) keeps N and the buffer sizes in range
+        const int MSamples = atoi(argv[2]);
+        N = (0 < MSamples && MSamples <= 1024) ? MSamples * 1024 * 1024 : 0;
+    }
+    if (B < 0 || B > N)
+        B = 0;  // a block must fit in the buffer
 
     if ( !B || !N || showUsage )
     {

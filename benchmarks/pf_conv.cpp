@@ -5,6 +5,7 @@
 #include <assert.h>
 
 #include <algorithm>
+#include <type_traits>
 
 #if 0
 #include <stdio.h>
@@ -146,8 +147,8 @@ int ARCHFUNCNAME(conv_cplx_float_oop)(
         float accu_im = 0.0F;
         for (int k = 0; k < sz_filter; ++k)
         {
-            accu_re = s_cplx[offset+k].i * filter[k];   // accu += rS * rH;
-            accu_im = s_cplx[offset+k].q * filter[k];   // accu += rS * rH;
+            accu_re += s_cplx[offset+k].i * filter[k];
+            accu_im += s_cplx[offset+k].q * filter[k];
         }
         y_cplx[offset].i = accu_re;  // == hadd() == sum of real parts
         y_cplx[offset].q = accu_im;  // == hadd() == sum of imag parts
@@ -180,7 +181,7 @@ int ARCHFUNCNAME(conv_float_inplace)(
         {
             rS.load(&s[offset+k]);
             rH.load(&filter[k]);
-            accu = mipp::fmadd(rS, rH, accu);   // accu += rS * rH;
+            accu = mipp::fmadd(rS, rH, accu);
         }
         s[offset] = accu.sum();    // == hadd()
     }
@@ -210,7 +211,7 @@ int ARCHFUNCNAME(conv_float_oop)(
         {
             rS.loadu(&s[offset+k]);
             rH.load(&filter[k]);
-            accu = mipp::fmadd(rS, rH, accu);   // accu += rS * rH;
+            accu = mipp::fmadd(rS, rH, accu);
         }
         y[offset] = accu.sum();    // == hadd()
     }
@@ -246,8 +247,8 @@ int ARCHFUNCNAME(conv_cplx_float_oop)(
             rS_x2.loadu(&s[offset+2*k]);
             rH.load(&filter[k]);
             H_x2 = mipp::interleave<float>(rH, rH);
-            accu_x2.val[0] = mipp::fmadd(rS_x2.val[0], H_x2.val[0], accu_x2.val[0]);   // accu += rS * rH;
-            accu_x2.val[1] = mipp::fmadd(rS_x2.val[1], H_x2.val[1], accu_x2.val[1]);   // accu += rS * rH;
+            accu_x2.val[0] = mipp::fmadd(rS_x2.val[0], H_x2.val[0], accu_x2.val[0]);
+            accu_x2.val[1] = mipp::fmadd(rS_x2.val[1], H_x2.val[1], accu_x2.val[1]);
         }
         H_x2 = mipp::deinterleave(accu_x2);
         y[offset]   = H_x2.val[0].sum();  // == hadd() == sum of real parts
@@ -315,8 +316,6 @@ const conv_f_ptrs* ARCHFUNCNAME(conv_ptrs)()
     return nullptr;
 }
 
-#if defined(__cplusplus) && (__cplusplus >= 201703L)
-[[maybe_unused]]
-#endif
-static f_conv_ptrs test_f_ptrs = ARCHFUNCNAME(conv_ptrs);
+static_assert(std::is_same<decltype(&ARCHFUNCNAME(conv_ptrs)), f_conv_ptrs>::value,
+              "conv_ptrs must match f_conv_ptrs");
 

@@ -149,7 +149,6 @@ enum {
   TYPE_MFLOPS = 5,       /* MFlops/sec */
   TYPE_DUR_TOT = 6       /* test duration in sec */
 };
-/* double tmeas[NUM_TYPES][NUM_FFT_ALGOS]; */
 
 const char * algoName[NUM_FFT_ALGOS] = {
   "FFTPack      ",
@@ -310,7 +309,6 @@ int pffft_validate_N(int N, int cplx) {
   for (pass=0; pass < 2; ++pass) {
     float ref_max = 0;
     int k;
-    /* printf("N=%d pass=%d cplx=%d\n", N, pass, cplx); */
     /* compute reference solution with FFTPACK */
     if (pass == 0) {
       fftpack_real *wrk = malloc(2*Nbytes+15*sizeof(pffft_scalar));
@@ -344,16 +342,12 @@ int pffft_validate_N(int N, int cplx) {
       memcpy(tmp2, tmp, Nbytes);
       memcpy(tmp, in, Nbytes);
       PFFFT_FUNC(transform)(s, tmp, tmp, 0, PFFFT_FORWARD);
-      for (k = 0; k < Nfloat; ++k) {
-        assert(tmp2[k] == tmp[k]);
-      }
+      assert(memcmp(tmp2, tmp, Nbytes) == 0);
 
       /* test reordering */
       PFFFT_FUNC(zreorder)(s, tmp, out, PFFFT_FORWARD);
       PFFFT_FUNC(zreorder)(s, out, tmp, PFFFT_BACKWARD);
-      for (k = 0; k < Nfloat; ++k) {
-        assert(tmp2[k] == tmp[k]);
-      }
+      assert(memcmp(tmp2, tmp, Nbytes) == 0);
       PFFFT_FUNC(zreorder)(s, tmp, out, PFFFT_FORWARD);
     } else {
       /* pass 1 : canonical ordering of transform coeffs. */
@@ -361,9 +355,7 @@ int pffft_validate_N(int N, int cplx) {
       memcpy(tmp2, tmp, Nbytes);
       memcpy(tmp, in, Nbytes);
       PFFFT_FUNC(transform_ordered)(s, tmp, tmp, 0, PFFFT_FORWARD);
-      for (k = 0; k < Nfloat; ++k) {
-        assert(tmp2[k] == tmp[k]);
-      }
+      assert(memcmp(tmp2, tmp, Nbytes) == 0);
       memcpy(out, tmp, Nbytes);
     }
 
@@ -381,8 +373,8 @@ int pffft_validate_N(int N, int cplx) {
       memcpy(out, tmp, Nbytes);
       if (pass == 0) PFFFT_FUNC(transform)(s, out, out, 0, PFFFT_BACKWARD);
       else   PFFFT_FUNC(transform_ordered)(s, out, out, 0, PFFFT_BACKWARD);
+      assert(memcmp(tmp2, out, Nbytes) == 0);
       for (k = 0; k < Nfloat; ++k) {
-        assert(tmp2[k] == out[k]);
         out[k] *= 1.f/N;
       }
       for (k = 0; k < Nfloat; ++k) {
@@ -402,7 +394,7 @@ int pffft_validate_N(int N, int cplx) {
       PFFFT_FUNC(zreorder)(s, out, tmp2, PFFFT_FORWARD);
       
       for (k=0; k < Nfloat; k += 2) {
-        float ar = tmp[k], ai=tmp[k+1];
+        pffft_scalar ar = tmp[k], ai=tmp[k+1];
         if (cplx || k > 0) {
           tmp[k] = ar*ar - ai*ai;
           tmp[k+1] = 2*ar*ai;
@@ -533,7 +525,9 @@ double cal_benchmark(int N, int cplx) {
 void benchmark_ffts(int N, int cplx, int withFFTWfullMeas, double iterCal, double tmeas[NUM_TYPES][NUM_FFT_ALGOS], int haveAlgo[NUM_FFT_ALGOS], FILE *tableFile ) {
   const int log2N = Log2(N);
   int nextPow2N = PFFFT_FUNC(next_power_of_two)(N);
+#if (defined(HAVE_VECLIB) || defined(HAVE_GREEN_FFTS)) && defined(PFFFT_ENABLE_FLOAT)
   int log2NextN = Log2(nextPow2N);
+#endif
   int pffftPow2N = nextPow2N;
 
   int Nfloat = (cplx ? MAX(nextPow2N, pffftPow2N)*2 : MAX(nextPow2N, pffftPow2N));
@@ -550,7 +544,6 @@ void benchmark_ffts(int N, int cplx, int withFFTWfullMeas, double iterCal, doubl
 
   const float checkVal = 12345.0F;
 
-  /* printf("benchmark_ffts(N = %d, cplx = %d): Nfloat = %d, X_mem = 0x%p, X = %p\n", N, cplx, Nfloat, X_mem, X); */
 
   memset( X, 0, Nfloat * sizeof(pffft_scalar) );
   if ( Nfloat < 32 ) {
@@ -710,7 +703,6 @@ void benchmark_ffts(int N, int cplx, int withFFTWfullMeas, double iterCal, doubl
   X[Nmax] = checkVal;
   do {
     /* int flags = (N <= (256*1024) ? FFTW_MEASURE : FFTW_ESTIMATE);  measure takes a lot of time on largest ffts */
-    /* int flags = FFTW_MEASURE; */
 #if ( defined(__arm__) || defined(__aarch64__) || defined(__arm64__) )
     int limitFFTsize = 31;  /* takes over a second on Raspberry Pi 3 B+ -- and much much more on higher ffts sizes! */
 #else
@@ -1178,7 +1170,8 @@ int main(int argc, char **argv) {
   printf("pffft min complex fft: %d\n", PFFFT_FUNC(min_fft_size)(PFFFT_COMPLEX));
   printf("\n");
 
-  for ( i = 1; i < argc; ++i ) {
+  i = 1;
+  while ( i < argc ) {
     if (!strcmp(argv[i], "--array-format") || !strcmp(argv[i], "--table")) {
       array_output_format = 1;
     }
@@ -1222,6 +1215,7 @@ int main(int argc, char **argv) {
       printf("usage: %s [--array-format|--table] [--no-tab] [--real|--cplx] [--validate] [--fftw-full-measure] [--non-pow2] [--max-len <N>] [--quick]\n", argv[0]);
       exit(0);
     }
+    ++i;
   }
 
 #ifdef HAVE_FFTW
@@ -1255,9 +1249,6 @@ int main(int argc, char **argv) {
 
 
   clock();
-  /* double TClockDur = 1.0 / CLOCKS_PER_SEC;
-  printf("clock() duration for CLOCKS_PER_SEC = %f sec = %f ms\n", TClockDur, 1000.0 * TClockDur );
-  */
 
   /* calibrate test duration */
   if (!quicktest)
@@ -1337,7 +1328,6 @@ int main(int argc, char **argv) {
           benchmark_ffts(Nvalues[i], 1, withFFTWfullMeas, iterCalCplx, tmeas[1][i], haveAlgo, tableFile);
         t1 = uclock_sec();
         print_table("|\n", tableFile);
-        /* printf("all ffts for size %d took %f sec\n", Nvalues[i], t1-t0); */
         (void)t0;
         (void)t1;
       }

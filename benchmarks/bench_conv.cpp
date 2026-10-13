@@ -11,7 +11,6 @@
 
 #include "papi_perf_counter.h"
 
-//#if defined(HAVE_MIPP) && !defined(NO_MIPP)
 #if defined(HAVE_MIPP)
 #include <mipp.h>
 
@@ -106,7 +105,6 @@ int bench_oop(
     for (int off = 0; off + blockLen <= sz_signal; off += blockLen)
     {
         move_rest(buffer, &state);
-        //memcpy(buffer+state.size, &s[off], B * sizeof(s[0]));
         ::std::copy(&signal[off], &signal[off+blockLen], buffer+state.size);
         state.size += blockLen;
         int n_out = conv_oop(buffer, &state, filter, sz_filter, &y[n_out_sum]);
@@ -138,7 +136,6 @@ int bench_cx_real_oop(
     for (int off = 0; off + blockLen <= sz_signal; off += blockLen)
     {
         move_rest(buffer, &state);
-        //memcpy(buffer+state.size, &s[off], B * sizeof(s[0]));
         ::std::copy(&signal[off], &signal[off+blockLen], &buffer[state.size]);
         state.size += blockLen;
         int n_out = conv_oop(buffer, &state, filter, sz_filter, &y[n_out_sum]);
@@ -157,7 +154,8 @@ int main(int argc, char *argv[])
     int seed_sig = 1, seed_filter = 2;
     bool verbose = false, exitFromUsage = false, showUsage = (argc <= 1);
 
-    for (int i = 1; i < argc; ++i)
+    int i = 1;
+    while (i < argc)
     {
         if (i+1 < argc && !strcmp(argv[i], "-a"))
             arch = atoi(argv[++i]);
@@ -177,6 +175,7 @@ int main(int argc, char *argv[])
             showUsage = exitFromUsage = true;
         else
             fprintf(stderr, "warning: ignoring/skipping unknown option '%s'\n", argv[i]);
+        ++i;
     }
 
     int num_arch = 0;
@@ -218,14 +217,12 @@ int main(int argc, char *argv[])
     fprintf(stderr, "MIPP is NOT available!\n");
     #endif
 
-    //int float_simd_size[num_arch];
     int max_simd_size = -1;
     for (int a = 0; a < num_arch; ++a)
     {
         if (conv_arch_ptrs[a])
         {
             const int sz = conv_arch_ptrs[a]->fp_conv_float_simd_size();
-            //float_simd_size[a] = sz;
             if (max_simd_size < sz)
                 max_simd_size = sz;
             if (verbose)
@@ -234,7 +231,6 @@ int main(int argc, char *argv[])
         //else
         //    float_simd_size[a] = 0;
     }
-    //const int max_simd_size = *::std::max_element( &float_simd_size[0], &float_simd_size[num_arch] );
     if (verbose)
         fprintf(stderr, "max float simd size: %d\n", max_simd_size);
 

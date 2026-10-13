@@ -48,6 +48,11 @@ if (PFFFT_USE_TYPE_DOUBLE)
   target_compile_definitions(test_pffft_cpp PRIVATE PFFFT_ENABLE_DOUBLE)
 endif()
 target_link_libraries( test_pffft_cpp  PFFFT ${STDCXXLIB} ${ASANLIB} )
+if (EMSCRIPTEN)
+  # Fft<> keeps its scratch on the stack up to 4096 points (64 KiB for
+  # complex double): all of Emscripten's default stack.
+  target_link_options(test_pffft_cpp PRIVATE "-sSTACK_SIZE=1048576")
+endif()
 
 ######################################################
 
@@ -60,6 +65,11 @@ if (PFFFT_USE_TYPE_DOUBLE)
   target_compile_definitions(test_pffft_cpp_11 PRIVATE PFFFT_ENABLE_DOUBLE)
 endif()
 target_link_libraries( test_pffft_cpp_11  PFFFT ${STDCXXLIB} ${ASANLIB} )
+if (EMSCRIPTEN)
+  # Fft<> keeps its scratch on the stack up to 4096 points (64 KiB for
+  # complex double): all of Emscripten's default stack.
+  target_link_options(test_pffft_cpp_11 PRIVATE "-sSTACK_SIZE=1048576")
+endif()
 
 set_property(TARGET test_pffft_cpp_11 PROPERTY CXX_STANDARD 11)
 set_property(TARGET test_pffft_cpp_11 PROPERTY CXX_STANDARD_REQUIRED ON)

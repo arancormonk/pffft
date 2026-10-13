@@ -43,14 +43,14 @@ int main(void) {
 #endif
 #ifdef PFFFT_ENABLE_DOUBLE
       {
-        PFFFTD_Setup *s;
+        PFFFTD_Setup *sd;
         calls = 0; fail_at = point;
-        s = pffftd_new_setup(n, PFFFT_REAL);
-        assert(!s && calls == point && live == 0);
+        sd = pffftd_new_setup(n, PFFFT_REAL);
+        assert(!sd && calls == point && live == 0);
         calls = 0; fail_at = 0;
-        s = pffftd_new_setup(n, PFFFT_REAL);
-        assert(s && calls == 2);
-        pffftd_destroy_setup(s);
+        sd = pffftd_new_setup(n, PFFFT_REAL);
+        assert(sd && calls == 2);
+        pffftd_destroy_setup(sd);
         assert(live == 0);
       }
 #endif

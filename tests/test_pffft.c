@@ -207,11 +207,11 @@ int test(int N, int cplx, int useOrdered) {
       for ( j = 0; j < ( cplx ? N : (1 + N/2) ); ++j )
       {
         if (!cplx && !j)  /* special treatment for DC for real input */
-          pwr = Y[j]*Y[j];
+          pwr = (double)Y[j] * Y[j];
         else if (!cplx && j == N/2)  /* treat 0.5 * samplerate */
-          pwr = Y[1] * Y[1];  /* despite j (for freq calculation) we have index 1 */
+          pwr = (double)Y[1] * Y[1];  /* despite j (for freq calculation) we have index 1 */
         else
-          pwr = Y[2*j] * Y[2*j] + Y[2*j+1] * Y[2*j+1];
+          pwr = (double)Y[2*j] * Y[2*j] + (double)Y[2*j+1] * Y[2*j+1];
         if (iter || PRINT_SPEC)
           printf("%s fft %d:  pwr[j = %d] = %g == %f dB\n", (cplx ? "cplx":"real"), N, j, pwr, PWR2LOG(pwr) );
         if (k == j)
@@ -285,7 +285,7 @@ int test(int N, int cplx, int useOrdered) {
         /* scale back */
         Z[j] /= N;
         /* square sum errors over real (and imag parts) */
-        err = (X[j]-Z[j]) * (X[j]-Z[j]);
+        err = (double)(X[j]-Z[j]) * (X[j]-Z[j]);
         errSum += err;
       }
 
@@ -650,8 +650,8 @@ static int test_zerophase(int N)
     }
     for ( j = 0; j < N; ++j ) {
       /* identical operations in identical order: any difference is a
-         real defect, so exact comparison */
-      if ( CRef[j] != HZP[j] ) {
+         real defect, so compare the bits exactly */
+      if ( memcmp(&CRef[j], &HZP[j], sizeof(CRef[j])) != 0 ) {
         printf("zero-phase fft %d: in-place zconvert_zp differs from out-of-place at float %d : %g vs %g\n",
                N, j, (double)CRef[j], (double)HZP[j]);
         retError = 1;

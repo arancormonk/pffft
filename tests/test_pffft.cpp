@@ -148,12 +148,12 @@ Ttest(int N, bool useOrdered)
       /* and also for negative frequencies: -0.5 * samplerate to 0 */
       for (j = 0; j < (cplx ? N : (1 + N / 2)); ++j) {
         if (!cplx && !j) /* special treatment for DC for real input */
-          pwr = Ys[j] * Ys[j];
+          pwr = double(Ys[j]) * Ys[j];
         else if (!cplx && j == N / 2) /* treat 0.5 * samplerate */
-          pwr = Ys[1] *
+          pwr = double(Ys[1]) *
                 Ys[1]; /* despite j (for freq calculation) we have index 1 */
         else
-          pwr = Ys[2 * j] * Ys[2 * j] + Ys[2 * j + 1] * Ys[2 * j + 1];
+          pwr = double(Ys[2 * j]) * Ys[2 * j] + double(Ys[2 * j + 1]) * Ys[2 * j + 1];
         if (iter || PRINT_SPEC)
           printf("%s fft %d:  pwr[j = %d] = %g == %f dB\n",
                  (cplx ? "cplx" : "real"),
@@ -230,7 +230,7 @@ Ttest(int N, bool useOrdered)
         /* scale back */
         Zs[j] /= N;
         /* square sum errors over real (and imag parts) */
-        err = (Xs[j] - Zs[j]) * (Xs[j] - Zs[j]);
+        err = double(Xs[j] - Zs[j]) * (Xs[j] - Zs[j]);
         errSum += err;
       }
 

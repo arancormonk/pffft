@@ -1,0 +1,25 @@
+name: "PFFFT CodeQL config"
+
+queries:
+  - uses: security-and-quality
+
+# Keep quality coverage enabled, but do not publish repo-specific noise as
+# alerts. cpp/unused-static-function reports fftpack.c's radix kernels as
+# unreachable even though its extern wrappers (cfftf, rfftf, ...) call them.
+# cpp/world-writable-file-creation assumes umask 0 for every fopen(); only the
+# benchmarks write files, and fopen() honours the process umask.
+query-filters:
+  - exclude:
+      id: cpp/poorly-documented-function
+  - exclude:
+      id: cpp/unused-static-function
+  - exclude:
+      id: cpp/world-writable-file-creation
+
+# Keep benchmark-only submodules and vendored upstream headers out of
+# project-owned CodeQL results.
+paths-ignore:
+  - "greenffts/**"
+  - "kissfft/**"
+  - "pocketfft/**"
+  - "src/sse2neon.h"

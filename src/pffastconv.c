@@ -34,7 +34,7 @@ void pffastconv_free(void *p)
   pffft_aligned_free(p);
 }
 
-int pffastconv_simd_size()
+int pffastconv_simd_size(void)
 {
   return pffft_simd_size();
 }

@@ -69,17 +69,14 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #ifndef PFFFT_SIMD_DISABLE
 #if (defined(__x86_64__) || defined(_M_X64) || defined(i386) || defined(_M_IX86))
-  #pragma message("Manual SSE x86/x64 optimizations are ON")
   #include <xmmintrin.h>
   #define HAVE_SSE_INTRINSICS 1
   
 #elif defined(PFFFT_ENABLE_NEON) && defined(__arm__)
-  #pragma message "Manual NEON (arm32) optimizations are ON"
   #include "sse2neon.h"
   #define HAVE_SSE_INTRINSICS 1
   
 #elif defined(PFFFT_ENABLE_NEON) && defined(__aarch64__)
-  #pragma message "Manual NEON (aarch64) optimizations are ON"
   #include "sse2neon.h"
   #define HAVE_SSE_INTRINSICS 1
 
@@ -878,29 +875,26 @@ void shift_limited_unroll_C_sse_inp_c(complexf* in_out, int N_cplx, shift_limite
 
 /*********************************************************************/
 
-shift_limited_unroll_A_sse_data_t shift_limited_unroll_A_sse_init(float relative_freq, float phase_start_rad) {
+shift_limited_unroll_A_sse_data_t shift_limited_unroll_A_sse_init(float, float) {
     assert(0);
-    shift_limited_unroll_A_sse_data_t r;
-    return r;
+    return shift_limited_unroll_A_sse_data_t();
 }
-shift_limited_unroll_B_sse_data_t shift_limited_unroll_B_sse_init(float relative_freq, float phase_start_rad) {
+shift_limited_unroll_B_sse_data_t shift_limited_unroll_B_sse_init(float, float) {
     assert(0);
-    shift_limited_unroll_B_sse_data_t r;
-    return r;
+    return shift_limited_unroll_B_sse_data_t();
 }
-shift_limited_unroll_C_sse_data_t shift_limited_unroll_C_sse_init(float relative_freq, float phase_start_rad) {
+shift_limited_unroll_C_sse_data_t shift_limited_unroll_C_sse_init(float, float) {
     assert(0);
-    shift_limited_unroll_C_sse_data_t r;
-    return r;
+    return shift_limited_unroll_C_sse_data_t();
 }
 
-void shift_limited_unroll_A_sse_inp_c(complexf* in_out, int N_cplx, shift_limited_unroll_A_sse_data_t* d) {
+void shift_limited_unroll_A_sse_inp_c(complexf*, int, shift_limited_unroll_A_sse_data_t*) {
     assert(0);
 }
-void shift_limited_unroll_B_sse_inp_c(complexf* in_out, int N_cplx, shift_limited_unroll_B_sse_data_t* d) {
+void shift_limited_unroll_B_sse_inp_c(complexf*, int, shift_limited_unroll_B_sse_data_t*) {
     assert(0);
 }
-void shift_limited_unroll_C_sse_inp_c(complexf* in_out, int N_cplx, shift_limited_unroll_C_sse_data_t* d) {
+void shift_limited_unroll_C_sse_inp_c(complexf*, int, shift_limited_unroll_C_sse_data_t*) {
     assert(0);
 }
 
@@ -1115,13 +1109,10 @@ void shift_recursive_osc_sse_inp_c(complexf* in_out,
 
     while (N_cplx)
     {
-        //inp_i[j] = in_out[PF_SHIFT_RECURSIVE_SIMD_SSE_SZ*i+j].i;
-        //inp_q[j] = in_out[PF_SHIFT_RECURSIVE_SIMD_SSE_SZ*i+j].q;
         UNINTERLEAVE2(VLOAD(u), VLOAD(u+1), inp_re, inp_im);  /* inp_re = all reals; inp_im = all imags */
 
-        //we multiply two complex numbers - similar to shift_math_cc
-        //iof(in_out,PF_SHIFT_RECURSIVE_SIMD_SSE_SZ*i+j) = state.u_cos[j] * inp_i[j] - state.v_sin[j] * inp_q[j];
-        //qof(in_out,PF_SHIFT_RECURSIVE_SIMD_SSE_SZ*i+j) = state.v_sin[j] * inp_i[j] + state.u_cos[j] * inp_q[j];
+        // we multiply two complex numbers - similar to shift_math_cc:
+        // re = u_cos * inp_re - v_sin * inp_im, im = v_sin * inp_re + u_cos * inp_im
         product_re = VMSUB( inp_im, v_sin, VMUL(inp_re, u_cos) );
         product_im = VMADD( inp_im, u_cos, VMUL(inp_re, v_sin) );
         INTERLEAVE2( product_re, product_im, interl_prod_a, interl_prod_b);
@@ -1129,12 +1120,10 @@ void shift_recursive_osc_sse_inp_c(complexf* in_out,
         VSTORE(u+1, interl_prod_b);
         u += 2;
 
-        // update complex phasor - like incrementing phase
-        // tmp[j] = state.u_cos[j] - k1 * state.v_sin[j];
+        // update complex phasor - like incrementing phase:
+        // tmp = u_cos - k1 * v_sin, then v_sin += k2 * tmp, then u_cos = tmp - k1 * v_sin
         product_re = VMSUB( k1, v_sin, u_cos );
-        // state.v_sin[j] += k2 * tmp[j];
         v_sin = VMADD( k2, product_re, v_sin );
-        // state.u_cos[j] = tmp[j] - k1 * state.v_sin[j];
         u_cos = VMSUB( k1, v_sin, product_re );
 
         N_cplx -= 4;
@@ -1145,19 +1134,19 @@ void shift_recursive_osc_sse_inp_c(complexf* in_out,
 
 #else
 
-void shift_recursive_osc_sse_update_rate(float rate, shift_recursive_osc_sse_conf_t *conf, shift_recursive_osc_sse_t* state)
+void shift_recursive_osc_sse_update_rate(float, shift_recursive_osc_sse_conf_t *, shift_recursive_osc_sse_t *)
 {
     assert(0);
 }
 
-void shift_recursive_osc_sse_init(float rate, float starting_phase, shift_recursive_osc_sse_conf_t *conf, shift_recursive_osc_sse_t *state)
+void shift_recursive_osc_sse_init(float, float, shift_recursive_osc_sse_conf_t *, shift_recursive_osc_sse_t *)
 {
     assert(0);
 }
 
 
-void shift_recursive_osc_sse_inp_c(complexf* in_out,
-    int N_cplx, const shift_recursive_osc_sse_conf_t *conf, shift_recursive_osc_sse_t* state_ext)
+void shift_recursive_osc_sse_inp_c(complexf*,
+    int, const shift_recursive_osc_sse_conf_t *, shift_recursive_osc_sse_t*)
 {
     assert(0);
 }

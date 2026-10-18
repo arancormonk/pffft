@@ -175,7 +175,8 @@ endif()
 ######################################################
 
 add_library(PFFFT ${FLOAT_SOURCES} ${DOUBLE_SOURCES} src/pffft_common.c
-  src/pffft_priv_impl.h src/pffft_cplx_impl.h include/pffft/pffft.hpp)
+  src/pffft_priv_impl.h src/pffft_cplx_impl.h src/pffft_real_impl.h
+  include/pffft/pffft.hpp)
 add_library(PFFFT::PFFFT ALIAS PFFFT)
 set_target_properties(PFFFT PROPERTIES OUTPUT_NAME "pffft")
 target_compile_definitions(PFFFT PRIVATE _USE_MATH_DEFINES)

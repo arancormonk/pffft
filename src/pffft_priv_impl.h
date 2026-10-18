@@ -1547,50 +1547,6 @@ static ALWAYS_INLINE(void) FUNC_REAL_FINALIZE_4X4(const v4sf *in0, const v4sf *i
 
 }
 
-static NEVER_INLINE(void) FUNC_REAL_FINALIZE(int Ncvec, const v4sf *in, v4sf *out, const v4sf *e) {
-  int k, dk = Ncvec/SIMD_SZ; /* number of 4x4 matrix blocks */
-  /* fftpack order is f0r f1r f1i f2r f2i ... f(n-1)r f(n-1)i f(n)r */
-
-  v4sf_union cr, ci, *uout = (v4sf_union*)out;
-  v4sf save = in[7], zero=VZERO();
-  float xr0, xi0, xr1, xi1, xr2, xi2, xr3, xi3;
-  static const float s = (float)(M_SQRT1_2);
-
-  cr.v = in[0]; ci.v = in[Ncvec*2-1];
-  assert(in != out);
-  FUNC_REAL_FINALIZE_4X4(&zero, &zero, in+1, e, out);
-
-  /*
-    [cr0 cr1 cr2 cr3 ci0 ci1 ci2 ci3]
-
-    [Xr(1)]  ] [1   1   1   1   0   0   0   0]
-    [Xr(N/4) ] [0   0   0   0   1   s   0  -s]
-    [Xr(N/2) ] [1   0  -1   0   0   0   0   0]
-    [Xr(3N/4)] [0   0   0   0   1  -s   0   s]
-    [Xi(1)   ] [1  -1   1  -1   0   0   0   0]
-    [Xi(N/4) ] [0   0   0   0   0  -s  -1  -s]
-    [Xi(N/2) ] [0  -1   0   1   0   0   0   0]
-    [Xi(3N/4)] [0   0   0   0   0  -s   1  -s]
-  */
-
-  xr0=(cr.f[0]+cr.f[2]) + (cr.f[1]+cr.f[3]); uout[0].f[0] = xr0;
-  xi0=(cr.f[0]+cr.f[2]) - (cr.f[1]+cr.f[3]); uout[1].f[0] = xi0;
-  xr2=(cr.f[0]-cr.f[2]);                     uout[4].f[0] = xr2;
-  xi2=(cr.f[3]-cr.f[1]);                     uout[5].f[0] = xi2;
-  xr1= ci.f[0] + s*(ci.f[1]-ci.f[3]);        uout[2].f[0] = xr1;
-  xi1=-ci.f[2] - s*(ci.f[1]+ci.f[3]);        uout[3].f[0] = xi1;
-  xr3= ci.f[0] - s*(ci.f[1]-ci.f[3]);        uout[6].f[0] = xr3;
-  xi3= ci.f[2] - s*(ci.f[1]+ci.f[3]);        uout[7].f[0] = xi3;
-
-  for (k=1; k < dk; ++k) {
-    v4sf save_next = in[8*k+7];
-    FUNC_REAL_FINALIZE_4X4(&save, &in[8*k+0], in + 8*k+1,
-                           e + k*6, out + k*8);
-    save = save_next;
-  }
-
-}
-
 static ALWAYS_INLINE(void) FUNC_REAL_PREPROCESS_4X4(const v4sf *in,
                                              const v4sf *e, v4sf *out, int first) {
   v4sf r0=in[0], i0=in[1], r1=in[2], i1=in[3], r2=in[4], i2=in[5], r3=in[6], i3=in[7];
@@ -1640,46 +1596,59 @@ static ALWAYS_INLINE(void) FUNC_REAL_PREPROCESS_4X4(const v4sf *in,
   *out++ = i3;
 }
 
-static NEVER_INLINE(void) FUNC_REAL_PREPROCESS(int Ncvec, const v4sf *in, v4sf *out, const v4sf *e) {
-  int k, dk = Ncvec/SIMD_SZ; /* number of 4x4 matrix blocks */
-  /* fftpack order is f0r f1r f1i f2r f2i ... f(n-1)r f(n-1)i f(n)r */
-
-  v4sf_union Xr, Xi, *uout = (v4sf_union*)out;
-  float cr0, ci0, cr1, ci1, cr2, ci2, cr3, ci3;
-  static const float s = (float)M_SQRT2;
-  assert(in != out);
-  for (k=0; k < 4; ++k) {
-    Xr.f[k] = ((float*)in)[8*k];
-    Xi.f[k] = ((float*)in)[8*k+4];
+/* The second and fourth frequency quarters are reversed and rotated by one
+   complex bin. Carry the previous block's high pair to keep every vector
+   store aligned. Each quarter's first vector is completed after the last block. */
+static ALWAYS_INLINE(void) pffft_real_store_reverse(v4sf re, v4sf im,
+                                     v4sf *out, int dk, int k, v4sf *previous) {
+  v4sf a, b;
+  INTERLEAVE2(re, im, a, b);
+  if (k != 0) {
+    out[2*dk-2*k] = VSWAPHL(*previous, a);
   }
-
-  FUNC_REAL_PREPROCESS_4X4(in, e, out+1, 1); /* will write only 6 values */
-
-  /*
-    [Xr0 Xr1 Xr2 Xr3 Xi0 Xi1 Xi2 Xi3]
-
-    [cr0] [1   0   2   0   1   0   0   0]
-    [cr1] [1   0   0   0  -1   0  -2   0]
-    [cr2] [1   0  -2   0   1   0   0   0]
-    [cr3] [1   0   0   0  -1   0   2   0]
-    [ci0] [0   2   0   2   0   0   0   0]
-    [ci1] [0   s   0  -s   0  -s   0  -s]
-    [ci2] [0   0   0   0   0  -2   0   2]
-    [ci3] [0  -s   0   s   0  -s   0  -s]
-  */
-  for (k=1; k < dk; ++k) {
-    FUNC_REAL_PREPROCESS_4X4(in+8*k, e + k*6, out-1+k*8, 0);
-  }
-
-  cr0=(Xr.f[0]+Xi.f[0]) + 2*Xr.f[2]; uout[0].f[0] = cr0;
-  cr1=(Xr.f[0]-Xi.f[0]) - 2*Xi.f[2]; uout[0].f[1] = cr1;
-  cr2=(Xr.f[0]+Xi.f[0]) - 2*Xr.f[2]; uout[0].f[2] = cr2;
-  cr3=(Xr.f[0]-Xi.f[0]) + 2*Xi.f[2]; uout[0].f[3] = cr3;
-  ci0= 2*(Xr.f[1]+Xr.f[3]);                       uout[2*Ncvec-1].f[0] = ci0;
-  ci1= s*(Xr.f[1]-Xr.f[3]) - s*(Xi.f[1]+Xi.f[3]); uout[2*Ncvec-1].f[1] = ci1;
-  ci2= 2*(Xi.f[3]-Xi.f[1]);                       uout[2*Ncvec-1].f[2] = ci2;
-  ci3=-s*(Xr.f[1]-Xr.f[3]) - s*(Xi.f[1]+Xi.f[3]); uout[2*Ncvec-1].f[3] = ci3;
+  out[2*dk-2*k-1] = VSWAPHL(a, b);
+  *previous = b;
 }
+
+static ALWAYS_INLINE(void) pffft_real_store_ordered(const v4sf *block, v4sf *out,
+                               int dk, int k, v4sf *previous1, v4sf *previous3) {
+  INTERLEAVE2(block[0], block[1], out[2*k], out[2*k+1]);
+  INTERLEAVE2(block[4], block[5], out[4*dk+2*k], out[4*dk+2*k+1]);
+  pffft_real_store_reverse(block[2], block[3], out + 2*dk, dk, k, previous1);
+  pffft_real_store_reverse(block[6], block[7], out + 6*dk, dk, k, previous3);
+}
+
+static ALWAYS_INLINE(void) pffft_real_load_ordered(const v4sf *in, v4sf *block,
+                                                   int dk, int k) {
+  const int j1 = 4*dk - 2*k, j3 = 8*dk - 2*k;
+  v4sf a, b;
+  UNINTERLEAVE2(in[2*k], in[2*k+1], block[0], block[1]);
+  UNINTERLEAVE2(in[4*dk+2*k], in[4*dk+2*k+1], block[4], block[5]);
+  /* Three aligned loads cover each reversed block. At k=0 the highest
+     pair wraps to the quarter's first vector, never beyond the buffer. */
+  a = VSWAPHL(in[j1-1], in[k ? j1 : 2*dk]);
+  b = VSWAPHL(in[j1-2], in[j1-1]);
+  UNINTERLEAVE2(a, b, block[2], block[3]);
+  a = VSWAPHL(in[j3-1], in[k ? j3 : 6*dk]);
+  b = VSWAPHL(in[j3-2], in[j3-1]);
+  UNINTERLEAVE2(a, b, block[6], block[7]);
+}
+
+#define PFFFT_REAL_ORDERED 0
+#define PFFFT_REAL_FINALIZE FUNC_REAL_FINALIZE
+#define PFFFT_REAL_PREPROCESS FUNC_REAL_PREPROCESS
+#include "pffft_real_impl.h"
+#undef PFFFT_REAL_ORDERED
+#undef PFFFT_REAL_FINALIZE
+#undef PFFFT_REAL_PREPROCESS
+
+#define PFFFT_REAL_ORDERED 1
+#define PFFFT_REAL_FINALIZE pffft_real_finalize_ordered
+#define PFFFT_REAL_PREPROCESS pffft_real_preprocess_ordered
+#include "pffft_real_impl.h"
+#undef PFFFT_REAL_ORDERED
+#undef PFFFT_REAL_FINALIZE
+#undef PFFFT_REAL_PREPROCESS
 
 
 void FUNC_TRANSFORM_INTERNAL(const SETUP_STRUCT *setup, const float *finput, float *foutput, v4sf *scratch,
@@ -1732,9 +1701,12 @@ void FUNC_TRANSFORM_INTERNAL(const SETUP_STRUCT *setup, const float *finput, flo
       FUNC_CPLX_PREPROCESS(Ncvec, vinput, buff[ib], (v4sf*)setup->e);
       ib = (cfftf1_ps(Ncvec, buff[ib], buff[0], buff[1],
                       setup->twiddle, &setup->ifac[0], +1) == buff[0] ? 0 : 1);
+      /* Interleave directly into the caller's buffer, including when the
+         last FFT pass landed in scratch during an in-place transform. */
       for (k=0; k < Ncvec; ++k) {
-        INTERLEAVE2(buff[ib][k*2], buff[ib][k*2+1], buff[ib][k*2], buff[ib][k*2+1]);
+        INTERLEAVE2(buff[ib][k*2], buff[ib][k*2+1], voutput[k*2], voutput[k*2+1]);
       }
+      ib = 0;
     }
   }
 
@@ -1746,6 +1718,36 @@ void FUNC_TRANSFORM_INTERNAL(const SETUP_STRUCT *setup, const float *finput, flo
       voutput[2*k] = a; voutput[2*k+1] = b;
     }
     ib = !ib;
+  }
+  assert(buff[ib] == voutput);
+}
+
+/* One layout pass is enough for ordered real transforms. The caller keeps
+   in-place transforms with even pass counts on the two-pass path, where
+   the reorder does useful buffer switching instead of adding a final copy. */
+static NEVER_INLINE(void) pffft_transform_real_ordered(const SETUP_STRUCT *setup,
+                                          const float *input, float *output,
+                                          v4sf *scratch, pffft_direction_t direction) {
+  int Ncvec = setup->Ncvec;
+  int ib = setup->ifac[1] & 1;
+  int stack_allocate = scratch ? 1 : Ncvec*2;
+  VLA_ARRAY_ON_STACK(v4sf, scratch_on_stack, stack_allocate);
+  const v4sf *vinput = (const v4sf*)input;
+  v4sf *voutput = (v4sf*)output;
+  v4sf *buff[2] = { voutput, scratch ? scratch : scratch_on_stack };
+
+  assert(VALIGNED(input) && VALIGNED(output));
+  if (direction == PFFFT_FORWARD) {
+    ib = !ib;
+    ib = (rfftf1_ps(Ncvec*2, vinput, buff[ib], buff[!ib],
+                    setup->twiddle, setup->ifac) == buff[0] ? 0 : 1);
+    pffft_real_finalize_ordered(Ncvec, buff[ib], buff[!ib], (v4sf*)setup->e);
+    ib = !ib;
+  } else {
+    if (vinput == buff[ib]) ib = !ib;
+    pffft_real_preprocess_ordered(Ncvec, vinput, buff[ib], (v4sf*)setup->e);
+    ib = (rfftb1_ps(Ncvec*2, buff[ib], buff[0], buff[1],
+                    setup->twiddle, setup->ifac) == buff[0] ? 0 : 1);
   }
   assert(buff[ib] == voutput);
 }
@@ -1781,8 +1783,9 @@ static NEVER_INLINE(void) pffft_transform_complex_ordered(const SETUP_STRUCT *se
     ib = (cfftf1_ps(Ncvec, buff[ib], buff[0], buff[1],
                     setup->twiddle, setup->ifac, +1) == buff[0] ? 0 : 1);
     for (k=0; k < Ncvec; ++k) {
-      INTERLEAVE2(buff[ib][k*2], buff[ib][k*2+1], buff[ib][k*2], buff[ib][k*2+1]);
+      INTERLEAVE2(buff[ib][k*2], buff[ib][k*2+1], voutput[k*2], voutput[k*2+1]);
     }
+    ib = 0;
   }
   if (buff[ib] != voutput) {
     assert(input == output);
@@ -2212,10 +2215,14 @@ void FUNC_TRANSFORM_ORDERED(const SETUP_STRUCT *setup, const float *input, float
 #if SIMD_SZ == 4
   if (setup->transform == PFFFT_COMPLEX) {
     pffft_transform_complex_ordered(setup, input, output, (v4sf*)work, direction);
-    return;
+  } else if (input == output && !(setup->ifac[1] & 1)) {
+    FUNC_TRANSFORM_INTERNAL(setup, input, output, (v4sf*)work, direction, 1);
+  } else {
+    pffft_transform_real_ordered(setup, input, output, (v4sf*)work, direction);
   }
-#endif
+#else
   FUNC_TRANSFORM_INTERNAL(setup, input, output, (v4sf*)work, direction, 1);
+#endif
 }
 
 

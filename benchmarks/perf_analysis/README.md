@@ -409,3 +409,101 @@ At N=256 the production eight-lane mixer takes 0.4209 ns/sample with GCC baselin
 0.3631 with Clang native (0.3932, **1.08×**). Larger production mixer timing cases
 were deferred when unrelated workloads saturated the host; the original
 prototype's larger-block results above are not relabelled as production data.
+
+## Follow-up implementation
+
+The table-driven mixer now computes the phasor for sample `i` from table entry
+`i-1` in the same iteration. Handling sample zero separately removes the loop
+dependency. The existing mixer SIMD macros process four samples at a time,
+with a scalar fallback and tail. This avoids the inefficient interleaved
+vector arithmetic that GCC generated for the baseline ISA. A shared helper
+also preserves both components before writing, so `shift_unroll_cc`
+supports identical input/output buffers. Table construction, phase advancement,
+public signatures, and arbitrary sample counts are preserved.
+
+Complex inverse transforms now interleave directly into the output buffer.
+When the last FFT pass finishes in scratch, this combines the interleave with
+the copy previously needed for in-place transforms. Sizes whose last pass
+already finished in output retain the same interleave operation.
+
+Ordered real transforms now fuse reordering into finalization/preprocessing.
+Both layouts share the butterfly and DC/Nyquist arithmetic. The forward helper
+carries the reversed quarters' boundary pairs between blocks, keeping its bulk
+stores aligned; the inverse helper gathers the ordered data directly. In-place
+transforms with an even FFT pass count retain the existing reorder path:
+fusion would require a separate copy in those cases. The scalar-one
+implementation also retains its existing layout handling.
+
+The new table-mixer test covers 399 combinations of sizes, rates, and phases,
+including unaligned buffers, vector tails, exact aliasing, canaries, zero-length
+calls, and block continuity. The existing float/double FFT accuracy suites
+check both directions against independent long-double references, require
+bitwise ordered/unordered equivalence, and exercise in-place buffers and null
+scratch. Local GCC baseline/native/Haswell/unfused, Clang native, and both scalar
+builds passed 25/25 tests each; Debug AddressSanitizer passed 23/23.
+
+The analysis drivers now accept `inplace-forward`, `inplace-backward`,
+`inplace-ordered-forward`, and `inplace-ordered-backward` for FFTs, and
+`table-inplace` and `table-out` for mixers. In-place FFT timing uses repeated
+zero input to prevent overflow from repeated unnormalized transforms; random
+data correctness checks run before timing. Mixer timing rotates 32 blocks at
+rate -0.0009 cycles/sample; table creation is outside the timed region.
+
+To compare these changes with `c21f0ba`, build that revision in an isolated
+source tree and run the current drivers against both libraries:
+
+```sh
+python3 benchmarks/perf_analysis/run_matrix.py \
+  --build before=build_before --build after=build_after \
+  --output build_followup_real.csv --cpu 14 --interleave --max-busy-cpus 2.5 \
+  --repeats 5 --seconds 0.04 --kinds real \
+  --ops ordered-forward ordered-backward inplace-ordered-forward inplace-ordered-backward \
+  --sizes 32 64 256 1024 1536 4096 5120 16384
+
+c++ -O3 -std=c++11 -DPFDSP_STATIC_DEFINE -Iinclude \
+  benchmarks/perf_analysis/bench_mixer.cpp build_after/libpfdsp.a \
+  -lm -o build_after/bench_table
+taskset -c 14 build_after/bench_table table-inplace 4096 7 0.08
+```
+
+The [follow-up results](results/followup-summary.csv) compare against `c21f0ba`
+on a Ryzen 9 5950X. They include 1040 FFT samples, 168 mixer samples, and 18
+additional control samples. The [metadata](results/followup-environment.json)
+records source/library hashes, compiler commands, and measurement conditions;
+the [validation log](results/followup-validation.log) records the local checks.
+Each comparison uses randomized before/after processes pinned to CPU 14,
+rejecting samples when aggregate host load exceeds 2.5 busy CPUs. Raw samples
+are retained in the accompanying compressed CSV files.
+
+Representative GCC native FFT medians (ns per call):
+
+| Transform | Before | After | Speedup |
+| --- | ---: | ---: | ---: |
+| Float complex in-place backward, N=1024 | 1158.0 | 1037.6 | 1.12× |
+| Double complex in-place backward, N=1024 | 1375.2 | 1283.3 | 1.07× |
+| Float real in-place ordered forward, N=4096 | 2632.1 | 2321.4 | 1.13× |
+| Float real in-place ordered backward, N=4096 | 2696.1 | 2318.6 | 1.16× |
+| Double real in-place ordered forward, N=4096 | 4322.8 | 3707.1 | 1.17× |
+| Double real in-place ordered backward, N=4096 | 4344.6 | 3694.0 | 1.18× |
+
+Table-mixer medians at N=4096 (ns per complex sample):
+
+| Configuration and mode | Before | After | Speedup |
+| --- | ---: | ---: | ---: |
+| GCC baseline, in-place | 0.8710 | 0.3707 | 2.35× |
+| GCC baseline, out-of-place | 0.9589 | 0.3628 | 2.64× |
+| GCC native, in-place | 0.8656 | 0.3165 | 2.74× |
+| GCC native, out-of-place | 0.8684 | 0.3194 | 2.72× |
+| Clang native, in-place | 0.8680 | 0.3262 | 2.66× |
+| Clang native, out-of-place | 0.8662 | 0.3252 | 2.66× |
+
+At N=256 the table-mixer speedups range from 2.21× to 2.53×. FFT gains vary
+with size and buffer layout. Two measured real-transform regressions remain:
+double in-place ordered backward at N=32 increases from 33.4 to 36.7 ns
+(9.9%), and double out-of-place ordered forward at N=1024 increases from
+522.2 to 543.1 ns (4.0%). The full results retain these cases. An initially
+noisy unordered double inverse control at N=1024 was repeated with nine
+longer samples per build; its medians were 480.0 and 480.6 ns. Both sets of
+control samples are retained. These timings describe this host; ARM64 under
+QEMU passed the mixer tests and float/double FFT accuracy checks through
+N=1024, but provides correctness evidence only.

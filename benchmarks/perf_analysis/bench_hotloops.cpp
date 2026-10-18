@@ -98,7 +98,9 @@ int main(int argc, char **argv) {
   if (argc != 6) {
     std::fprintf(stderr, "usage: %s real|complex OP N REPEATS SECONDS\n"
                  "OP: forward backward ordered-forward ordered-backward reorder "
-                 "zconv zconv-scale zconv-acc zp pipeline fastconv fastconv-single\n", argv[0]);
+                 "inplace-forward inplace-backward inplace-ordered-forward "
+                 "inplace-ordered-backward zconv zconv-scale zconv-acc zp "
+                 "pipeline fastconv fastconv-single\n", argv[0]);
     return 2;
   }
   try {
@@ -155,12 +157,35 @@ int main(int argc, char **argv) {
     check_equal(output.data, ordered.data, count, 1.0);
     PF(transform_ordered)(setup, ordered.data, output.data, work.data, PFFFT_BACKWARD);
     check_equal(output.data, input.data, count, 1.0 / n);
+    std::memcpy(output.data, input.data, count * sizeof(scalar));
+    PF(transform)(setup, output.data, output.data, work.data, PFFFT_FORWARD);
+    check_equal(output.data, spectrum.data, count, 1.0);
+    PF(transform)(setup, output.data, output.data, work.data, PFFFT_BACKWARD);
+    check_equal(output.data, input.data, count, 1.0 / n);
+    std::memcpy(output.data, input.data, count * sizeof(scalar));
+    PF(transform_ordered)(setup, output.data, output.data, work.data, PFFFT_FORWARD);
+    check_equal(output.data, ordered.data, count, 1.0);
+    PF(transform_ordered)(setup, output.data, output.data, work.data, PFFFT_BACKWARD);
+    check_equal(output.data, input.data, count, 1.0 / n);
     for (int i = 0; i < count; ++i) filter.data[i] = spectrum.data[i] / n;
     if (op == "zp" && (complex || PF(zconvert_zp)(setup, spectrum.data, filter.data, 1) != 0))
       throw std::runtime_error("zero phase requires real FFT");
 
+    /* Repeated unnormalized in-place transforms would overflow random input.
+       Validate with random data above, then time zero input (including warmup)
+       without adding a reset/copy to the measured transform. */
+    if (op.find("inplace-") == 0) std::memset(output.data, 0, count * sizeof(scalar));
+
 #define MEASURE(...) measure(argv[1], op, n, repeats, seconds, count, output.data, [&]() { __VA_ARGS__; })
-    if (op == "forward")
+    if (op == "inplace-forward")
+      MEASURE(PF(transform)(setup, output.data, output.data, work.data, PFFFT_FORWARD));
+    else if (op == "inplace-backward")
+      MEASURE(PF(transform)(setup, output.data, output.data, work.data, PFFFT_BACKWARD));
+    else if (op == "inplace-ordered-forward")
+      MEASURE(PF(transform_ordered)(setup, output.data, output.data, work.data, PFFFT_FORWARD));
+    else if (op == "inplace-ordered-backward")
+      MEASURE(PF(transform_ordered)(setup, output.data, output.data, work.data, PFFFT_BACKWARD));
+    else if (op == "forward")
       MEASURE(PF(transform)(setup, input.data, output.data, work.data, PFFFT_FORWARD));
     else if (op == "backward")
       MEASURE(PF(transform)(setup, spectrum.data, output.data, work.data, PFFFT_BACKWARD));

@@ -48,7 +48,8 @@ static int measure(const char *op, int n, int repeats, double seconds, Initializ
 
 int main(int argc, char **argv) {
   if (argc != 5) {
-    std::fprintf(stderr, "usage: %s recursive8|recursive4 N REPEATS SECONDS\n", argv[0]);
+    std::fprintf(stderr, "usage: %s recursive8|recursive4|table-inplace|table-out "
+                        "N REPEATS SECONDS\n", argv[0]);
     return 2;
   }
   const int n = std::atoi(argv[2]), repeats = std::atoi(argv[3]);
@@ -68,6 +69,22 @@ int main(int argc, char **argv) {
     return measure(argv[1], n, repeats, seconds,
                    [&]() { shift_recursive_osc_sse_init(-0.0009f, 0, &conf, &state); },
                    [&](complexf *x) { shift_recursive_osc_sse_inp_c(x, n, &conf, &state); });
+  }
+  const bool inplace = !std::strcmp(argv[1], "table-inplace");
+  if (inplace || !std::strcmp(argv[1], "table-out")) {
+    shift_unroll_data_t table = shift_unroll_init(-0.0009f, n);
+    if (!table.dsin || !table.dcos) return 1;
+    const complexf sample = { 0.5f, 0.25f };
+    std::vector<complexf> input(n, sample);
+    float phase;
+    const int result = measure(argv[1], n, repeats, seconds,
+        [&]() { phase = 0.37f; },
+        [&](complexf *x) {
+          phase = inplace ? shift_unroll_inp_c(x, n, &table, phase)
+                          : shift_unroll_cc(input.data(), x, n, &table, phase);
+        });
+    shift_unroll_deinit(&table);
+    return result;
   }
   return 2;
 }

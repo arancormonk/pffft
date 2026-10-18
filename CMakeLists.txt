@@ -37,7 +37,7 @@ option(PFFFT_USE_BENCH_POCKET "use PocketFFT in fft benchmark? - if exists in su
 option(PFFFT_USE_BENCH_MKL    "use Intel MKL in fft benchmark? needs to be installed" OFF)
 option(PFFFT_USE_FFTPACK      "compile and use FFTPACK in fft benchmark & validation?" ON)
 
-option(PFFFT_USE_DEBUG_ASAN  "use GCC's address sanitizer?" OFF)
+option(PFFFT_USE_DEBUG_ASAN  "use the address sanitizer (GCC or Clang)?" OFF)
 
 # fail the build on compiler warnings; ON for development, OFF when consumed
 # as a dependency so that newer compilers cannot break downstream builds
@@ -85,7 +85,7 @@ endif()
 
 
 if (PFFFT_USE_DEBUG_ASAN)
-  set(ASANLIB "asan")
+  set(ASANLIB "-fsanitize=address")
 else()
   set(ASANLIB "")
 endif()

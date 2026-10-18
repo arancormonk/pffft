@@ -17,6 +17,11 @@ if (PFFFT_USE_FFTPACK)
     string(TOUPPER "${prec}" PREC)
     add_executable(test_fftpack_accuracy_${prec} test_fftpack_accuracy.c)
     target_link_libraries(test_fftpack_accuracy_${prec} FFTPACK_${PREC} ${ASANLIB} ${MATHLIB})
+    if (EMSCRIPTEN)
+      # the wsave checks at n = 2 * 3^13 need ~100 MiB (float) to ~200 MiB
+      # (double): far more than Emscripten's fixed 16 MiB heap
+      target_link_options(test_fftpack_accuracy_${prec} PRIVATE "-sALLOW_MEMORY_GROWTH=1")
+    endif()
     add_test(NAME test_fftpack_accuracy_${prec} COMMAND test_fftpack_accuracy_${prec})
   endforeach()
 endif()
@@ -68,6 +73,10 @@ target_link_libraries( test_pffft_cpp_api  PFFFT ${STDCXXLIB} ${ASANLIB} )
 if (EMSCRIPTEN)
   # work memory of up to 4096 complex doubles lives on the stack
   target_link_options(test_pffft_cpp_api PRIVATE "-sSTACK_SIZE=1048576")
+  # the test catches PFAlloc's std::bad_alloc; Emscripten aborts on throw
+  # unless exception support is enabled
+  target_compile_options(test_pffft_cpp_api PRIVATE "-fexceptions")
+  target_link_options(test_pffft_cpp_api PRIVATE "-fexceptions")
 endif()
 add_test(NAME test_pffft_cpp_api COMMAND test_pffft_cpp_api)
 

@@ -96,7 +96,7 @@ Ttest(int N, bool useOrdered)
   FftScalar* Ys = reinterpret_cast<FftScalar*>(Y.data()); // for Y = forward(X)
   FftScalar* Zs = reinterpret_cast<FftScalar*>(Z.data()); // for Z = inverse(Y) = inverse( forward(X) )
 
-  int k, j, m, iter, kmaxOther;
+  int k, j, m, iter, kmaxOther = -1;
   bool retError = false;
   double freq, dPhi, phi, phi0;
   double pwr, pwrCar, pwrOther, err, errSum, mag, expextedMag;

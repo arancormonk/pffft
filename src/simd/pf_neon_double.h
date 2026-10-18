@@ -40,9 +40,17 @@
   NEON 64bit support macros — native AArch64 implementation.
   Packs 4 doubles into a pair of float64x2_t (2x 128-bit NEON registers).
 */
-#if !defined(SIMD_SZ) && !defined(PFFFT_SIMD_DISABLE) && defined(PFFFT_ENABLE_NEON) && (defined(__aarch64__) || defined(__arm64__) || defined(_M_ARM64) || defined(_M_ARM64EC))
+#if !defined(SIMD_SZ) && !defined(PFFFT_SIMD_DISABLE) && \
+    (!defined(_M_ARM64EC) || defined(PFFFT_ENABLE_NEON)) && \
+    ((defined(__ARM_NEON) && (defined(__aarch64__) || defined(__arm64__) || defined(__arm64ec__))) || \
+     (defined(_MSC_VER) && !defined(__clang__) && (defined(_M_ARM64) || defined(_M_ARM64EC))))
 
-#include <arm_neon.h>
+/* same selection rules as pf_neon_float.h, but float64x2_t needs AArch64 */
+#if defined(_MSC_VER) && !defined(__clang__)
+#  include <arm64_neon.h>
+#else
+#  include <arm_neon.h>
+#endif
 
 /* v4sf holds 4 doubles as two NEON 128-bit registers */
 typedef struct {

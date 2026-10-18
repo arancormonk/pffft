@@ -49,7 +49,7 @@
   SSE2 64bit support macros
 */
 /* we test _M_ARM64EC before _M_X64 because when _M_ARM64EC is defined, the microsoft compiler also defines _M_X64 */
-#if !defined(SIMD_SZ) && !defined(PFFFT_SIMD_DISABLE) && !defined(_M_ARM64EC) && (defined( __SSE4_2__ ) |  defined( __SSE4_1__ ) || defined( __SSE3__ ) || defined( __SSE2__ ) || defined ( __x86_64__ ) || defined( _M_AMD64 ) || defined( _M_X64 ) || defined( __amd64 ))
+#if !defined(SIMD_SZ) && !defined(PFFFT_SIMD_DISABLE) && !defined(_M_ARM64EC) && (defined( __SSE4_2__ ) || defined( __SSE4_1__ ) || defined( __SSE3__ ) || defined( __SSE2__ ) || defined ( __x86_64__ ) || defined( _M_AMD64 ) || defined( _M_X64 ) || defined( __amd64 ))
 #include <emmintrin.h>
 
 typedef struct {
@@ -66,19 +66,14 @@ typedef union v4sf_union {
 } v4sf_union;
 
 
-#if defined(__GNUC__) || defined(__clang__)
-
+/* FORCE_INLINE is only needed for the definitions below: restored at the end */
 #pragma push_macro("FORCE_INLINE")
+#undef FORCE_INLINE
+#if defined(__GNUC__) || defined(__clang__)
 #define FORCE_INLINE static inline __attribute__((always_inline))
-
 #elif defined (_MSC_VER)
 #define FORCE_INLINE static __forceinline
-
 #else
-#error "Macro name collisions may happens with unknown compiler"
-#ifdef FORCE_INLINE
-#undef FORCE_INLINE
-#endif
 #define FORCE_INLINE static inline
 #endif
 
@@ -276,6 +271,8 @@ return [ b[0], b[1], a[2], a[3] ]
 #  define VREV_C(a)    mm256_insertf128_pd_1(mm256_castpd128_pd256(mm256_extractf128_pd(a, 1)), mm256_castpd256_pd128(a))
 
 #  define VALIGNED(ptr) ((((uintptr_t)(ptr)) & 0x1F) == 0)
+
+#pragma pop_macro("FORCE_INLINE")
 
 #endif
 #endif

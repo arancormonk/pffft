@@ -27,8 +27,13 @@
 PFFFT does 1D Fast Fourier Transforms, of single precision real and
 complex vectors. It tries do it fast, it tries to be correct, and it
 tries to be small. Computations do take advantage of SSE1/AVX/AVX2 instructions
-on x86 cpus, Altivec on powerpc cpus, NEON on ARM cpus
+on x86 cpus, Altivec (float) and VSX (double) on powerpc cpus, NEON on ARM cpus
 (including Apple Silicon), and WASM SIMD on WebAssembly. The license is BSD-like.
+
+The SIMD backend is picked at compile time from what the compiler targets:
+NEON whenever it is enabled (always on AArch64; on 32-bit ARM with e.g.
+`-mfpu=neon`), VSX with e.g. `-mcpu=power7` (the ppc64le default), WASM SIMD
+with `-msimd128`.
 
 PFFFT is a fork of [Julien Pommier's library on bitbucket](https://bitbucket.org/jpommier/pffft/)
 with some changes and additions.
@@ -138,8 +143,6 @@ Some of the options:
 * `PFFFT_USE_TYPE_FLOAT` to activate single precision 'float' (default: ON)
 * `PFFFT_USE_TYPE_DOUBLE` to activate 'double' precision float (default: ON)
 * `PFFFT_USE_SIMD` to use SIMD (SSE/AVX/NEON/ALTIVEC/WASM SIMD) CPU features? (default: ON)
-* `DISABLE_SIMD_AVX` to disable AVX CPU features (default: OFF)
-* `PFFFT_USE_SIMD_NEON` to force using NEON on ARM (requires PFFFT_USE_SIMD) (default: OFF)
 * `PFFFT_USE_SCALAR_VECT` to use 4-element vector scalar operations (if no other SIMD) (default: ON)
 * `PFFFT_USE_WASM_RELAXED_SIMD` to use WebAssembly Relaxed SIMD multiply-add instructions, which may be fused when supported by the runtime (default: OFF)
 
@@ -259,9 +262,8 @@ intrinsics for both float and double precision.
 > This uses relaxed multiply-add instructions, which the runtime may fuse into a single-rounding FMA, or fall back to a two-rounding multiply followed by add/subtract. It is **off by default** because relaxed SIMD results are not guaranteed bit-identical across engines or hardware (unlike the default WASM SIMD path); enable it only if your application tolerates ULP-level differences between runtimes.
 
 If you build for Emscripten without the bundled CMake config (e.g. a raw
-`emcc`/Makefile/Bazel invocation), compile with `-msimd128 -DPFFFT_ENABLE_WASM=1`
-to select the WASM SIMD backend; the previous `PFFFT_ENABLE_NEON` recipe no
-longer enables it and now silently falls back to scalar code.
+`emcc`/Makefile/Bazel invocation), compile with `-msimd128` to select the WASM
+SIMD backend; `PFFFT_ENABLE_WASM` is no longer needed.
 
 ## Using pffft in your CMake project
 

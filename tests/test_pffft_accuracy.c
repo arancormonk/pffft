@@ -51,6 +51,14 @@ typedef PFFFT_Setup PF_Setup;
 #include <limits.h>
 #include <stdint.h>
 
+/* precision of the long double reference: IBM double-double (PowerPC) has a
+   106-bit significand but reports LDBL_EPSILON as the smallest denormal */
+#if LDBL_MANT_DIG == 106
+#  define REF_EPS 0x1p-105L
+#else
+#  define REF_EPS LDBL_EPSILON
+#endif
+
 /* accepted relative L2 error, in units of eps * log2(N) */
 #define TOL_FFT 2.0
 /* default largest N; the suite stays within a few seconds */
@@ -538,8 +546,8 @@ static int test_reference(void) {
     if (sqrtl(num / den) > worst) worst = (double)sqrtl(num / den);
     free(in); free(o1); free(o2);
   }
-  printf("reference DFT self-check: max rel err %.3g (LDBL_EPSILON %.3g)\n", worst, (double)LDBL_EPSILON);
-  return worst <= 64 * LDBL_EPSILON * log2(200.0);
+  printf("reference DFT self-check: max rel err %.3g (long double epsilon %.3g)\n", worst, (double)REF_EPS);
+  return worst <= 64 * REF_EPS * log2(200.0);
 }
 
 int main(int argc, char **argv) {

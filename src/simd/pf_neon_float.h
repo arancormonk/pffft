@@ -35,9 +35,22 @@
 
 /*
   ARM NEON support macros
+
+  Selected whenever the compiler targets NEON, which gcc/clang report with
+  __ARM_NEON (on by default on AArch64, -mfpu=neon on 32-bit ARM; off with
+  e.g. -march=armv8-a+nosimd, after which Apple clang still defines the
+  legacy __ARM_NEON__), and on MSVC ARM64. PFFFT_ENABLE_NEON is no longer
+  required, except for ARM64EC, which keeps it as an opt-in.
 */
-#if !defined(SIMD_SZ) && !defined(PFFFT_SIMD_DISABLE) && defined(PFFFT_ENABLE_NEON) && (defined(__ARM_NEON) || defined(__ARM_NEON__) || defined(__aarch64__) || defined(__arm64__) || defined(_M_ARM64) || defined(_M_ARM64EC))
-#  include <arm_neon.h>
+#if !defined(SIMD_SZ) && !defined(PFFFT_SIMD_DISABLE) && \
+    (!defined(_M_ARM64EC) || defined(PFFFT_ENABLE_NEON)) && \
+    (defined(__ARM_NEON) || (defined(__arm__) && defined(__ARM_NEON__)) || \
+     (defined(_MSC_VER) && !defined(__clang__) && (defined(_M_ARM64) || defined(_M_ARM64EC))))
+#  if defined(_MSC_VER) && !defined(__clang__) && (defined(_M_ARM64) || defined(_M_ARM64EC))
+#    include <arm64_neon.h>
+#  else
+#    include <arm_neon.h>
+#  endif
 typedef float32x4_t v4sf;
 
 #  define SIMD_SZ 4
@@ -110,7 +123,8 @@ typedef union v4sf_union {
 /* reverse/flip complex floats */
 #  define VREV_C(a)    vextq_f32(a, a, 2)
 
-#  define VALIGNED(ptr) ((((uintptr_t)(ptr)) & 0x3) == 0)
+/* the transforms access buffers as float32x4_t, a 16-byte aligned type */
+#  define VALIGNED(ptr) ((((uintptr_t)(ptr)) & 0xF) == 0)
 
 #endif
 

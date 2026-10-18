@@ -38,8 +38,11 @@
 
 /*
   WebAssembly SIMD 128-bit support macros (4x float32)
+
+  Selected whenever the compiler targets WASM SIMD (-msimd128);
+  PFFFT_ENABLE_WASM is no longer required.
 */
-#if !defined(SIMD_SZ) && !defined(PFFFT_SIMD_DISABLE) && defined(PFFFT_ENABLE_WASM) && defined(__wasm_simd128__)
+#if !defined(SIMD_SZ) && !defined(PFFFT_SIMD_DISABLE) && defined(__wasm_simd128__)
 #  include <wasm_simd128.h>
 typedef v128_t v4sf;
 
@@ -97,7 +100,8 @@ typedef union v4sf_union {
 /* reverse/flip complex floats: [0,1,2,3] -> [2,3,0,1] */
 #  define VREV_C(a) wasm_i64x2_shuffle(a, a, 1, 0)
 
-#  define VALIGNED(ptr) ((((uintptr_t)(ptr)) & 0x3) == 0)
+/* the transforms access buffers as v128_t, a 16-byte aligned type */
+#  define VALIGNED(ptr) ((((uintptr_t)(ptr)) & 0xF) == 0)
 
 #endif
 

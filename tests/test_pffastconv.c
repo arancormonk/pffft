@@ -464,7 +464,7 @@ void printFirst( const float * V, const char * st, const int N, const int perLin
 
 
 int test(int FILTERLEN, int convFlags, const int testOutLen, int printDbg, int printSpeed, int abortFirstFastAlgo, int printErrValues, int printAsCSV, int *pIsFirstFilterLen) {
-  double t0, t1, tstop, td = 0.0, tdref;
+  double t0, t1, tstop, td = 0.0, tdref = 0.0;
   float *X, *H;
   float *Y[NUMY];
   int64_t outN[NUMY];

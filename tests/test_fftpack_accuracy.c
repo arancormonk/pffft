@@ -18,9 +18,17 @@
   - COSTSINT_TOL + COSTSINT_TOL_PER_N * N for cost and sint, whose
     pre- and post-processing (inherited from FFTPACK) grows the error
     linearly with N.
+  - SMALL_N_TOL for every transform with N <= SMALL_N_MAX, where the
+    butterflies' constants dominate the error.
   Before the generic real passes computed their rotation factors
   directly, a real transform of prime length 1009 was off by thousands
-  of eps.
+  of eps; before the radix-3/5 constants had full double precision,
+  sint of n = 2 was off by 7 eps in double.
+
+  Also checked: no init routine writes past the documented wsave size,
+  including sizes with more factors than the documented size has room
+  for (2 * 3^13 for cffti, rffti, cosqi and sinqi; n + 1 = 2 * 3^11 for
+  sinti), and n = 0 returns instead of looping forever.
 */
 
 #include "fftpack.h"
@@ -48,6 +56,9 @@ typedef long double ldouble;
 #define FFT_TOL 32.0
 #define COSTSINT_TOL 32.0
 #define COSTSINT_TOL_PER_N 0.125
+#define SMALL_N_MAX 8
+#define SMALL_N_TOL 4.0
+#define WSAVE_GUARD 64
 /* the reference is no more precise than the code under test where long
    double is no wider than 'real' (MSVC, Apple arm64 with double) */
 #define REF_SLACK ((LDBL_MANT_DIG > REAL_MANT_DIG) ? 1.0 : 4.0)
@@ -218,8 +229,64 @@ static ldouble round_trip_scale(int f, int n) {
 }
 
 static double tolerance(int f, int n) {
-  const double tol = (f == F_COST || f == F_SINT) ? COSTSINT_TOL + COSTSINT_TOL_PER_N * n : FFT_TOL;
+  const double tol = (n <= SMALL_N_MAX) ? SMALL_N_TOL
+                   : (f == F_COST || f == F_SINT) ? COSTSINT_TOL + COSTSINT_TOL_PER_N * n : FFT_TOL;
   return tol * REF_SLACK;
+}
+
+/* runs init(f, n) on a wsave of exactly the documented size followed by
+   WSAVE_GUARD sentinels; returns the number of failures */
+static int check_wsave_bounds(int f, int n) {
+  const size_t ws = (n > 0) ? wsave_size(f, n) : 15;
+  real *w = (real*)malloc(sizeof(real) * (ws + WSAVE_GUARD));
+  size_t j;
+  int failures = 0;
+  if (!w) {
+    printf("FAIL %s %s n=%d: out of memory\n", PREC_NAME, names[f], n);
+    return 1;
+  }
+  for (j = 0; j < ws + WSAVE_GUARD; ++j) w[j] = (real)-12345;
+  init(f, n, w);
+  for (j = ws; j < ws + WSAVE_GUARD; ++j)
+    if (w[j] != (real)-12345) {
+      printf("FAIL %s %s n=%d: init wrote wsave[%lu], past the documented %lu\n",
+             PREC_NAME, names[f], n, (unsigned long)j, (unsigned long)ws);
+      ++failures;
+      break;
+    }
+  free(w);
+  return failures;
+}
+
+/* round trip of a size whose factors had to be merged to fit wsave */
+static int check_large_round_trip(int f, int n) {
+  const int len = (f <= F_CFFTB) ? 2 * n : n;
+  real *w = (real*)malloc(sizeof(real) * wsave_size(f, n));
+  real *x = (real*)malloc(sizeof(real) * len), *x0 = (real*)malloc(sizeof(real) * len);
+  ldouble num = 0, den = 0, sc = round_trip_scale(f, n);
+  double rt;
+  int j, failures = 0;
+  if (!w || !x || !x0) {
+    printf("FAIL %s %s n=%d: out of memory\n", PREC_NAME, names[f], n);
+    free(w); free(x); free(x0);
+    return 1;
+  }
+  init(f, n, w);
+  for (j = 0; j < len; ++j) x0[j] = x[j] = (real)urand();
+  run(f, n, x, w);
+  run(inverse_of(f), n, x, w);
+  for (j = 0; j < len; ++j) {
+    const ldouble d = (ldouble)x[j] / sc - x0[j];
+    num += d * d;
+    den += (ldouble)x0[j] * x0[j];
+  }
+  rt = (double)sqrtl(num / den) / REAL_EPS;
+  if (!(rt <= 2 * FFT_TOL * REF_SLACK)) {
+    printf("FAIL %s %s n=%d: round trip error %.1f eps > %.1f\n", PREC_NAME, names[f], n, rt, 2 * FFT_TOL * REF_SLACK);
+    ++failures;
+  }
+  free(w); free(x); free(x0);
+  return failures;
 }
 
 int main(void) {
@@ -290,6 +357,15 @@ int main(void) {
     }
   }
   free(ctab); free(stab);
+
+  for (f = 0; f < NUM_F; f += (f < F_COST) ? 2 : 1) {
+    for (i = 1; i <= 300; ++i)
+      failures += check_wsave_bounds(f, i);
+    failures += check_wsave_bounds(f, 0);
+    failures += check_wsave_bounds(f, (f == F_SINT) ? 354293 : 3188646);
+  }
+  failures += check_large_round_trip(F_CFFTF, 3188646);
+  failures += check_large_round_trip(F_RFFTF, 3188646);
 
   for (f = 0; f < NUM_F; ++f)
     printf("%s %-5s worst rel. error %8.2f eps at n=%d\n", PREC_NAME, names[f], worst[f], worst_n[f]);

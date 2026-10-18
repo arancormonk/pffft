@@ -141,6 +141,18 @@ certain other symmetric sequences that are listed below.
 18.  cfftf     forward transform of a complex periodic sequence
 19.  cfftb     unnormalized inverse of cfftf
 
+notes on this port:
+- ezffti, ezfftf and ezfftb (4.-6.) are not included.
+- every n >= 1 works with the wsave sizes documented below. When
+  'real' is float, those sizes leave room for at most 13 factors of n
+  (11 of n+1 for sint), so an n with more factors (e.g. 2*3^13) has
+  pairs of its odd factors combined into one; n = 2^27 and above has
+  no odd factors to combine and does not fit.
+- cost and sint rebuild half of their output from a running sum, so
+  their error grows like sqrt(n) eps (inherited from FFTPACK; about
+  1000 eps at n = 2^20) instead of the eps log n of the other
+  transforms.
+
 
 ******************************************************************
 

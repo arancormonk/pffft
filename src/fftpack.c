@@ -67,6 +67,10 @@ typedef fftpack_int  integer;
 #endif
 
 
+/* number of factors that fit in the 15 'real' slots the documented wsave
+   sizes reserve for the factorization (two ints per slot with double) */
+#define IFAC_MAXNF ((integer)(15 * sizeof(real) / sizeof(integer)) - 2)
+
 typedef struct f77complex {    
   real r, i;
 } f77complex;   
@@ -298,7 +302,7 @@ static void passb2(integer ido, integer l1, const real *cc, real *ch, const real
 static void passb3(integer ido, integer l1, const real *cc, real *ch, const real *wa1, const real *wa2)
 {
   static const real taur = (real)-.5;
-  static const real taui = (real).866025403784439;
+  static const real taui = (real).866025403784438646763723170752936183;
 
   /* System generated locals */
   integer cc_offset, ch_offset;
@@ -443,10 +447,10 @@ static void passb4(integer ido, integer l1, const real *cc, real *ch,
 static void passfb5(integer ido, integer l1, const real *cc, real *ch, 
                     const real *wa1, const real *wa2, const real *wa3, const real *wa4, real fsign)
 {
-  const real tr11 = (real)(.309016994374947);
-  const real ti11 = ((real).951056516295154)*fsign;
-  const real tr12 = (real)-.809016994374947;
-  const real ti12 = ((real).587785252292473)*fsign;
+  const real tr11 = (real)(.309016994374947424102293417182819059);
+  const real ti11 = ((real).951056516295153572116439333379382143)*fsign;
+  const real tr12 = (real)-.809016994374947424102293417182819059;
+  const real ti12 = ((real).587785252292473129168705954639072769)*fsign;
 
   /* System generated locals */
   integer cc_offset, ch_offset;
@@ -596,7 +600,7 @@ static void passf3(integer ido, integer l1, const real *cc, real *ch,
                    const real *wa1, const real *wa2)
 {
   static const real taur = (real)-.5;
-  static const real taui = (real)-.866025403784439;
+  static const real taui = (real)-.866025403784438646763723170752936183;
 
   /* System generated locals */
   integer cc_offset, ch_offset;
@@ -796,7 +800,7 @@ static void radb3(integer ido, integer l1, const real *cc, real *ch,
   /* Initialized data */
 
   static const real taur = (real)-.5;
-  static const real taui = (real).866025403784439;
+  static const real taui = (real).866025403784438646763723170752936183;
 
   /* System generated locals */
   integer cc_offset, ch_offset;
@@ -946,10 +950,10 @@ static void radb5(integer ido, integer l1, const real *cc, real *ch,
 {
   /* Initialized data */
 
-  static const real tr11 = (real)(.309016994374947);
-  static const real ti11 = (real).951056516295154;
-  static const real tr12 = (real)-.809016994374947;
-  static const real ti12 = (real).587785252292473;
+  static const real tr11 = (real)(.309016994374947424102293417182819059);
+  static const real ti11 = (real).951056516295153572116439333379382143;
+  static const real tr12 = (real)-.809016994374947424102293417182819059;
+  static const real ti12 = (real).587785252292473129168705954639072769;
 
   /* System generated locals */
   integer cc_offset, ch_offset;
@@ -1325,7 +1329,7 @@ static void radf3(integer ido, integer l1, const real *cc, real *ch,
                   const real *wa1, const real *wa2)
 {
   static const real taur = (real)-.5;
-  static const real taui = (real).866025403784439;
+  static const real taui = (real).866025403784438646763723170752936183;
 
   /* System generated locals */
   integer ch_offset, cc_offset;
@@ -1394,7 +1398,7 @@ static void radf4(integer ido, integer l1, const real *cc, real *ch,
 {
   /* Initialized data */
 
-  static const real hsqt2 = (real).7071067811865475;
+  static const real hsqt2 = (real).707106781186547524400844362104849039;
 
   /* System generated locals */
   integer cc_offset, ch_offset;
@@ -1485,10 +1489,10 @@ static void radf5(integer ido, integer l1, const real *cc, real *ch,
 {
   /* Initialized data */
 
-  static const real tr11 = (real)(.309016994374947);
-  static const real ti11 = (real).951056516295154;
-  static const real tr12 = (real)-.809016994374947;
-  static const real ti12 = (real).587785252292473;
+  static const real tr11 = (real)(.309016994374947424102293417182819059);
+  static const real ti11 = (real).951056516295153572116439333379382143;
+  static const real tr12 = (real)-.809016994374947424102293417182819059;
+  static const real ti12 = (real).587785252292473129168705954639072769;
 
   /* System generated locals */
   integer cc_offset, ch_offset;
@@ -1955,8 +1959,19 @@ void cfftf(integer n, real *c, real *wsave)
   cfftf1(n, &c[1], &wsave[1], &wsave[iw1], (int*)&wsave[iw2]);
 } /* cfftf */
 
-static int decompose(integer n, integer *ifac, integer ntryh[4]) {  
-  integer ntry=0, nl = n, nf = 0, nq, nr, i, j = 0;
+/*
+  Factors n for the radix passes: ifac[1] = n, ifac[2] = nf, ifac[3 ..
+  nf + 2] = the factors (1-based, ifac already offset by the callers). The
+  documented wsave sizes leave room for only maxnf factors (13 behind cffti,
+  rffti, cosqi, sinqi and costi, 11 behind sinti when 'real' is float), so
+  while there are more, the two odd factors with the smallest product are
+  merged into one (odd factors are handled by the generic radix passes).
+  Returns nf; nf > maxnf is left only for n >= 2^27 with float, which the
+  documented wsave cannot hold.
+*/
+static int decompose(integer n, integer *ifac, integer ntryh[4], integer maxnf) {
+  integer fac[32];
+  integer ntry = 0, nl = n, nf = 0, nq, nr, i, j = 0;
   do {
     if (j < 4) {
       ntry = ntryh[j];
@@ -1964,26 +1979,39 @@ static int decompose(integer n, integer *ifac, integer ntryh[4]) {
       ntry += 2;
     }
     ++j;
-  L104:
-    nq = nl / ntry;
-    nr = nl - ntry * nq;
-    if (nr != 0) continue;
-    ++nf;
-    ifac[nf + 2] = ntry;
-    nl = nq;
-    if (ntry == 2 && nf != 1) {
-      for (i = 2; i <= nf; ++i) {
-        integer ib = nf - i + 2;
-        ifac[ib + 2] = ifac[ib + 1];
+    for (;;) {
+      nq = nl / ntry;
+      nr = nl - ntry * nq;
+      if (nr != 0) break;
+      fac[nf++] = ntry;
+      nl = nq;
+      if (ntry == 2 && nf != 1) {
+        for (i = nf - 1; i > 0; --i)
+          fac[i] = fac[i - 1];
+        fac[0] = 2;
       }
-      ifac[3] = 2;
-    }
-    if (nl != 1) {
-      goto L104;
+      if (nl == 1) break;
     }
   } while (nl != 1);
+  while (nf > maxnf) {
+    integer a = -1, b = -1, k, l;
+    for (k = 0; k < nf; ++k)
+      for (l = k + 1; l < nf; ++l)
+        if ((fac[k] & 1) && (fac[l] & 1) &&
+            (a < 0 || (double)fac[k] * fac[l] < (double)fac[a] * fac[b])) {
+          a = k;
+          b = l;
+        }
+    if (a < 0) break;
+    fac[a] *= fac[b];
+    for (k = b; k + 1 < nf; ++k)
+      fac[k] = fac[k + 1];
+    --nf;
+  }
   ifac[1] = n;
-  ifac[2] = nf;  
+  ifac[2] = nf;
+  for (i = 0; i < nf && i < maxnf; ++i)
+    ifac[i + 3] = fac[i];
   return nf;
 }
 
@@ -2005,7 +2033,7 @@ static void cffti1(integer n, real *wa, integer *ifac)
   --ifac;
   --wa;
 
-  nf = decompose(n, ifac, ntryh);
+  nf = decompose(n, ifac, ntryh, IFAC_MAXNF);
 
   argh = (2*(real)M_PI) / (real) (n);
   i = 2;
@@ -2047,7 +2075,7 @@ void cffti(integer n, real *wsave)
   --wsave;
 
   /* Function Body */
-  if (n == 1) {
+  if (n <= 1) {  /* n < 1 is invalid: return rather than loop forever */
     return;
   }
   iw1 = 2*n + 1;
@@ -2190,7 +2218,7 @@ void rfftb(integer n, real *r, real *wsave)
   rfftb1(n, &r[1], &wsave[1], &wsave[n + 1], (int*)&wsave[(n << 1) + 1]);
 } /* rfftb */
 
-static void rffti1(integer n, real *wa, integer *ifac)
+static void rffti1(integer n, real *wa, integer *ifac, integer maxnf)
 {
   static integer ntryh[4] = { 4,2,3,5 };
 
@@ -2208,7 +2236,7 @@ static void rffti1(integer n, real *wa, integer *ifac)
   --ifac;
   --wa;
 
-  nf = decompose(n, ifac, ntryh);
+  nf = decompose(n, ifac, ntryh, maxnf);
 
   argh = (2*(real)M_PI) / (real) (n);
   is = 0;
@@ -2261,10 +2289,10 @@ void rffti(integer n, real *wsave)
   --wsave;
 
   /* Function Body */
-  if (n == 1) {
+  if (n <= 1) {  /* n < 1 is invalid: return rather than loop forever */
     return;
   }
-  rffti1(n, &wsave[n + 1], (int*)&wsave[(n << 1) + 1]);
+  rffti1(n, &wsave[n + 1], (int*)&wsave[(n << 1) + 1], IFAC_MAXNF);
   return;
 } /* rffti */
 
@@ -2397,6 +2425,9 @@ void cosqi(integer n, real *wsave)
   /* Parameter adjustments */
   --wsave;
 
+  if (n < 1) {
+    return;
+  }
   dt = (real)M_PI/2 / (real) (n);
   fk = 0.;
   for (k = 1; k <= n; ++k) {
@@ -2568,7 +2599,7 @@ static void sint1(integer n, real *war, real *was, real *xh, real *
 {
   /* Initialized data */
 
-  static const real sqrt3 = (real)1.73205080756888;
+  static const real sqrt3 = (real)1.73205080756887729352744634150587237;
 
   /* Local variables */
   integer i, k;
@@ -2646,7 +2677,9 @@ void sinti(integer n, real *wsave)
   for (k = 1; k <= ns2; ++k) {
     wsave[k] = FFTPACK_SIN(k * dt) * 2;
   }
-  rffti(np1, &wsave[ns2 + 1]);
+  /* int(2.5*n+15) leaves 13 'real' slots, not 15, behind rffti's tables */
+  rffti1(np1, &wsave[ns2 + 1 + np1], (int*)&wsave[ns2 + 1 + 2 * np1],
+         IFAC_MAXNF - 2 * (integer)(sizeof(real) / sizeof(integer)));
 } /* sinti */
 
 void sint(integer n, real *x, real *wsave)

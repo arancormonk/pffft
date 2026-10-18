@@ -75,6 +75,9 @@
   #define M_SQRT1_2 0.707106781186547524400844362104849039  /* 1/sqrt(2) */
 #endif
 
+/* largest accepted N: larger values overflow int in the setup and passes */
+#define PFFFT_MAX_N (1<<26)
+
 
 int FUNC_SIMD_SIZE(void) { return SIMD_SZ; }
 
@@ -94,6 +97,8 @@ int FUNC_MIN_FFT_SIZE(pffft_transform_t transform) {
 int FUNC_IS_VALID_SIZE(int N, pffft_transform_t cplx) {
   const int N_min = FUNC_MIN_FFT_SIZE(cplx);
   int R = N;
+  if (N <= 0 || N > PFFFT_MAX_N)
+    return 0;
   while (R >= 5*N_min && (R % 5) == 0)  R /= 5;
   while (R >= 3*N_min && (R % 3) == 0)  R /= 3;
   while (R >= 2*N_min && (R % 2) == 0)  R /= 2;
@@ -105,15 +110,21 @@ int FUNC_NEAREST_SIZE(int N, pffft_transform_t cplx, int higher) {
   const int N_min = FUNC_MIN_FFT_SIZE(cplx);
   if (N < N_min)
     N = N_min;
+  if (N > PFFFT_MAX_N) {
+    N = PFFFT_MAX_N;  /* also keeps the rounding below free of int overflow */
+    higher = 0;
+  }
   d = (higher) ? N_min : -N_min;
   if (d > 0)
     N = N_min * ((N+N_min-1) / N_min);  /* round up */
   else
     N = N_min * (N / N_min);  /* round down */
 
-  for (; ; N += d)
+  for (; N <= PFFFT_MAX_N; N += d)
     if (FUNC_IS_VALID_SIZE(N, cplx))
       return N;
+  /* no valid size above: N_min * 2^k <= PFFFT_MAX_N always is one below */
+  return FUNC_NEAREST_SIZE(PFFFT_MAX_N, cplx, 0);
 }
 
 const char * FUNC_SIMD_ARCH(void) { return VARCH; }
@@ -163,7 +174,7 @@ static NEVER_INLINE(void) passf3_ps(int ido, int l1, const v4sf * RESTRICT cc, v
   v4sf tr2, ti2, cr2, ci2, cr3, ci3, dr2, di2, dr3, di3;
   int l1ido = l1*ido;
   float wr1, wi1, wr2, wi2;
-  assert(ido > 2);
+  assert(ido >= 2);  /* ido == 2 (one complex element) is reached when SIMD_SZ == 1 */
   for (k=0; k< l1ido; k += ido, cc+= 3*ido, ch +=ido) {
     for (i=0; i<ido-1; i+=2) {
       tr2 = VADD(cc[i+ido], cc[i+2*ido]);
@@ -278,7 +289,7 @@ static NEVER_INLINE(void) passf5_ps(int ido, int l1, const v4sf * RESTRICT cc, v
 #define cc_ref(a_1,a_2) cc[(a_2-1)*ido + a_1 + 1]
 #define ch_ref(a_1,a_3) ch[(a_3-1)*l1*ido + a_1 + 1]
 
-  assert(ido > 2);
+  assert(ido >= 2);  /* ido == 2 (one complex element) is reached when SIMD_SZ == 1 */
   for (k = 0; k < l1; ++k, cc += 5*ido, ch += ido) {
     for (i = 0; i < ido-1; i += 2) {
       ti5 = VSUB(cc_ref(i  , 2), cc_ref(i  , 5));
@@ -1153,13 +1164,45 @@ static int decompose(int n, int *ifac, const int *ntryh) {
 
 
 
+/*
+  cos and sin of 2*pi*m/n for 0 <= m < n. The angle is reduced exactly in
+  integers to [0, pi/4] and evaluated in long double, so every factor is
+  correctly rounded or nearly so (at most ~1 ulp where long double is
+  double), and the symmetric factors (+-1, 0, cos = sin at pi/4, ...) are
+  exact. Repeated rounding of 2*pi/n * m in the working precision instead
+  costs up to ~5 eps per factor in float.
+*/
+static void twiddle_cos_sin(int m, int n, float *c, float *s)
+{
+  const long double pi_2 = 1.570796326794896619231321691639751442L;
+  long q = (4L*m) / n;          /* quadrant */
+  long r = 4L*m - q*n;          /* angle in the quadrant = pi/2 * r/n */
+  long double x, cx, sx, t;
+  if (2*r <= n) {
+    x = pi_2 * (long double)r / n;
+    cx = cosl(x);
+    sx = sinl(x);
+  } else {                      /* pi/2 - angle is in [0, pi/4) */
+    x = pi_2 * (long double)(n - r) / n;
+    cx = sinl(x);
+    sx = cosl(x);
+  }
+  switch (q & 3) {
+    case 1: t = cx; cx = -sx; sx = t; break;
+    case 2: cx = -cx; sx = -sx; break;
+    case 3: t = cx; cx = sx; sx = -t; break;
+    default: break;
+  }
+  *c = (float)cx;
+  *s = (float)sx;
+}
+
 static void rffti1_ps(int n, float *wa, int *ifac)
 {
   static const int ntryh[] = { 4,2,3,5,0 };
   int k1, j, ii;
 
   int nf = decompose(n,ifac,ntryh);
-  float argh = (2*(float)M_PI) / n;
   int is = 0;
   int nfm1 = nf - 1;
   int l1 = 1;
@@ -1170,15 +1213,12 @@ static void rffti1_ps(int n, float *wa, int *ifac)
     int ido = n / l2;
     int ipm = ip - 1;
     for (j = 1; j <= ipm; ++j) {
-      float argld;
       int i = is, fi=0;
       ld += l1;
-      argld = ld*argh;
       for (ii = 3; ii <= ido; ii += 2) {
         i += 2;
         fi += 1;
-        wa[i - 2] = FUNC_COS(fi*argld);
-        wa[i - 1] = FUNC_SIN(fi*argld);
+        twiddle_cos_sin(fi*ld, n, &wa[i - 2], &wa[i - 1]);  /* fi*ld < n */
       }
       is += ido;
     }
@@ -1206,7 +1246,6 @@ static void cffti1_ps(int n, float *wa, int *ifac)
 
   int nf = decompose(n,ifac,ntryh);
 
-  float argh = (2*(float)M_PI) / n;
   int i = 1;
   int l1 = 1;
   for (k1=1; k1<=nf; k1++) {
@@ -1217,17 +1256,14 @@ static void cffti1_ps(int n, float *wa, int *ifac)
     int idot = ido + ido + 2;
     int ipm = ip - 1;
     for (j=1; j<=ipm; j++) {
-      float argld;
       int i1 = i, fi = 0;
       wa[i-1] = 1;
       wa[i] = 0;
       ld += l1;
-      argld = ld*argh;
       for (ii = 4; ii <= idot; ii += 2) {
         i += 2;
         fi += 1;
-        wa[i-1] = FUNC_COS(fi*argld);
-        wa[i] = FUNC_SIN(fi*argld);
+        twiddle_cos_sin(fi*ld, n, &wa[i-1], &wa[i]);  /* fi*ld < n */
       }
       if (ip > 16) {
         wa[i1-1] = wa[i-1];
@@ -1304,12 +1340,10 @@ SETUP_STRUCT *FUNC_NEW_SETUP(int N, pffft_transform_t transform) {
   SETUP_STRUCT *s = 0;
   int k, m;
   /* validate N for negative values or potential int overflow */
-  if (N < 0) {
+  if (N <= 0 || N > PFFFT_MAX_N) {
     return s;
   }
-  if (N > (1<<26)) {
-    /* higher values of N will make you enter in the integer overflow world... */
-    assert(0);
+  if (transform != PFFFT_REAL && transform != PFFFT_COMPLEX) {
     return s;
   }
   /* unfortunately, the fft size must be a multiple of 16 for complex FFTs
@@ -1336,9 +1370,11 @@ SETUP_STRUCT *FUNC_NEW_SETUP(int N, pffft_transform_t transform) {
     int i = k/SIMD_SZ;
     int j = k%SIMD_SZ;
     for (m=0; m < SIMD_SZ-1; ++m) {
-      float A = -2*(float)M_PI*(m+1)*k / N;
-      s->e[(2*(i*3 + m) + 0) * SIMD_SZ + j] = FUNC_COS(A);
-      s->e[(2*(i*3 + m) + 1) * SIMD_SZ + j] = FUNC_SIN(A);
+      /* exp(-2*pi*i*(m+1)*k/N), with (m+1)*k < N */
+      float c, sn;
+      twiddle_cos_sin((m+1)*k, N, &c, &sn);
+      s->e[(2*(i*3 + m) + 0) * SIMD_SZ + j] = c;
+      s->e[(2*(i*3 + m) + 1) * SIMD_SZ + j] = -sn;
     }
   }
 #endif

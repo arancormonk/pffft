@@ -7,7 +7,7 @@
 
 void c_forward_real_float(const int transformLen)
 {
-  printf("running %s()\n", __FUNCTION__);
+  printf("running %s()\n", __func__);
 
   /* first check - might be skipped */
   if (transformLen < pffft_min_fft_size(PFFFT_REAL))

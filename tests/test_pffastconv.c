@@ -867,7 +867,7 @@ int test(int FILTERLEN, int convFlags, const int testOutLen, int printDbg, int p
 }
 
 /* small functions inside pffft.c that will detect (compiler) bugs with respect to simd instructions */
-void validate_pffft_simd();
+void validate_pffft_simd(void);
 int  validate_pffft_simd_ex(FILE * DbgOut);
 
 

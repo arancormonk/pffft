@@ -64,7 +64,6 @@ Ttest(int N, bool useOrdered)
 {
   typedef pffft::Fft<T> Fft;
   typedef typename pffft::Fft<T>::Scalar  FftScalar;
-  typedef typename Fft::Complex FftComplex;
 
   const bool cplx = pffft::Fft<T>::isComplexTransform();
   const double EXPECTED_DYN_RANGE = Fft::isDoubleScalar() ? 215.0 : 140.0;
@@ -86,7 +85,7 @@ Ttest(int N, bool useOrdered)
 
   // possible ways to declare/instatiate aligned vectors with C++98
   pffft::AlignedVector<T> X = fft.valueVector();     // for X = input vector
-  pffft::AlignedVector<FftComplex>   Y = fft.spectrumVector();  // for Y = forward(X)
+  pffft::AlignedVector<typename Fft::Complex>   Y = fft.spectrumVector();  // for Y = forward(X)
   pffft::AlignedVector<typename Fft::Scalar>  R = fft.internalLayoutVector(); // for R = forwardInternalLayout(X)
   pffft::AlignedVector<T> Z = fft.valueVector();     // for Z = inverse(Y) = inverse( forward(X) )
                                                      //  or Z = inverseInternalLayout(R)
@@ -371,7 +370,7 @@ test(int N, bool useComplex, bool useOrdered)
            Ttest< ::std::complex<float> >(N, useOrdered)
 #endif
 #if defined(PFFFT_ENABLE_FLOAT) && defined(PFFFT_ENABLE_DOUBLE)
-        |
+        | (int)
 #endif
 #ifdef PFFFT_ENABLE_DOUBLE
            Ttest< ::std::complex<double> >(N, useOrdered)
@@ -383,7 +382,7 @@ test(int N, bool useComplex, bool useOrdered)
            Ttest<float>(N, useOrdered)
 #endif
 #if defined(PFFFT_ENABLE_FLOAT) && defined(PFFFT_ENABLE_DOUBLE)
-        |
+        | (int)
 #endif
 #ifdef PFFFT_ENABLE_DOUBLE
            Ttest<double>(N, useOrdered)
@@ -393,7 +392,7 @@ test(int N, bool useComplex, bool useOrdered)
 }
 
 int
-main(int argc, char** argv)
+main(void)
 {
   int N, result, resN, resAll, k, resNextPw2, resIsPw2, resFFT;
   int resZP = 0;
@@ -403,7 +402,7 @@ main(int argc, char** argv)
 
   resNextPw2 = 0;
   resIsPw2 = 0;
-  for (k = 0; k < (sizeof(inp_power_of_two) / sizeof(inp_power_of_two[0]));
+  for (k = 0; k < (int)(sizeof(inp_power_of_two) / sizeof(inp_power_of_two[0]));
        ++k) {
 #ifdef PFFFT_ENABLE_FLOAT
     N = pffft::Fft<float>::nextPowerOfTwo(inp_power_of_two[k]);

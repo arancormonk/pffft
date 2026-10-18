@@ -7,7 +7,7 @@
 
 void c_forward_complex_double(const int transformLen)
 {
-  printf("running %s()\n", __FUNCTION__);
+  printf("running %s()\n", __func__);
 
   /* first check - might be skipped */
   if (transformLen < pffftd_min_fft_size(PFFFT_COMPLEX))

@@ -123,6 +123,8 @@ endif()
 if (PFFFT_USE_TYPE_FLOAT)
 
     add_executable(bench_pf_mixer_float   bench_mixers.cpp papi_perf_counter.h)
+    set_property(TARGET bench_pf_mixer_float PROPERTY CXX_STANDARD 11)
+    set_property(TARGET bench_pf_mixer_float PROPERTY CXX_STANDARD_REQUIRED ON)
     target_compile_definitions(bench_pf_mixer_float PRIVATE _USE_MATH_DEFINES)
     target_compile_definitions(bench_pf_mixer_float PRIVATE PFFFT_ENABLE_FLOAT)
     target_link_libraries( bench_pf_mixer_float  ${ASANLIB} )

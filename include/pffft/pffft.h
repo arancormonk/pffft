@@ -63,6 +63,9 @@
    N=(2^a)*(3^b)*(5^c), a >= 5, b >=0, c >= 0 (32, 48, 64, 96, 128,
    144, 160, etc are all acceptable lengths). Performance is best for
    128<=N<=8192.
+   That is the rule for real transforms with 4-wide SIMD: in general N
+   must be pffft_min_fft_size() times 2^a*3^b*5^c (complex transforms
+   also accept a = 4, scalar builds much smaller N), and N <= 2^26.
 
    - all (float*) pointers in the functions below are expected to
    have an "simd-compatible" alignment, that is 16 bytes on x86 and
@@ -301,6 +304,7 @@ extern "C" {
 
   /* simple helper to determine size N is valid
      - factorizable to pffft_min_fft_size() with factors 2, 3, 5
+     - and N <= 2^26, the largest size pffft_new_setup() accepts
      returns bool
   */
   PFFFT_EXPORT int pffft_is_valid_size(int N, pffft_transform_t cplx);
@@ -308,6 +312,8 @@ extern "C" {
   /* determine nearest valid transform size  (by brute-force testing)
      - factorizable to pffft_min_fft_size() with factors 2, 3, 5.
      higher: bool-flag to find nearest higher value; else lower.
+     never returns more than 2^26: above it, returns the largest valid size.
+     never returns less than pffft_min_fft_size().
   */
   PFFFT_EXPORT int pffft_nearest_transform_size(int N, pffft_transform_t cplx, int higher);
 

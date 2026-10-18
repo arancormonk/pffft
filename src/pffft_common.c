@@ -11,7 +11,9 @@
 #define EXTRA_BYTES_FOR_ALIGNMENT_AND_A_POINTER (MALLOC_V4SF_ALIGNMENT - 1 + sizeof(void*))
 
 static void * Valigned_malloc(size_t nb_bytes) {
-  void *p, *p0 = malloc(nb_bytes + EXTRA_BYTES_FOR_ALIGNMENT_AND_A_POINTER);
+  void *p, *p0;
+  if (nb_bytes > SIZE_MAX - EXTRA_BYTES_FOR_ALIGNMENT_AND_A_POINTER) return (void *) 0;
+  p0 = malloc(nb_bytes + EXTRA_BYTES_FOR_ALIGNMENT_AND_A_POINTER);
   if (!p0) return (void *) 0;
   p = (void *) (((uintptr_t) p0 + EXTRA_BYTES_FOR_ALIGNMENT_AND_A_POINTER) & (~((uintptr_t) (MALLOC_V4SF_ALIGNMENT-1))));
   *((void **) p - 1) = p0;

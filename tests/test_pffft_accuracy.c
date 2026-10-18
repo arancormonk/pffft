@@ -48,6 +48,8 @@ typedef PFFFT_Setup PF_Setup;
 #include <string.h>
 #include <math.h>
 #include <float.h>
+#include <limits.h>
+#include <stdint.h>
 
 /* accepted relative L2 error, in units of eps * log2(N) */
 #define TOL_FFT 2.0
@@ -471,6 +473,45 @@ static void test_size_helpers(void) {
       }
     }
   }
+  /* the helpers agree with new_setup() above its 2^26 limit, and invalid
+     arguments make new_setup() / aligned_malloc() fail without asserting */
+  for (cplx = 0; cplx < 2; ++cplx) {
+    pffft_transform_t tt = cplx ? PFFFT_COMPLEX : PFFFT_REAL;
+    static const int too_big[] = { (1 << 26) + (1 << 20), 3 << 25, 1 << 27, 1 << 30, INT_MAX };
+    int i;
+    if (!PF(is_valid_size)(1 << 26, tt))
+      report_failure("is_valid_size(2^26)", 1 << 26, cplx, 1);
+    for (i = 0; i < (int)(sizeof(too_big) / sizeof(too_big[0])); ++i) {
+      PF_Setup *s = PF(new_setup)(too_big[i], tt);
+      if (PF(is_valid_size)(too_big[i], tt))
+        report_failure("is_valid_size accepted N > 2^26", too_big[i], cplx, 1);
+      if (s) {
+        report_failure("new_setup accepted N > 2^26", too_big[i], cplx, 1);
+        PF(destroy_setup)(s);
+      }
+      if (PF(nearest_transform_size)(too_big[i], tt, 1) != (1 << 26))
+        report_failure("nearest_transform_size(higher) above 2^26", too_big[i], cplx, 1);
+      if (PF(nearest_transform_size)(too_big[i], tt, 0) != (1 << 26))
+        report_failure("nearest_transform_size(lower) above 2^26", too_big[i], cplx, 1);
+    }
+    if (PF(nearest_transform_size)((1 << 26) - 1, tt, 1) != (1 << 26))
+      report_failure("nearest_transform_size(higher) below 2^26", (1 << 26) - 1, cplx, 1);
+  }
+  for (N = -1; N <= 64; ++N) {
+    PF_Setup *s = PF(new_setup)(N, (pffft_transform_t)2);
+    if (s) {
+      report_failure("new_setup accepted an invalid transform type", N, 0, 1);
+      PF(destroy_setup)(s);
+    }
+  }
+  {
+    void *p = PF(aligned_malloc)(SIZE_MAX - 8);
+    if (p) {
+      report_failure("aligned_malloc(SIZE_MAX - 8) did not return NULL", 0, 0, 1);
+      PF(aligned_free)(p);
+    }
+  }
+
   for (N = 1; N <= (1 << 20); ++N) {
     int p = 1;
     while (p < N) p <<= 1;

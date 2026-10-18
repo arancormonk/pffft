@@ -34,6 +34,7 @@
 #include <vector>
 #include <limits>
 #include <cassert>
+#include <new>
 
 namespace pffft {
 namespace detail {
@@ -182,7 +183,8 @@ public:
    * length is identical to forward()'s input vector's size,
    * and also equals inverse()'s output vector size.
    * this function is no simple setter. it pre-calculates twiddle factors.
-   * returns true if newLength is >= minFFtsize, false otherwise
+   * returns true if newLength is a valid size (see isValidSize()); else
+   * false, and the instance is invalid until a later successful call
    */
   bool prepareLength(int newLength);
 
@@ -859,8 +861,11 @@ template<typename T>
 inline bool
 Fft<T>::prepareLength(int newLength)
 {
-  if(newLength < minFFtsize())
+  if(newLength < minFFtsize()) {
+    setup.prepareLength(0);  // release the old setup: isValid() == false
+    length = 0;
     return false;
+  }
 
   const bool wasOnHeap = ( work != NULL );
 
@@ -1232,8 +1237,12 @@ class PFAlloc {
 
     // allocate but don't initialize num elements of type T
     pointer allocate (size_type num, const void* = 0) {
-        pointer ret = (pointer)( alignedAlloc<T>(int(num)) );
-        return ret;
+        if (num > max_size())
+            throw ::std::bad_alloc();
+        void* ret = detail::pffft_aligned_malloc(num * sizeof(T));
+        if (!ret)
+            throw ::std::bad_alloc();
+        return static_cast<pointer>(ret);
     }
 
     // initialize elements of allocated storage p with value value

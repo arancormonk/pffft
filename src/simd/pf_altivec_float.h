@@ -61,7 +61,8 @@ typedef union v4sf_union {
 #  define VMSUB(a,b,c) vec_nmsub(a,b,c)
 #endif
 #  define VSUB(a,b) vec_sub(a,b)
-inline v4sf ld_ps1(const float *p) { v4sf v=vec_lde(0,p); return vec_splat(vec_perm(v, v, vec_lvsl(0, p)), 0); }
+/* vec_lvsl is wrong for little-endian; vec_splats works on both */
+static inline v4sf ld_ps1(const float *p) { return vec_splats(*p); }
 #  define LD_PS1(p) ld_ps1(&p)
 #  define INTERLEAVE2(in1, in2, out1, out2) { v4sf tmp__ = vec_mergeh(in1, in2); out2 = vec_mergel(in1, in2); out1 = tmp__; }
 #  define UNINTERLEAVE2(in1, in2, out1, out2) {                           \
@@ -81,6 +82,16 @@ inline v4sf ld_ps1(const float *p) { v4sf v=vec_lde(0,p); return vec_splat(vec_p
   }
 #  define VSWAPHL(a,b) vec_perm(a,b, (vector unsigned char){16,17,18,19,20,21,22,23,8,9,10,11,12,13,14,15})
 #  define VALIGNED(ptr) ((((uintptr_t)(ptr)) & 0xF) == 0)
+static inline v4sf ld_ps_unaligned(const float *p) {
+  v4sf_union u; int i;
+  for (i = 0; i < SIMD_SZ; ++i) u.f[i] = p[i];
+  return u.v;
+}
+#  define VLOAD_UNALIGNED(ptr)  ld_ps_unaligned((const float*)(ptr))
+#  define VLOAD_ALIGNED(ptr)    vec_ld(0, (const float*)(ptr))
+/* reverse the 4 floats / swap the 2 complex values */
+#  define VREV_S(a) vec_perm(a,a, (vector unsigned char){12,13,14,15,8,9,10,11,4,5,6,7,0,1,2,3})
+#  define VREV_C(a) vec_perm(a,a, (vector unsigned char){8,9,10,11,12,13,14,15,0,1,2,3,4,5,6,7})
 
 #endif
 

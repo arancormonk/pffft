@@ -8,7 +8,11 @@
     instances (no shared setup or work memory -- these used to be
     freed twice) that compute the same results as the original;
   - convolveAccumulate() exists for every transform type and computes
-    ab += a * b * scaling in the internal layout.
+    ab += a * b * scaling in the internal layout;
+  - prepareLength() with an invalid length, or assigning an invalid
+    instance, leaves an invalid instance (not the previous length);
+  - AlignedVector allocation failure throws std::bad_alloc instead of
+    handing std::vector a NULL or truncated block.
 */
 
 #include "pffft/pffft.hpp"
@@ -17,6 +21,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cmath>
+#include <new>
 
 namespace {
 
@@ -105,7 +110,34 @@ void test_type(const char *type, int N, int stackThresholdLen) {
 }
 
 template<typename T>
+void test_invalid_lengths(const char *type) {
+  typedef pffft::Fft<T> Fft;
+  const int bad[] = { Fft::minFFtsize() / 2, Fft::minFFtsize() * 7 };
+  for (int i = 0; i < 2; ++i) {
+    if (bad[i] < 1 || Fft::isValidSize(bad[i])) continue;
+    Fft f(64);
+    if (f.prepareLength(bad[i])) fail(type, bad[i], "prepareLength accepted an invalid length");
+    if (f.isValid() || f.getLength() != 0) fail(type, bad[i], "prepareLength kept the old length");
+    Fft g(64), invalid(bad[i]);
+    g = invalid;
+    if (g.isValid() || g.getLength() != 0) fail(type, bad[i], "assigning an invalid instance kept the old length");
+  }
+  // a request no allocator can satisfy must throw, not return NULL
+  // (more than max_size(): the int-truncated count used to allocate a few bytes)
+  bool threw = false;
+  pffft::PFAlloc<T> alloc;
+  try {
+    T *p = alloc.allocate(alloc.max_size() + 1);
+    alloc.deallocate(p, 0);
+  } catch (const std::bad_alloc &) {
+    threw = true;
+  }
+  if (!threw) fail(type, 0, "PFAlloc::allocate(max_size() + 1) did not throw");
+}
+
+template<typename T>
 void test_sizes(const char *type) {
+  test_invalid_lengths<T>(type);
   const int sizes[] = { 32, 96, 480, 1024, 6144 };
   for (int i = 0; i < (int)(sizeof(sizes) / sizeof(sizes[0])); ++i) {
     test_type<T>(type, sizes[i], 4096);  // stack work below 4096, heap above

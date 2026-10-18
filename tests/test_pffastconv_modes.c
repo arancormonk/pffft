@@ -15,7 +15,7 @@
   within their documented conditions for real data, and with complex
   data -- where the header says they are ignored -- outside them.
   The error limit is relative L2 error <= MAX_ERR_EPS * FLT_EPSILON,
-  relative to ||h|| * ||x||.
+  relative to ||h|| * ||x||. new_setup() must reject filterLen < 1.
 */
 
 #include "pffft/pffastconv.h"
@@ -155,6 +155,15 @@ int main(void) {
   };
   int fi, bi, ei;
   float h[1000];
+
+  for (fi = -2; fi <= 0; ++fi) {
+    int blockLen = 0;
+    PFFASTCONV_Setup *s = pffastconv_new_setup(h, fi, &blockLen, 0);
+    if (s) {
+      report("new_setup accepted an empty filter", fi, 0, 0, 0);
+      pffastconv_destroy_setup(s);
+    }
+  }
 
   for (fi = 0; fi < (int)(sizeof(filter_lens) / sizeof(filter_lens[0])); ++fi) {
     const int L = filter_lens[fi];

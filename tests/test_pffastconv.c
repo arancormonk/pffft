@@ -464,7 +464,7 @@ void printFirst( const float * V, const char * st, const int N, const int perLin
 
 
 int test(int FILTERLEN, int convFlags, const int testOutLen, int printDbg, int printSpeed, int abortFirstFastAlgo, int printErrValues, int printAsCSV, int *pIsFirstFilterLen) {
-  double t0, t1, tstop, td, tdref;
+  double t0, t1, tstop, td = 0.0, tdref;
   float *X, *H;
   float *Y[NUMY];
   int64_t outN[NUMY];
@@ -480,7 +480,7 @@ int test(int FILTERLEN, int convFlags, const int testOutLen, int printDbg, int p
   const int lenC = len / cplxFactor;
 
   int yi, yc, posMaxErr;
-  float yRangeMin, yRangeMax, yErrLimit, maxErr = 0.0;
+  float yRangeMin, yRangeMax, yErrLimit = 0.0f, maxErr = 0.0;
   int i, j, numErrOverLimit, iter;
   int retErr = 0;
 
@@ -506,10 +506,7 @@ int test(int FILTERLEN, int convFlags, const int testOutLen, int printDbg, int p
   X = pffastconv_malloc( (unsigned)(len+4) * sizeof(float) );
   for ( i=0; i < NUMY; ++i)
   {
-    if ( 1 || i < 2 )
-      Y[i] = pffastconv_malloc( (unsigned)len * sizeof(float) );
-    else
-      Y[i] = Y[1];
+    Y[i] = pffastconv_malloc( (unsigned)len * sizeof(float) );
 
     Y[i][0] = 123.F;  /* test for pffft_zconvolve_scale() */
     aSpeedFactor[i] = -1.0;
@@ -854,8 +851,7 @@ int test(int FILTERLEN, int convFlags, const int testOutLen, int printDbg, int p
   pffastconv_free(X);
   for ( i=0; i < NUMY; ++i)
   {
-    if ( 1 || i < 2 )
-      pffastconv_free( Y[i] );
+    pffastconv_free( Y[i] );
     if (!aRunAlgo[i])
       continue;
     aDestroy[i]( aSetupCfg[i] );

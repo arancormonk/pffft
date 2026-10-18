@@ -379,7 +379,7 @@ int pffft_validate_N(int N, int cplx) {
       }
       for (k = 0; k < Nfloat; ++k) {
         if (fabs(in[k] - out[k]) > 1e-3 * ref_max) {
-          printf("pass=%d, %s IFFFT does not match for N=%d\n", pass, (cplx?"CPLX":"REAL"), N); break;
+          printf("pass=%d, %s IFFFT does not match for N=%d\n", pass, (cplx?"CPLX":"REAL"), N);
           return 1;
         }
       }
@@ -1208,8 +1208,8 @@ int main(int argc, char **argv) {
       return r;
 #else
       fprintf(stderr, "validation not available without FFTPACK!\n");
-#endif
       return 0;
+#endif
     }
     else /* if (!strcmp(argv[i], "--help")) */ {
       printf("usage: %s [--array-format|--table] [--no-tab] [--real|--cplx] [--validate] [--fftw-full-measure] [--non-pow2] [--max-len <N>] [--quick]\n", argv[0]);

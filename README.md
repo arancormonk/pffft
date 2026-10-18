@@ -193,6 +193,42 @@ the Relaxed SIMD option and the non-CMake build flags.
 Compiler- and architecture-specific tips for getting the best performance out
 of pffft.
 
+### Choose a Release configuration
+
+With CMake 3.21 or newer and Ninja, the repository provides these presets:
+
+| Preset | Intended use |
+| --- | --- |
+| `release` | Compiler baseline ISA; no additional architecture flags |
+| `release-native` | GCC/Clang build for the current host, including its available AVX/FMA features |
+| `release-haswell` | GCC/Clang x86 package explicitly requiring the Haswell instruction set |
+| `release-native-unfused` | Native build with explicit FMA and compiler contraction disabled |
+
+```sh
+cmake --preset release-native
+cmake --build --preset release-native --parallel
+ctest --preset release-native
+```
+
+Use `release` for baseline packages, or distribute a separately labelled
+`release-haswell` package to compatible x86 machines. Native builds require a
+CPU compatible with the build host; there is no runtime ISA dispatch. On MSVC,
+use the existing `-DTARGET_C_ARCH=AVX2 -DTARGET_CXX_ARCH=AVX2` options instead of
+the GCC/Clang architecture presets. Older CMake versions can use the equivalent
+`-DCMAKE_BUILD_TYPE=Release -DTARGET_C_ARCH=native -DTARGET_CXX_ARCH=native`
+options directly.
+
+On a Ryzen 5950X, selecting the native backend made a 1024-point double real
+forward FFT 2.08 times as fast as the baseline SSE2 build. Float stays four-wide;
+the gain depends on precision, size and workload. See the
+[performance analysis](benchmarks/perf_analysis/README.md) for measurements.
+
+Ordered complex transforms fuse spectrum reordering into finalization and
+preprocessing using the existing SIMD backends. Recursive mixers explicitly
+vectorize independent oscillator lanes where the mixer SIMD backend is
+available. Their recurrence also handles the formerly unstable rates near
+an odd multiple of pi per lane step, including `rate=0.125` for eight lanes.
+
 ### x86: enable FMA
 
 On x86 the fused multiply-add paths are **opt-in**, and the default build does
@@ -218,8 +254,10 @@ This is not the default on purpose: FMA3 requires an Intel Haswell (2013) or
 AMD Piledriver CPU, so enabling it unconditionally would break older hardware.
 `cmake` prints a reminder when the selected x86 architecture has no FMA.
 
-Note that FMA changes results by up to one ULP, since it rounds once where the
-separate multiply and add round twice.
+Each FMA rounds once where a separate multiply and add round twice, so final
+transform results can differ. Fewer instructions do not guarantee a speedup
+for every size. `PFFFT_DISABLE_FMA` controls explicit FMA in both PFFFT and
+PFDSP; also disable compiler contraction when unfused arithmetic is required.
 
 ### ARMv7 (32-bit ARM): prefer clang over gcc
 

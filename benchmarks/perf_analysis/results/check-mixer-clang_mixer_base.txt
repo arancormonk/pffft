@@ -1,0 +1,1 @@
+30 continuity/finite-output cases passed; block continuity exact; worst absolute error 2473.91641; low-rate error 2.91777129e-06 (limit 1e-3)

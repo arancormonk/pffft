@@ -1,0 +1,97 @@
+--- a/src/pffft_priv_impl.h
++++ b/src/pffft_priv_impl.h
+@@ -1475,7 +1475,7 @@
+   }
+ }
+ 
+-void FUNC_CPLX_FINALIZE(int Ncvec, const v4sf *in, v4sf *out, const v4sf *e) {
++void FUNC_CPLX_FINALIZE(int Ncvec, const v4sf *in, v4sf *out, const v4sf *e, int ordered) {
+   int k, dk = Ncvec/SIMD_SZ; /* number of 4x4 matrix blocks */
+   v4sf r0, i0, r1, i1, r2, i2, r3, i3;
+   v4sf sr0, dr0, sr1, dr1, si0, di0, si1, di1;
+@@ -1514,21 +1514,35 @@
+     r2 = VSUB(sr0, sr1); i2 = VSUB(si0, si1);
+     r3 = VSUB(dr0, di1); i3 = VADD(di0, dr1);
+ 
+-    *out++ = r0; *out++ = i0; *out++ = r1; *out++ = i1;
+-    *out++ = r2; *out++ = i2; *out++ = r3; *out++ = i3;
+-  }
+-}
+-
+-void FUNC_CPLX_PREPROCESS(int Ncvec, const v4sf *in, v4sf *out, const v4sf *e) {
++    if (ordered) {
++      INTERLEAVE2(r0, i0, out[2*k], out[2*k+1]);
++      INTERLEAVE2(r1, i1, out[2*(dk+k)], out[2*(dk+k)+1]);
++      INTERLEAVE2(r2, i2, out[2*(2*dk+k)], out[2*(2*dk+k)+1]);
++      INTERLEAVE2(r3, i3, out[2*(3*dk+k)], out[2*(3*dk+k)+1]);
++    } else {
++      *out++ = r0; *out++ = i0; *out++ = r1; *out++ = i1;
++      *out++ = r2; *out++ = i2; *out++ = r3; *out++ = i3;
++    }
++  }
++}
++
++void FUNC_CPLX_PREPROCESS(int Ncvec, const v4sf *in, v4sf *out, const v4sf *e, int ordered) {
+   int k, dk = Ncvec/SIMD_SZ; /* number of 4x4 matrix blocks */
+   v4sf r0, i0, r1, i1, r2, i2, r3, i3;
+   v4sf sr0, dr0, sr1, dr1, si0, di0, si1, di1;
+   assert(in != out);
+   for (k=0; k < dk; ++k) {
+-    r0 = in[8*k+0]; i0 = in[8*k+1];
+-    r1 = in[8*k+2]; i1 = in[8*k+3];
+-    r2 = in[8*k+4]; i2 = in[8*k+5];
+-    r3 = in[8*k+6]; i3 = in[8*k+7];
++    if (ordered) {
++      UNINTERLEAVE2(in[2*k], in[2*k+1], r0, i0);
++      UNINTERLEAVE2(in[2*(dk+k)], in[2*(dk+k)+1], r1, i1);
++      UNINTERLEAVE2(in[2*(2*dk+k)], in[2*(2*dk+k)+1], r2, i2);
++      UNINTERLEAVE2(in[2*(3*dk+k)], in[2*(3*dk+k)+1], r3, i3);
++    } else {
++      r0 = in[8*k+0]; i0 = in[8*k+1];
++      r1 = in[8*k+2]; i1 = in[8*k+3];
++      r2 = in[8*k+4]; i2 = in[8*k+5];
++      r3 = in[8*k+6]; i3 = in[8*k+7];
++    }
+ 
+     sr0 = VADD(r0,r2); dr0 = VSUB(r0, r2);
+     sr1 = VADD(r1,r3); dr1 = VSUB(r1, r3);
+@@ -1751,7 +1765,8 @@
+   const v4sf *vinput = (const v4sf*)finput;
+   v4sf *voutput      = (v4sf*)foutput;
+   v4sf *buff[2]      = { voutput, scratch ? scratch : scratch_on_stack };
+-  int ib = (nf_odd ^ ordered ? 1 : 0);
++  int ordered_real = ordered && setup->transform == PFFFT_REAL;
++  int ib = (nf_odd ^ ordered_real ? 1 : 0);
+ 
+   assert(VALIGNED(finput) && VALIGNED(foutput));
+ 
+@@ -1768,16 +1783,16 @@
+       }
+       ib = (cfftf1_ps(Ncvec, buff[ib], buff[!ib], buff[ib],
+                       setup->twiddle, &setup->ifac[0], -1) == buff[0] ? 0 : 1);
+-      FUNC_CPLX_FINALIZE(Ncvec, buff[ib], buff[!ib], (v4sf*)setup->e);
+-    }
+-    if (ordered) {
++      FUNC_CPLX_FINALIZE(Ncvec, buff[ib], buff[!ib], (v4sf*)setup->e, ordered);
++    }
++    if (ordered_real) {
+       FUNC_ZREORDER(setup, (float*)buff[!ib], (float*)buff[ib], PFFFT_FORWARD);
+     } else ib = !ib;
+   } else {
+     if (vinput == buff[ib]) {
+       ib = !ib; /* may happen when finput == foutput */
+     }
+-    if (ordered) {
++    if (ordered_real) {
+       FUNC_ZREORDER(setup, (float*)vinput, (float*)buff[ib], PFFFT_BACKWARD);
+       vinput = buff[ib]; ib = !ib;
+     }
+@@ -1786,7 +1801,7 @@
+       ib = (rfftb1_ps(Ncvec*2, buff[ib], buff[0], buff[1],
+                       setup->twiddle, &setup->ifac[0]) == buff[0] ? 0 : 1);
+     } else {
+-      FUNC_CPLX_PREPROCESS(Ncvec, vinput, buff[ib], (v4sf*)setup->e);
++      FUNC_CPLX_PREPROCESS(Ncvec, vinput, buff[ib], (v4sf*)setup->e, ordered);
+       ib = (cfftf1_ps(Ncvec, buff[ib], buff[0], buff[1],
+                       setup->twiddle, &setup->ifac[0], +1) == buff[0] ? 0 : 1);
+       for (k=0; k < Ncvec; ++k) {

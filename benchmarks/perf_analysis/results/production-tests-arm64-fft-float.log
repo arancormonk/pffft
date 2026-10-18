@@ -1,0 +1,5 @@
+pffft accuracy test: float, simd_size 4 (NEON), sizes up to 8192
+reference DFT self-check: max rel err 5.3e-34 (long double epsilon 1.93e-34)
+tested 52 REAL and 68 COMPLEX sizes
+worst rel. L2 error in eps*log2(N): forward 0.135, backward 0.156, convolution 0.388 (limit 2.0)
+all checks passed

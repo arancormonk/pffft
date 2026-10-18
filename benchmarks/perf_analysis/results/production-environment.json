@@ -1,0 +1,28 @@
+{
+  "baseline_commit": "fb3abfef7fe9284284f17d0780867ed902073a54",
+  "cpu": 14,
+  "max_busy_cpus": 2.5,
+  "fft_samples": 640,
+  "mixer_samples": 42,
+  "notes": [
+    "Final FFT implementation: compile-time layout specialization, separate noinline complex ordered path. Five samples per build/case; target 0.03 seconds.",
+    "Mixer production comparison: six original/modified compiler configurations, seven samples at N=256, rate=-0.0009; target 0.08 seconds.",
+    "Mixer trials for other cases were stopped when unrelated workloads saturated the host; incomplete groups are excluded.",
+    "Intermediate fft-screen and fft-specialized measurements are excluded from production results.",
+    "All timing comparisons alternate builds in randomized order, pin CPU 14, and reject aggregate host load above 2.5 busy CPUs.",
+    "No physical ARM timing claim; QEMU validates correctness only.",
+    "Double ordered forward N=5120 remains 2.4 percent slower; the implementation retains the shared portable path rather than adding a host-specific size exception."
+  ],
+  "library_sha256": {
+    "build_impl_native/libpffft.a": "191d5d26f84ba19c4fe0d4acb9d7077eb7bf6d048a8e13f9c03becc64fb1c1e5",
+    "build_impl_native/libpfdsp.a": "d17ea1d3f1d02147d9eb4343bf485a8e03f569551164f19d7471f97453b26174",
+    "build_release/libpfdsp.a": "1ef0c4b85817fd326ad3b61b2efcb3715f668bdbaebd9291a4b498a03684022c",
+    "build_impl_clang/libpfdsp.a": "d8eba69ea5ad3c816ad0d2672c6c0f56e7288f992aca58c5da1911ae7c8fdd29"
+  },
+  "source_sha256": {
+    "src/pffft_priv_impl.h": "f46975ac8959e558cdacb0cc7e7aeba1cfc0f3b1f92198f8be6a16862622b7a6",
+    "src/pffft_cplx_impl.h": "00376252c195c5f523e89d8ae176ea8a0107682e13df6c48e26c808504ccb407",
+    "src/pf_mixer.cpp": "1c3aaffd35900577672fb26f31d1ab58b1bb18f2a4d416fed6db4a2e37854d24",
+    "tests/test_pf_mixer.cpp": "73968de3124a4b331c39460cb33404069acf41aecee527b2e93bffcc964fda75"
+  }
+}

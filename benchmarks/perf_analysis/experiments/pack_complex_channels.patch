@@ -1,0 +1,85 @@
+--- a/src/pffastconv.c
++++ b/src/pffastconv.c
+@@ -11,6 +11,8 @@
+ #include <math.h>
+ #include <assert.h>
+ #include <string.h>
++
++#include "simd/pf_float.h"
+ 
+ #define FASTCONV_DBG_OUT  0
+ 
+@@ -238,7 +240,16 @@
+         if ( flags & PFFASTCONV_CPLX_INP_OUT )
+         {
+           cplxOff = 2 * inpOff + part;
+-          for ( j = 0; j < procLen; ++j )
++          j = 0;
++#if SIMD_SZ == 4
++          for (; j + 4 <= procLen; j += 4) {
++            v4sf re, im;
++            const float *src = X + cplxOff - part + 2*j;
++            UNINTERLEAVE2(VLOAD_UNALIGNED(src), VLOAD_UNALIGNED(src+4), re, im);
++            ((v4sf*)s->Xt)[j/4] = part ? im : re;
++          }
++#endif
++          for (; j < procLen; ++j)
+             s->Xt[j] = X[cplxOff + 2 * j];
+           if ( procLen < Nfft )
+             memset( s->Xt + procLen, 0, (unsigned)(Nfft - procLen) * sizeof(float) );
+@@ -265,8 +276,25 @@
+           pffft_transform(s->st, s->Mf, s->Xf, /* tmp = */ s->Xt, PFFFT_BACKWARD);
+     
+           cplxOff = 2 * inpOff + part;
+-          for ( j = 0; j < numOut; ++j )
+-            Y[ cplxOff + 2 * j ] = s->Xf[j];
++          j = 0;
++#if SIMD_SZ == 4
++          for (; j + 4 <= numOut; j += 4) {
++            float *dst = Y + cplxOff - part + 2*j;
++            v4sf re, im, lo, hi;
++            if (part) {
++              UNINTERLEAVE2(VLOAD_UNALIGNED(dst), VLOAD_UNALIGNED(dst+4), re, im);
++              im = VLOAD_ALIGNED(s->Xf+j);
++            } else {
++              re = VLOAD_ALIGNED(s->Xf+j);
++              im = VZERO();
++            }
++            INTERLEAVE2(re, im, lo, hi);
++            VSTORE_UNALIGNED(dst, lo);
++            VSTORE_UNALIGNED(dst+4, hi);
++          }
++#endif
++          for (; j < numOut; ++j)
++            Y[cplxOff + 2*j] = s->Xf[j];
+         }
+         else if ( flags & PFFASTCONV_DIRECT_OUT )
+         {
+--- a/src/simd/pf_float.h
++++ b/src/simd/pf_float.h
+@@ -85,5 +85,13 @@
+ #define SVMSUB(f,v,c) VMSUB(LD_PS1(f),v,c)
+ #endif
+ 
++/* memcpy permits public convolution buffers with arbitrary alignment. */
++#ifndef VSTORE_UNALIGNED
++#define VSTORE_UNALIGNED(ptr, value) do { \
++  v4sf store_value_ = (value); \
++  memcpy((ptr), &store_value_, sizeof(store_value_)); \
++} while (0)
++#endif
++
+ #endif /* PF_FLT_H */
+ 
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -288,6 +288,9 @@
+   if (PFFFT_USE_DEBUG_ASAN)
+     target_compile_options(PFFASTCONV PRIVATE "-fsanitize=address")
+   endif()
++  if (NOT PFFFT_USE_SIMD)
++    target_compile_definitions(PFFASTCONV PRIVATE PFFFT_SIMD_DISABLE=1)
++  endif()
+   target_link_libraries( PFFASTCONV PFFFT ${ASANLIB} ${MATHLIB} )
+   target_include_directories(PFFASTCONV
+     PUBLIC

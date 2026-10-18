@@ -1,0 +1,68 @@
+[
+  {
+    "directory": "/home/mark/Documents/Projects/Software/pffft/build_simd_analysis/release",
+    "command": "/usr/bin/cc -DPFFFT_SCALVEC_ENABLED=1 -DPFFFT_STATIC_DEFINE -D_USE_MATH_DEFINES -I/home/mark/Documents/Projects/Software/pffft/include -I/home/mark/Documents/Projects/Software/pffft/src -I/home/mark/Documents/Projects/Software/pffft/include/pffft -O3 -DNDEBUG -std=c99 -fvisibility=hidden -Wall -Wextra -pedantic -Werror -o CMakeFiles/PFFFT.dir/src/pffft.c.o -c /home/mark/Documents/Projects/Software/pffft/src/pffft.c",
+    "file": "/home/mark/Documents/Projects/Software/pffft/src/pffft.c",
+    "output": "CMakeFiles/PFFFT.dir/src/pffft.c.o"
+  },
+  {
+    "directory": "/home/mark/Documents/Projects/Software/pffft/build_simd_analysis/release",
+    "command": "/usr/bin/cc -DPFFFT_SCALVEC_ENABLED=1 -DPFFFT_STATIC_DEFINE -D_USE_MATH_DEFINES -I/home/mark/Documents/Projects/Software/pffft/include -I/home/mark/Documents/Projects/Software/pffft/src -I/home/mark/Documents/Projects/Software/pffft/include/pffft -O3 -DNDEBUG -std=c99 -fvisibility=hidden -Wall -Wextra -pedantic -Werror -o CMakeFiles/PFFFT.dir/src/pffft_double.c.o -c /home/mark/Documents/Projects/Software/pffft/src/pffft_double.c",
+    "file": "/home/mark/Documents/Projects/Software/pffft/src/pffft_double.c",
+    "output": "CMakeFiles/PFFFT.dir/src/pffft_double.c.o"
+  },
+  {
+    "directory": "/home/mark/Documents/Projects/Software/pffft/build_simd_analysis/release",
+    "command": "/usr/bin/cc -DPFFFT_SCALVEC_ENABLED=1 -DPFFFT_STATIC_DEFINE -D_USE_MATH_DEFINES -I/home/mark/Documents/Projects/Software/pffft/include -I/home/mark/Documents/Projects/Software/pffft/src -I/home/mark/Documents/Projects/Software/pffft/include/pffft -O3 -DNDEBUG -std=c99 -fvisibility=hidden -Wall -Wextra -pedantic -Werror -o CMakeFiles/PFFFT.dir/src/pffft_common.c.o -c /home/mark/Documents/Projects/Software/pffft/src/pffft_common.c",
+    "file": "/home/mark/Documents/Projects/Software/pffft/src/pffft_common.c",
+    "output": "CMakeFiles/PFFFT.dir/src/pffft_common.c.o"
+  },
+  {
+    "directory": "/home/mark/Documents/Projects/Software/pffft/build_simd_analysis/release",
+    "command": "/usr/bin/c++ -DPFDSP_STATIC_DEFINE -D_USE_MATH_DEFINES -I/home/mark/Documents/Projects/Software/pffft/include -I/home/mark/Documents/Projects/Software/pffft/src -I/home/mark/Documents/Projects/Software/pffft/include/pffft -O3 -DNDEBUG -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden -Wall -Wextra -pedantic -Werror -o CMakeFiles/PFDSP.dir/src/pf_mixer.cpp.o -c /home/mark/Documents/Projects/Software/pffft/src/pf_mixer.cpp",
+    "file": "/home/mark/Documents/Projects/Software/pffft/src/pf_mixer.cpp",
+    "output": "CMakeFiles/PFDSP.dir/src/pf_mixer.cpp.o"
+  },
+  {
+    "directory": "/home/mark/Documents/Projects/Software/pffft/build_simd_analysis/release",
+    "command": "/usr/bin/c++ -DPFDSP_STATIC_DEFINE -D_USE_MATH_DEFINES -I/home/mark/Documents/Projects/Software/pffft/include -I/home/mark/Documents/Projects/Software/pffft/src -I/home/mark/Documents/Projects/Software/pffft/include/pffft -O3 -DNDEBUG -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden -Wall -Wextra -pedantic -Werror -o CMakeFiles/PFDSP.dir/src/pf_carrier.cpp.o -c /home/mark/Documents/Projects/Software/pffft/src/pf_carrier.cpp",
+    "file": "/home/mark/Documents/Projects/Software/pffft/src/pf_carrier.cpp",
+    "output": "CMakeFiles/PFDSP.dir/src/pf_carrier.cpp.o"
+  },
+  {
+    "directory": "/home/mark/Documents/Projects/Software/pffft/build_simd_analysis/release",
+    "command": "/usr/bin/c++ -DPFDSP_STATIC_DEFINE -D_USE_MATH_DEFINES -I/home/mark/Documents/Projects/Software/pffft/include -I/home/mark/Documents/Projects/Software/pffft/src -I/home/mark/Documents/Projects/Software/pffft/include/pffft -O3 -DNDEBUG -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden -Wall -Wextra -pedantic -Werror -o CMakeFiles/PFDSP.dir/src/pf_cic.cpp.o -c /home/mark/Documents/Projects/Software/pffft/src/pf_cic.cpp",
+    "file": "/home/mark/Documents/Projects/Software/pffft/src/pf_cic.cpp",
+    "output": "CMakeFiles/PFDSP.dir/src/pf_cic.cpp.o"
+  },
+  {
+    "directory": "/home/mark/Documents/Projects/Software/pffft/build_simd_analysis/release",
+    "command": "/usr/bin/cc -DPFFASTCONV_STATIC_DEFINE -DPFFFT_STATIC_DEFINE -D_USE_MATH_DEFINES -I/home/mark/Documents/Projects/Software/pffft/include -I/home/mark/Documents/Projects/Software/pffft/include/pffft -O3 -DNDEBUG -std=c99 -fvisibility=hidden -Wall -Wextra -pedantic -Werror -o CMakeFiles/PFFASTCONV.dir/src/pffastconv.c.o -c /home/mark/Documents/Projects/Software/pffft/src/pffastconv.c",
+    "file": "/home/mark/Documents/Projects/Software/pffft/src/pffastconv.c",
+    "output": "CMakeFiles/PFFASTCONV.dir/src/pffastconv.c.o"
+  },
+  {
+    "directory": "/home/mark/Documents/Projects/Software/pffft/build_simd_analysis/release/tests",
+    "command": "/usr/bin/cc -DNDEBUG -DPFFFT_SIMD_DISABLE=1 -DPFFFT_STATIC_DEFINE -I/home/mark/Documents/Projects/Software/pffft/include/pffft -O3 -DNDEBUG -std=c99 -Wall -Wextra -Wpedantic -Wstrict-prototypes -Wold-style-definition -Werror -Wno-vla -pedantic -o CMakeFiles/test_strict_scalar.dir/__/src/pffft.c.o -c /home/mark/Documents/Projects/Software/pffft/src/pffft.c",
+    "file": "/home/mark/Documents/Projects/Software/pffft/src/pffft.c",
+    "output": "tests/CMakeFiles/test_strict_scalar.dir/__/src/pffft.c.o"
+  },
+  {
+    "directory": "/home/mark/Documents/Projects/Software/pffft/build_simd_analysis/release/tests",
+    "command": "/usr/bin/cc -DNDEBUG -DPFFFT_SIMD_DISABLE=1 -DPFFFT_STATIC_DEFINE -I/home/mark/Documents/Projects/Software/pffft/include/pffft -O3 -DNDEBUG -std=c99 -Wall -Wextra -Wpedantic -Wstrict-prototypes -Wold-style-definition -Werror -Wno-vla -pedantic -o CMakeFiles/test_strict_scalar.dir/__/src/pffft_common.c.o -c /home/mark/Documents/Projects/Software/pffft/src/pffft_common.c",
+    "file": "/home/mark/Documents/Projects/Software/pffft/src/pffft_common.c",
+    "output": "tests/CMakeFiles/test_strict_scalar.dir/__/src/pffft_common.c.o"
+  },
+  {
+    "directory": "/home/mark/Documents/Projects/Software/pffft/build_simd_analysis/release/tests",
+    "command": "/usr/bin/cc -DNDEBUG -DPFFFT_STATIC_DEFINE -I/home/mark/Documents/Projects/Software/pffft/include/pffft -O3 -DNDEBUG -std=c99 -Wall -Wextra -Wpedantic -Wstrict-prototypes -Wold-style-definition -Werror -Wno-vla -pedantic -o CMakeFiles/test_strict_simd.dir/__/src/pffft.c.o -c /home/mark/Documents/Projects/Software/pffft/src/pffft.c",
+    "file": "/home/mark/Documents/Projects/Software/pffft/src/pffft.c",
+    "output": "tests/CMakeFiles/test_strict_simd.dir/__/src/pffft.c.o"
+  },
+  {
+    "directory": "/home/mark/Documents/Projects/Software/pffft/build_simd_analysis/release/tests",
+    "command": "/usr/bin/cc -DNDEBUG -DPFFFT_STATIC_DEFINE -I/home/mark/Documents/Projects/Software/pffft/include/pffft -O3 -DNDEBUG -std=c99 -Wall -Wextra -Wpedantic -Wstrict-prototypes -Wold-style-definition -Werror -Wno-vla -pedantic -o CMakeFiles/test_strict_simd.dir/__/src/pffft_common.c.o -c /home/mark/Documents/Projects/Software/pffft/src/pffft_common.c",
+    "file": "/home/mark/Documents/Projects/Software/pffft/src/pffft_common.c",
+    "output": "tests/CMakeFiles/test_strict_simd.dir/__/src/pffft_common.c.o"
+  }
+]

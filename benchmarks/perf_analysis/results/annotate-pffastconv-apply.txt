@@ -1,0 +1,570 @@
+ Percent |	Source code & Disassembly of hotloops_float for cycles:u (333 samples, percent: local period)
+-------------------------------------------------------------------------------------------------------------
+         :
+         :
+         :
+         : 3    Disassembly of section .text:
+         :
+         : 5    0000000000005c50 <pffastconv_apply>:
+    0.00 :   5c50:   sub    $0x98,%rsp
+    0.00 :   5c57:   mov    %r8d,%eax
+    0.00 :   5c5a:   mov    %r15,0x90(%rsp)
+    0.00 :   5c62:   mov    %rdi,%r15
+    0.00 :   5c65:   mov    %edx,%edi
+    0.00 :   5c67:   mov    0x30(%r15),%r8d
+    0.00 :   5c6b:   mov    %rbx,0x68(%rsp)
+    0.00 :   5c70:   mov    %rsi,0x20(%rsp)
+    0.00 :   5c75:   mov    0x28(%r15),%esi
+    0.00 :   5c79:   mov    %r8d,%ebx
+    0.00 :   5c7c:   mov    %r14,0x88(%rsp)
+    0.00 :   5c84:   mov    0x2c(%r15),%r14d
+    0.00 :   5c88:   and    $0x1,%ebx
+    0.00 :   5c8b:   mov    %edx,0x38(%rsp)
+    0.00 :   5c8f:   mov    %r13,0x80(%rsp)
+    0.00 :   5c97:   mov    %ebx,%edx
+    0.00 :   5c99:   mov    %rcx,0x10(%rsp)
+    0.00 :   5c9e:   mov    %esi,0x1c(%rsp)
+    0.00 :   5ca2:   je     5e20 <pffastconv_apply+0x1d0>
+    0.00 :   5ca8:   test   $0x10,%r8b
+    0.00 :   5cac:   je     5e00 <pffastconv_apply+0x1b0>
+    0.00 :   5cb2:   lea    (%rdi,%rdi,1),%r10d
+    0.00 :   5cb6:   mov    %r10d,%edx
+    0.00 :   5cb9:   mov    %r10d,%ecx
+    0.00 :   5cbc:   sub    %r14d,%edx
+    0.00 :   5cbf:   sub    %esi,%ecx
+    0.00 :   5cc1:   add    $0x1,%edx
+    0.00 :   5cc4:   add    $0x1,%ecx
+    0.00 :   5cc7:   test   %eax,%eax
+    0.00 :   5cc9:   cmovne %ecx,%edx
+    0.00 :   5ccc:   test   %edx,%edx
+    0.00 :   5cce:   jle    64b3 <pffastconv_apply+0x863>
+    0.00 :   5cd4:   mov    %r8d,%r13d
+    0.00 :   5cd7:   mov    %r8d,%ebx
+    0.00 :   5cda:   mov    %rbp,0x70(%rsp)
+    0.00 :   5cdf:   mov    %r12,0x78(%rsp)
+    0.00 :   5ce4:   and    $0x4,%r13d
+    0.00 :   5ce8:   and    $0x8,%ebx
+    0.00 :   5ceb:   jne    5ffa <pffastconv_apply+0x3aa>
+    0.00 :   5cf1:   test   %r13d,%r13d
+    0.00 :   5cf4:   jne    64bb <pffastconv_apply+0x86b>
+    0.00 :   5cfa:   mov    %edx,0x18(%rsp)
+    0.00 :   5cfe:   mov    %r15,%r12
+    0.00 :   5d01:   mov    %r10d,0xc(%rsp)
+    0.00 :   5d06:   jmp    5d88 <pffastconv_apply+0x138>
+    0.00 :   5d0b:   nopl   0x0(%rax,%rax,1)
+    0.00 :   5d10:   mov    0x18(%r12),%rcx
+    0.00 :   5d15:   mov    0x8(%r12),%rdx
+    0.00 :   5d1a:   xor    %r8d,%r8d
+    0.00 :   5d1d:   add    %ebx,%r13d
+    0.00 :   5d20:   mov    (%r12),%rsi
+    0.00 :   5d24:   mov    0x20(%r12),%rdi
+    0.00 :   5d29:   call   c5f0 <pffft_transform>
+    0.00 :   5d2e:   mov    0x18(%r12),%rcx
+    0.00 :   5d33:   mov    0x10(%r12),%rdx
+    0.00 :   5d38:   mov    0x8(%r12),%rsi
+    0.00 :   5d3d:   mov    0x20(%r12),%rdi
+    0.00 :   5d42:   call   c3e0 <pffft_zconvolve>
+    0.00 :   5d47:   mov    (%r12),%rcx
+    0.00 :   5d4b:   mov    0x8(%r12),%rdx
+    0.00 :   5d50:   mov    $0x1,%r8d
+    0.00 :   5d56:   mov    0x18(%r12),%rsi
+    0.00 :   5d5b:   mov    0x20(%r12),%rdi
+    0.00 :   5d60:   add    0x10(%rsp),%rbp
+    0.00 :   5d65:   call   c5f0 <pffft_transform>
+    0.00 :   5d6a:   mov    0x8(%r12),%rsi
+    0.00 :   5d6f:   mov    %ebx,%edx
+    0.00 :   5d71:   mov    %rbp,%rdi
+    0.00 :   5d74:   shl    $0x2,%rdx
+    0.00 :   5d78:   call   20d0 <memcpy@plt>
+    0.00 :   5d7d:   cmp    %r13d,0x18(%rsp)
+    0.00 :   5d82:   jle    6478 <pffastconv_apply+0x828>
+    0.00 :   5d88:   mov    0xc(%rsp),%ecx
+    0.00 :   5d8c:   sub    %r13d,%ecx
+    0.00 :   5d8f:   cmp    %ecx,%r14d
+    0.00 :   5d92:   mov    %ecx,%r15d
+    0.00 :   5d95:   cmovle %r14d,%r15d
+    0.00 :   5d99:   mov    %r15d,%ebx
+    0.00 :   5d9c:   sub    0x1c(%rsp),%ebx
+    0.00 :   5da0:   add    $0x1,%ebx
+    0.00 :   5da3:   and    $0xfffffffe,%ebx
+    0.00 :   5da6:   je     6478 <pffastconv_apply+0x828>
+    0.00 :   5dac:   mov    0x20(%rsp),%rax
+    0.00 :   5db1:   movslq %r13d,%rbp
+    0.00 :   5db4:   mov    %r15d,%edx
+    0.00 :   5db7:   mov    (%r12),%rdi
+    0.00 :   5dbb:   shl    $0x2,%rbp
+    0.00 :   5dbf:   shl    $0x2,%rdx
+    0.00 :   5dc3:   mov    %ecx,0x8(%rsp)
+    0.00 :   5dc7:   lea    (%rax,%rbp,1),%rsi
+    0.00 :   5dcb:   call   20d0 <memcpy@plt>
+    0.00 :   5dd0:   cmp    0x8(%rsp),%r14d
+    0.00 :   5dd5:   jle    5d10 <pffastconv_apply+0xc0>
+    0.00 :   5ddb:   mov    (%r12),%rax
+    0.00 :   5ddf:   mov    %r14d,%edx
+    0.00 :   5de2:   movslq %r15d,%r8
+    0.00 :   5de5:   xor    %esi,%esi
+    0.00 :   5de7:   sub    %r15d,%edx
+    0.00 :   5dea:   shl    $0x2,%rdx
+    0.00 :   5dee:   lea    (%rax,%r8,4),%rdi
+    0.00 :   5df2:   call   2090 <memset@plt>
+    0.00 :   5df7:   jmp    5d10 <pffastconv_apply+0xc0>
+    0.00 :   5dfc:   nopl   0x0(%rax)
+    0.00 :   5e00:   test   %eax,%eax
+    0.00 :   5e02:   mov    %edi,%eax
+    0.00 :   5e04:   je     5fe7 <pffastconv_apply+0x397>
+    0.00 :   5e0a:   sub    0x1c(%rsp),%eax
+    0.00 :   5e0e:   movl   $0x2,0x3c(%rsp)
+    0.00 :   5e16:   lea    0x1(%rax),%edi
+    0.00 :   5e19:   jmp    5e38 <pffastconv_apply+0x1e8>
+    0.00 :   5e1b:   nopl   0x0(%rax,%rax,1)
+    0.00 :   5e20:   test   %eax,%eax
+    0.00 :   5e22:   mov    %edi,%eax
+    0.00 :   5e24:   jne    5fd3 <pffastconv_apply+0x383>
+    0.00 :   5e2a:   movl   $0x1,0x3c(%rsp)
+    0.00 :   5e32:   sub    %r14d,%eax
+    0.00 :   5e35:   lea    0x1(%rax),%edi
+    0.00 :   5e38:   xor    %r13d,%r13d
+    0.30 :   5e3b:   test   %edi,%edi
+    0.00 :   5e3d:   jle    64b3 <pffastconv_apply+0x863>
+    0.00 :   5e43:   mov    %rbp,0x70(%rsp)
+    0.00 :   5e48:   mov    %r12,0x78(%rsp)
+    0.00 :   5e4d:   mov    %edx,0x40(%rsp)
+    0.00 :   5e51:   mov    %r14d,0x18(%rsp)
+    0.00 :   5e56:   mov    %r8d,0x8(%rsp)
+    0.00 :   5e5b:   mov    %edi,0x44(%rsp)
+    0.00 :   5e5f:   jmp    5e9f <pffastconv_apply+0x24f>
+    0.00 :   5e61:   nopl   0x0(%rax)
+    0.00 :   5e68:   mov    %rdx,%rcx
+    0.00 :   5e6b:   mov    $0x1,%r8d
+    0.00 :   5e71:   mov    %rbx,%rdx
+    0.00 :   5e74:   add    $0x1,%r14d
+    0.00 :   5e78:   call   c5f0 <pffft_transform>
+    0.00 :   5e7d:   cmp    0xc(%rsp),%r14d
+    0.00 :   5e82:   jne    5f0e <pffastconv_apply+0x2be>
+    0.00 :   5e88:   mov    %r13,%rax
+    0.00 :   5e8b:   mov    %r15d,%r13d
+    0.00 :   5e8e:   add    %ebp,%r13d
+    0.00 :   5e91:   mov    %rax,%r15
+    0.00 :   5e94:   cmp    0x44(%rsp),%r13d
+    0.00 :   5e99:   jge    63be <pffastconv_apply+0x76e>
+    0.00 :   5e9f:   mov    0x38(%rsp),%r8d
+    0.00 :   5ea4:   mov    0x18(%rsp),%eax
+    0.00 :   5ea8:   lea    0x0(%r13,%r13,1),%r14d
+    0.00 :   5ead:   movslq %r13d,%rbx
+    0.00 :   5eb0:   sub    %r13d,%r8d
+    0.00 :   5eb3:   mov    %eax,%r10d
+    0.00 :   5eb6:   cmp    %eax,%r8d
+    0.00 :   5eb9:   mov    0x3c(%rsp),%eax
+    0.00 :   5ebd:   cmovle %r8d,%r10d
+    0.00 :   5ec1:   add    %r14d,%eax
+    0.00 :   5ec4:   mov    %eax,0xc(%rsp)
+    0.00 :   5ec8:   mov    0x40(%rsp),%eax
+    0.00 :   5ecc:   mov    %r10d,%r12d
+    0.00 :   5ecf:   sub    0x1c(%rsp),%r12d
+    0.00 :   5ed4:   lea    0x1(%r12),%ebp
+    0.00 :   5ed9:   test   %eax,%eax
+    0.00 :   5edb:   jne    60e8 <pffastconv_apply+0x498>
+    0.00 :   5ee1:   mov    0x20(%rsp),%rax
+    0.00 :   5ee6:   shl    $0x2,%rbx
+    0.00 :   5eea:   mov    %r8d,0x30(%rsp)
+    0.00 :   5eef:   mov    %r10d,0x48(%rsp)
+    0.00 :   5ef4:   lea    (%rax,%rbx,1),%r12
+    0.00 :   5ef8:   mov    %r10d,%eax
+    0.00 :   5efb:   add    0x10(%rsp),%rbx
+    0.00 :   5f00:   mov    %rax,0x28(%rsp)
+    0.00 :   5f05:   mov    %r15,%rax
+    0.00 :   5f08:   mov    %r13d,%r15d
+    0.00 :   5f0b:   mov    %rax,%r13
+    0.00 :   5f0e:   testb  $0x4,0x8(%rsp)
+    0.00 :   5f13:   je     5f8f <pffastconv_apply+0x33f>
+    0.00 :   5f15:   mov    0x18(%r13),%rcx
+    0.00 :   5f19:   mov    0x8(%r13),%rdx
+    0.00 :   5f1d:   xor    %r8d,%r8d
+    0.00 :   5f20:   mov    %r12,%rsi
+    0.00 :   5f23:   mov    0x20(%r13),%rdi
+    0.00 :   5f27:   call   c5f0 <pffft_transform>
+    0.00 :   5f2c:   mov    0x10(%r13),%rdx
+    0.00 :   5f30:   mov    0x8(%r13),%rsi
+    0.00 :   5f34:   mov    0x20(%r13),%rdi
+    0.00 :   5f38:   mov    0x18(%r13),%rcx
+    0.00 :   5f3c:   call   c3e0 <pffft_zconvolve>
+    0.00 :   5f41:   mov    0x8(%r13),%rdx
+    0.00 :   5f45:   mov    0x18(%r13),%rsi
+    0.00 :   5f49:   mov    0x20(%r13),%rdi
+    0.00 :   5f4d:   testb  $0x8,0x8(%rsp)
+    0.00 :   5f52:   jne    5e68 <pffastconv_apply+0x218>
+    0.00 :   5f58:   mov    0x0(%r13),%rcx
+    0.00 :   5f5c:   mov    $0x1,%r8d
+    0.00 :   5f62:   add    $0x1,%r14d
+    0.00 :   5f66:   call   c5f0 <pffft_transform>
+    0.00 :   5f6b:   mov    0x8(%r13),%rsi
+    0.00 :   5f6f:   mov    %ebp,%edx
+    0.00 :   5f71:   mov    %rbx,%rdi
+    0.00 :   5f74:   shl    $0x2,%rdx
+    0.00 :   5f78:   call   20d0 <memcpy@plt>
+    0.00 :   5f7d:   cmp    0xc(%rsp),%r14d
+    0.00 :   5f82:   je     5e88 <pffastconv_apply+0x238>
+    0.00 :   5f88:   testb  $0x4,0x8(%rsp)
+    0.00 :   5f8d:   jne    5f15 <pffastconv_apply+0x2c5>
+    0.00 :   5f8f:   mov    0x28(%rsp),%rax
+    0.00 :   5f94:   mov    0x0(%r13),%rdi
+    0.00 :   5f98:   mov    %r12,%rsi
+    0.00 :   5f9b:   lea    0x0(,%rax,4),%rdx
+    0.00 :   5fa3:   call   20d0 <memcpy@plt>
+    0.00 :   5fa8:   mov    0x18(%rsp),%edi
+    0.00 :   5fac:   cmp    %edi,0x30(%rsp)
+    0.00 :   5fb0:   jl     6378 <pffastconv_apply+0x728>
+    0.00 :   5fb6:   mov    0x18(%r13),%rcx
+    0.00 :   5fba:   mov    0x8(%r13),%rdx
+    0.00 :   5fbe:   xor    %r8d,%r8d
+    0.00 :   5fc1:   mov    0x0(%r13),%rsi
+    0.00 :   5fc5:   mov    0x20(%r13),%rdi
+    0.00 :   5fc9:   call   c5f0 <pffft_transform>
+    0.00 :   5fce:   jmp    5f2c <pffastconv_apply+0x2dc>
+    0.00 :   5fd3:   sub    0x1c(%rsp),%eax
+    0.00 :   5fd7:   movl   $0x1,0x3c(%rsp)
+    0.00 :   5fdf:   lea    0x1(%rax),%edi
+    0.00 :   5fe2:   jmp    5e38 <pffastconv_apply+0x1e8>
+    0.00 :   5fe7:   sub    %r14d,%eax
+    0.00 :   5fea:   movl   $0x2,0x3c(%rsp)
+    0.00 :   5ff2:   lea    0x1(%rax),%edi
+    0.00 :   5ff5:   jmp    5e38 <pffastconv_apply+0x1e8>
+    0.00 :   5ffa:   mov    %r15,%rax
+    0.00 :   5ffd:   mov    %edx,0xc(%rsp)
+    0.00 :   6001:   mov    %r13d,%r15d
+    0.00 :   6004:   xor    %ebx,%ebx
+    0.00 :   6006:   mov    %r10d,0x8(%rsp)
+    0.00 :   600b:   mov    %rax,%r13
+    0.00 :   600e:   jmp    6065 <pffastconv_apply+0x415>
+    0.00 :   6010:   mov    0x18(%r13),%rcx
+    0.00 :   6014:   mov    0x8(%r13),%rdx
+    0.00 :   6018:   xor    %r8d,%r8d
+    0.00 :   601b:   mov    0x20(%r13),%rdi
+    0.00 :   601f:   call   c5f0 <pffft_transform>
+    0.00 :   6024:   mov    0x18(%r13),%rcx
+    0.00 :   6028:   mov    0x10(%r13),%rdx
+    0.00 :   602c:   add    %ebp,%ebx
+    0.00 :   602e:   mov    0x8(%r13),%rsi
+    0.00 :   6032:   mov    0x20(%r13),%rdi
+    0.00 :   6036:   call   c3e0 <pffft_zconvolve>
+    0.00 :   603b:   mov    0x10(%rsp),%rax
+    0.00 :   6040:   mov    0x8(%r13),%rcx
+    0.00 :   6044:   mov    $0x1,%r8d
+    0.00 :   604a:   mov    0x18(%r13),%rsi
+    0.00 :   604e:   mov    0x20(%r13),%rdi
+    0.00 :   6052:   lea    (%rax,%r12,1),%rdx
+    0.00 :   6056:   call   c5f0 <pffft_transform>
+    0.00 :   605b:   cmp    %ebx,0xc(%rsp)
+    0.00 :   605f:   jle    647b <pffastconv_apply+0x82b>
+    0.00 :   6065:   mov    0x8(%rsp),%ecx
+    0.00 :   6069:   mov    %r14d,%r8d
+    0.00 :   606c:   sub    %ebx,%ecx
+    0.00 :   606e:   cmp    %r14d,%ecx
+    0.00 :   6071:   cmovle %ecx,%r8d
+    0.00 :   6075:   mov    %r8d,%ebp
+    0.00 :   6078:   sub    0x1c(%rsp),%ebp
+    0.00 :   607c:   add    $0x1,%ebp
+    0.00 :   607f:   and    $0xfffffffe,%ebp
+    0.00 :   6082:   je     647b <pffastconv_apply+0x82b>
+    0.00 :   6088:   mov    0x20(%rsp),%rax
+    0.00 :   608d:   movslq %ebx,%r12
+    0.00 :   6090:   shl    $0x2,%r12
+    0.00 :   6094:   lea    (%rax,%r12,1),%rsi
+    0.00 :   6098:   test   %r15d,%r15d
+    0.00 :   609b:   jne    6010 <pffastconv_apply+0x3c0>
+    0.00 :   60a1:   mov    %r8d,%edx
+    0.00 :   60a4:   mov    0x0(%r13),%rdi
+    0.00 :   60a8:   mov    %ecx,0x28(%rsp)
+    0.00 :   60ac:   shl    $0x2,%rdx
+    0.00 :   60b0:   mov    %r8d,0x18(%rsp)
+    0.00 :   60b5:   call   20d0 <memcpy@plt>
+    0.00 :   60ba:   cmp    %r14d,0x28(%rsp)
+    0.00 :   60bf:   jl     648f <pffastconv_apply+0x83f>
+    0.00 :   60c5:   mov    0x18(%r13),%rcx
+    0.00 :   60c9:   mov    0x8(%r13),%rdx
+    0.00 :   60cd:   xor    %r8d,%r8d
+    0.00 :   60d0:   mov    0x0(%r13),%rsi
+    0.00 :   60d4:   mov    0x20(%r13),%rdi
+    0.00 :   60d8:   call   c5f0 <pffft_transform>
+    0.00 :   60dd:   jmp    6024 <pffastconv_apply+0x3d4>
+    0.00 :   60e2:   nopw   0x0(%rax,%rax,1)
+    0.00 :   60e8:   mov    0x10(%rsp),%rax
+    0.00 :   60ed:   shl    $0x3,%rbx
+    0.00 :   60f1:   mov    0x20(%rsp),%rcx
+    0.00 :   60f6:   mov    %r8d,0x4c(%rsp)
+    0.00 :   60fb:   mov    %r12d,0x28(%rsp)
+    0.00 :   6100:   add    %rbx,%rax
+    0.00 :   6103:   mov    %r13d,0x5c(%rsp)
+    0.00 :   6108:   add    %rcx,%rbx
+    0.00 :   610b:   mov    %r10d,%r13d
+    0.00 :   610e:   mov    %rax,0x30(%rsp)
+    0.00 :   6113:   lea    -0x1(%r10),%eax
+    0.00 :   6117:   mov    %rcx,%r12
+    0.00 :   611a:   mov    %eax,%r9d
+    0.00 :   611d:   mov    %eax,%edi
+    0.00 :   611f:   mov    %eax,0x50(%rsp)
+    0.00 :   6123:   and    $0xfffffffc,%r9d
+    0.00 :   6127:   shr    $0x2,%edi
+    0.00 :   612a:   lea    0x1(%r9),%esi
+    0.00 :   612e:   mov    %edi,0x48(%rsp)
+    0.00 :   6132:   mov    %esi,0x54(%rsp)
+    0.00 :   6136:   mov    %r9d,0x58(%rsp)
+    0.00 :   613b:   mov    (%r15),%rsi
+    0.00 :   613e:   test   %r13d,%r13d
+    0.30 :   6141:   jle    620a <pffastconv_apply+0x5ba>
+    0.00 :   6147:   mov    %r13d,%edx
+    0.00 :   614a:   cmpl   $0x3,0x50(%rsp)
+    0.00 :   614f:   jbe    6440 <pffastconv_apply+0x7f0>
+    0.00 :   6155:   lea    -0x4(%rbx,%rdx,8),%rax
+    0.00 :   615a:   cmp    %rax,%rsi
+    0.00 :   615d:   jae    616c <pffastconv_apply+0x51c>
+    0.00 :   615f:   lea    (%rsi,%rdx,4),%rax
+    0.00 :   6163:   cmp    %rax,%rbx
+    0.00 :   6166:   jb     6440 <pffastconv_apply+0x7f0>
+    0.00 :   616c:   mov    0x48(%rsp),%edx
+    0.00 :   6170:   xor    %eax,%eax
+    0.00 :   6172:   shl    $0x4,%rdx
+    0.00 :   6176:   cs nopw 0x0(%rax,%rax,1)
+    0.00 :   6180:   movups (%rbx,%rax,2),%xmm0
+    5.09 :   6184:   movups 0x10(%rbx,%rax,2),%xmm4
+    6.03 :   6189:   shufps $0x88,%xmm4,%xmm0
+   16.11 :   618d:   movups %xmm0,(%rsi,%rax,1)
+    1.81 :   6191:   add    $0x10,%rax
+    5.13 :   6195:   cmp    %rax,%rdx
+    0.60 :   6198:   jne    6180 <pffastconv_apply+0x530>
+    0.00 :   619a:   mov    0x48(%rsp),%eax
+    0.30 :   619e:   mov    0x58(%rsp),%edx
+    0.00 :   61a2:   lea    0x0(,%rax,8),%ecx
+    0.00 :   61a9:   lea    (%r14,%rcx,1),%eax
+    0.00 :   61ad:   cltq
+    0.30 :   61af:   movss  (%r12,%rax,4),%xmm0
+    1.20 :   61b5:   movss  %xmm0,(%rsi,%rdx,4)
+    0.00 :   61ba:   cmp    0x54(%rsp),%r13d
+    0.00 :   61bf:   jle    620a <pffastconv_apply+0x5ba>
+    0.00 :   61c1:   lea    0x2(%rcx,%r14,1),%eax
+    0.00 :   61c6:   cltq
+    0.00 :   61c8:   movss  (%r12,%rax,4),%xmm0
+    0.00 :   61ce:   lea    0x2(%rdx),%eax
+    0.00 :   61d1:   movss  %xmm0,0x4(%rsi,%rdx,4)
+    0.00 :   61d7:   cmp    %eax,%r13d
+    0.00 :   61da:   jle    620a <pffastconv_apply+0x5ba>
+    0.00 :   61dc:   lea    0x4(%rcx,%r14,1),%eax
+    0.00 :   61e1:   cltq
+    0.00 :   61e3:   movss  (%r12,%rax,4),%xmm0
+    0.00 :   61e9:   lea    0x3(%rdx),%eax
+    0.00 :   61ec:   movss  %xmm0,0x8(%rsi,%rdx,4)
+    0.30 :   61f2:   cmp    %eax,%r13d
+    0.00 :   61f5:   jle    620a <pffastconv_apply+0x5ba>
+    0.00 :   61f7:   lea    0x6(%rcx,%r14,1),%eax
+    0.00 :   61fc:   cltq
+    0.00 :   61fe:   movss  (%r12,%rax,4),%xmm0
+    0.00 :   6204:   movss  %xmm0,0xc(%rsi,%rdx,4)
+    0.00 :   620a:   mov    0x18(%rsp),%ecx
+    0.00 :   620e:   cmp    %ecx,0x4c(%rsp)
+    0.00 :   6212:   jl     63f0 <pffastconv_apply+0x7a0>
+    0.00 :   6218:   mov    0x18(%r15),%rcx
+    0.00 :   621c:   mov    0x8(%r15),%rdx
+    0.00 :   6220:   xor    %r8d,%r8d
+    0.00 :   6223:   mov    0x20(%r15),%rdi
+    0.00 :   6227:   call   c5f0 <pffft_transform>
+    0.00 :   622c:   mov    0x18(%r15),%rcx
+    0.00 :   6230:   mov    0x10(%r15),%rdx
+    0.00 :   6234:   mov    0x8(%r15),%rsi
+    0.00 :   6238:   mov    0x20(%r15),%rdi
+    0.00 :   623c:   call   c3e0 <pffft_zconvolve>
+    0.00 :   6241:   mov    (%r15),%rcx
+    0.00 :   6244:   mov    0x8(%r15),%rdx
+    0.00 :   6248:   mov    $0x1,%r8d
+    0.00 :   624e:   mov    0x18(%r15),%rsi
+    0.00 :   6252:   mov    0x20(%r15),%rdi
+    0.00 :   6256:   call   c5f0 <pffft_transform>
+    0.00 :   625b:   test   %ebp,%ebp
+    0.00 :   625d:   jle    6359 <pffastconv_apply+0x709>
+    0.00 :   6263:   mov    0x8(%r15),%rsi
+    0.00 :   6267:   cmpl   $0x6,0x28(%rsp)
+    0.00 :   626c:   jbe    6410 <pffastconv_apply+0x7c0>
+    0.00 :   6272:   mov    0x30(%rsp),%rcx
+    0.00 :   6277:   mov    %ebp,%eax
+    0.00 :   6279:   lea    -0x4(%rcx,%rax,8),%rdx
+    0.00 :   627e:   cmp    %rdx,%rsi
+    0.30 :   6281:   jae    6290 <pffastconv_apply+0x640>
+    0.00 :   6283:   lea    (%rsi,%rax,4),%rax
+    0.00 :   6287:   cmp    %rax,%rcx
+    0.00 :   628a:   jb     6410 <pffastconv_apply+0x7c0>
+    0.00 :   6290:   mov    %ebp,%edi
+    0.00 :   6292:   mov    0x30(%rsp),%rdx
+    0.00 :   6297:   mov    %rsi,%rax
+    0.00 :   629a:   shr    $0x2,%edi
+    0.00 :   629d:   mov    %edi,%ecx
+    0.00 :   629f:   shl    $0x4,%rcx
+    0.00 :   62a3:   add    %rsi,%rcx
+    0.00 :   62a6:   nopl   0x0(%rax)
+    0.00 :   62aa:   data16 cs nopw 0x0(%rax,%rax,1)
+    0.60 :   62b5:   data16 cs nopw 0x0(%rax,%rax,1)
+    0.00 :   62c0:   movss  0xc(%rax),%xmm0
+    0.00 :   62c5:   movss  (%rax),%xmm3
+    0.00 :   62c9:   add    $0x10,%rax
+    0.00 :   62cd:   add    $0x20,%rdx
+    0.00 :   62d1:   movss  -0x8(%rax),%xmm1
+    0.00 :   62d6:   movss  -0xc(%rax),%xmm2
+    7.45 :   62db:   movss  %xmm3,-0x20(%rdx)
+   17.49 :   62e0:   movss  %xmm2,-0x18(%rdx)
+    8.01 :   62e5:   movss  %xmm1,-0x10(%rdx)
+   16.27 :   62ea:   movss  %xmm0,-0x8(%rdx)
+   10.86 :   62ef:   cmp    %rax,%rcx
+    0.00 :   62f2:   jne    62c0 <pffastconv_apply+0x670>
+    0.00 :   62f4:   lea    0x0(,%rdi,4),%eax
+    0.60 :   62fb:   cmp    %eax,%ebp
+    0.00 :   62fd:   je     63a0 <pffastconv_apply+0x750>
+    0.00 :   6303:   mov    %eax,%ecx
+    0.00 :   6305:   shl    $0x3,%edi
+    0.00 :   6308:   mov    0x10(%rsp),%r11
+    0.00 :   630d:   movss  (%rsi,%rcx,4),%xmm0
+    0.00 :   6312:   lea    (%rdi,%r14,1),%edx
+    0.00 :   6316:   movslq %edx,%rdx
+    0.00 :   6319:   movss  %xmm0,(%r11,%rdx,4)
+    0.00 :   631f:   cmp    %eax,0x28(%rsp)
+    0.00 :   6323:   jle    6359 <pffastconv_apply+0x709>
+    0.00 :   6325:   movss  0x4(%rsi,%rcx,4),%xmm0
+    0.00 :   632b:   lea    0x2(%rdi,%r14,1),%edx
+    0.00 :   6330:   add    $0x1,%eax
+    0.00 :   6333:   movslq %edx,%rdx
+    0.00 :   6336:   movss  %xmm0,(%r11,%rdx,4)
+    0.00 :   633c:   cmp    %eax,0x28(%rsp)
+    0.00 :   6340:   jle    63a0 <pffastconv_apply+0x750>
+    0.00 :   6342:   movss  0x8(%rsi,%rcx,4),%xmm0
+    0.00 :   6348:   lea    0x4(%rdi,%r14,1),%eax
+    0.00 :   634d:   mov    0x10(%rsp),%rcx
+    0.00 :   6352:   cltq
+    0.00 :   6354:   movss  %xmm0,(%rcx,%rax,4)
+    0.00 :   6359:   add    $0x1,%r14d
+    0.00 :   635d:   cmp    0xc(%rsp),%r14d
+    0.00 :   6362:   je     63ab <pffastconv_apply+0x75b>
+    0.00 :   6364:   addq   $0x4,0x30(%rsp)
+    0.30 :   636a:   add    $0x4,%rbx
+    0.00 :   636e:   jmp    613b <pffastconv_apply+0x4eb>
+    0.00 :   6373:   nopl   0x0(%rax,%rax,1)
+    0.00 :   6378:   movslq 0x48(%rsp),%rax
+    0.00 :   637d:   mov    0x0(%r13),%rcx
+    0.00 :   6381:   mov    %edi,%edx
+    0.00 :   6383:   xor    %esi,%esi
+    0.00 :   6385:   sub    %eax,%edx
+    0.00 :   6387:   lea    (%rcx,%rax,4),%rdi
+    0.00 :   638b:   shl    $0x2,%rdx
+    0.00 :   638f:   call   2090 <memset@plt>
+    0.00 :   6394:   jmp    5fb6 <pffastconv_apply+0x366>
+    0.00 :   6399:   nopl   0x0(%rax)
+    0.30 :   63a0:   add    $0x1,%r14d
+    0.00 :   63a4:   cmp    %r14d,0xc(%rsp)
+    0.00 :   63a9:   jne    6364 <pffastconv_apply+0x714>
+    0.00 :   63ab:   mov    0x5c(%rsp),%r13d
+    0.00 :   63b0:   add    %ebp,%r13d
+    0.00 :   63b3:   cmp    0x44(%rsp),%r13d
+    0.00 :   63b8:   jl     5e9f <pffastconv_apply+0x24f>
+    0.00 :   63be:   mov    0x70(%rsp),%rbp
+    0.30 :   63c3:   mov    0x78(%rsp),%r12
+    0.00 :   63c8:   mov    %r13d,%eax
+    0.00 :   63cb:   mov    0x68(%rsp),%rbx
+    0.00 :   63d0:   mov    0x80(%rsp),%r13
+    0.00 :   63d8:   mov    0x88(%rsp),%r14
+    0.00 :   63e0:   mov    0x90(%rsp),%r15
+    0.00 :   63e8:   add    $0x98,%rsp
+    0.00 :   63ef:   ret
+    0.00 :   63f0:   mov    %ecx,%edx
+    0.00 :   63f2:   movslq %r13d,%rax
+    0.00 :   63f5:   sub    %r13d,%edx
+    0.00 :   63f8:   lea    (%rsi,%rax,4),%rdi
+    0.00 :   63fc:   xor    %esi,%esi
+    0.00 :   63fe:   shl    $0x2,%rdx
+    0.00 :   6402:   call   2090 <memset@plt>
+    0.00 :   6407:   mov    (%r15),%rsi
+    0.00 :   640a:   jmp    6218 <pffastconv_apply+0x5c8>
+    0.00 :   640f:   nop
+    0.00 :   6410:   mov    0x10(%rsp),%rdi
+    0.00 :   6415:   movslq %r14d,%rax
+    0.00 :   6418:   mov    %ebp,%ecx
+    0.00 :   641a:   lea    (%rdi,%rax,4),%rdx
+    0.00 :   641e:   xor    %eax,%eax
+    0.00 :   6420:   movss  (%rsi,%rax,4),%xmm0
+    0.00 :   6425:   movss  %xmm0,(%rdx,%rax,8)
+    0.00 :   642a:   add    $0x1,%rax
+    0.00 :   642e:   cmp    %rax,%rcx
+    0.00 :   6431:   jne    6420 <pffastconv_apply+0x7d0>
+    0.00 :   6433:   jmp    6359 <pffastconv_apply+0x709>
+    0.00 :   6438:   nopl   0x0(%rax,%rax,1)
+    0.00 :   6440:   movslq %r14d,%rax
+    0.00 :   6443:   lea    (%r12,%rax,4),%rcx
+    0.00 :   6447:   xor    %eax,%eax
+    0.00 :   6449:   nop
+    0.00 :   644a:   data16 cs nopw 0x0(%rax,%rax,1)
+    0.00 :   6455:   data16 cs nopw 0x0(%rax,%rax,1)
+    0.00 :   6460:   movss  (%rcx,%rax,8),%xmm0
+    0.00 :   6465:   movss  %xmm0,(%rsi,%rax,4)
+    0.00 :   646a:   add    $0x1,%rax
+    0.00 :   646e:   cmp    %rax,%rdx
+    0.00 :   6471:   jne    6460 <pffastconv_apply+0x810>
+    0.00 :   6473:   jmp    620a <pffastconv_apply+0x5ba>
+    0.00 :   6478:   mov    %r13d,%ebx
+    0.00 :   647b:   sar    $1,%ebx
+    0.00 :   647d:   mov    0x70(%rsp),%rbp
+    0.00 :   6482:   mov    0x78(%rsp),%r12
+    0.00 :   6487:   mov    %ebx,%r13d
+    0.00 :   648a:   jmp    63c8 <pffastconv_apply+0x778>
+    0.00 :   648f:   movslq 0x18(%rsp),%r8
+    0.00 :   6494:   mov    0x0(%r13),%rax
+    0.00 :   6498:   mov    %r14d,%edx
+    0.00 :   649b:   xor    %esi,%esi
+    0.00 :   649d:   sub    0x18(%rsp),%edx
+    0.00 :   64a1:   shl    $0x2,%rdx
+    0.00 :   64a5:   lea    (%rax,%r8,4),%rdi
+    0.00 :   64a9:   call   2090 <memset@plt>
+    0.00 :   64ae:   jmp    60c5 <pffastconv_apply+0x475>
+    0.00 :   64b3:   xor    %r13d,%r13d
+    0.00 :   64b6:   jmp    63c8 <pffastconv_apply+0x778>
+    0.00 :   64bb:   mov    %r15,%r13
+    0.00 :   64be:   mov    %edx,0x8(%rsp)
+    0.00 :   64c2:   mov    %ebx,%r15d
+    0.00 :   64c5:   mov    %r14d,%ebx
+    0.00 :   64c8:   mov    %r10d,%r14d
+    0.00 :   64cb:   jmp    6545 <pffastconv_apply+0x8f5>
+    0.00 :   64cd:   nopl   (%rax)
+    0.00 :   64d0:   mov    0x20(%rsp),%rax
+    0.00 :   64d5:   movslq %r15d,%r12
+    0.00 :   64d8:   mov    0x18(%r13),%rcx
+    0.00 :   64dc:   xor    %r8d,%r8d
+    0.00 :   64df:   mov    0x8(%r13),%rdx
+    0.00 :   64e3:   mov    0x20(%r13),%rdi
+    0.00 :   64e7:   shl    $0x2,%r12
+    0.00 :   64eb:   add    %ebp,%r15d
+    0.00 :   64ee:   lea    (%rax,%r12,1),%rsi
+    0.00 :   64f2:   call   c5f0 <pffft_transform>
+    0.00 :   64f7:   mov    0x18(%r13),%rcx
+    0.00 :   64fb:   mov    0x10(%r13),%rdx
+    0.00 :   64ff:   mov    0x8(%r13),%rsi
+    0.00 :   6503:   mov    0x20(%r13),%rdi
+    0.00 :   6507:   call   c3e0 <pffft_zconvolve>
+    0.00 :   650c:   mov    0x0(%r13),%rcx
+    0.00 :   6510:   mov    0x8(%r13),%rdx
+    0.00 :   6514:   mov    $0x1,%r8d
+    0.00 :   651a:   mov    0x18(%r13),%rsi
+    0.00 :   651e:   mov    0x20(%r13),%rdi
+    0.00 :   6522:   add    0x10(%rsp),%r12
+    0.00 :   6527:   call   c5f0 <pffft_transform>
+    0.00 :   652c:   mov    0x8(%r13),%rsi
+    0.00 :   6530:   mov    %ebp,%edx
+    0.00 :   6532:   mov    %r12,%rdi
+    0.00 :   6535:   shl    $0x2,%rdx
+    0.00 :   6539:   call   20d0 <memcpy@plt>
+    0.00 :   653e:   cmp    %r15d,0x8(%rsp)
+    0.00 :   6543:   jle    6562 <pffastconv_apply+0x912>
+    0.00 :   6545:   mov    %r14d,%eax
+    0.00 :   6548:   sub    %r15d,%eax
+    0.00 :   654b:   cmp    %ebx,%eax
+    0.00 :   654d:   cmovg  %ebx,%eax
+    0.00 :   6550:   mov    %eax,%ebp
+    0.00 :   6552:   sub    0x1c(%rsp),%ebp
+    0.00 :   6556:   add    $0x1,%ebp
+    0.00 :   6559:   and    $0xfffffffe,%ebp
+    0.00 :   655c:   jne    64d0 <pffastconv_apply+0x880>
+    0.00 :   6562:   mov    %r15d,%ebx
+    0.00 :   6565:   jmp    647b <pffastconv_apply+0x82b>

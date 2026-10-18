@@ -1475,82 +1475,25 @@ void FUNC_ZREORDER(const SETUP_STRUCT *setup, const float *in, float *out, pffft
   }
 }
 
-void FUNC_CPLX_FINALIZE(int Ncvec, const v4sf *in, v4sf *out, const v4sf *e) {
-  int k, dk = Ncvec/SIMD_SZ; /* number of 4x4 matrix blocks */
-  v4sf r0, i0, r1, i1, r2, i2, r3, i3;
-  v4sf sr0, dr0, sr1, dr1, si0, di0, si1, di1;
-  assert(in != out);
-  for (k=0; k < dk; ++k) {
-    r0 = in[8*k+0]; i0 = in[8*k+1];
-    r1 = in[8*k+2]; i1 = in[8*k+3];
-    r2 = in[8*k+4]; i2 = in[8*k+5];
-    r3 = in[8*k+6]; i3 = in[8*k+7];
-    VTRANSPOSE4(r0,r1,r2,r3);
-    VTRANSPOSE4(i0,i1,i2,i3);
-    VCPLXMUL(r1,i1,e[k*6+0],e[k*6+1]);
-    VCPLXMUL(r2,i2,e[k*6+2],e[k*6+3]);
-    VCPLXMUL(r3,i3,e[k*6+4],e[k*6+5]);
+#define PFFFT_CPLX_ORDERED 0
+#define PFFFT_CPLX_SCOPE
+#define PFFFT_CPLX_FINALIZE FUNC_CPLX_FINALIZE
+#define PFFFT_CPLX_PREPROCESS FUNC_CPLX_PREPROCESS
+#include "pffft_cplx_impl.h"
+#undef PFFFT_CPLX_ORDERED
+#undef PFFFT_CPLX_SCOPE
+#undef PFFFT_CPLX_FINALIZE
+#undef PFFFT_CPLX_PREPROCESS
 
-    sr0 = VADD(r0,r2); dr0 = VSUB(r0, r2);
-    sr1 = VADD(r1,r3); dr1 = VSUB(r1, r3);
-    si0 = VADD(i0,i2); di0 = VSUB(i0, i2);
-    si1 = VADD(i1,i3); di1 = VSUB(i1, i3);
-
-    /*
-      transformation for each column is:
-
-      [1   1   1   1   0   0   0   0]   [r0]
-      [1   0  -1   0   0  -1   0   1]   [r1]
-      [1  -1   1  -1   0   0   0   0]   [r2]
-      [1   0  -1   0   0   1   0  -1]   [r3]
-      [0   0   0   0   1   1   1   1] * [i0]
-      [0   1   0  -1   1   0  -1   0]   [i1]
-      [0   0   0   0   1  -1   1  -1]   [i2]
-      [0  -1   0   1   1   0  -1   0]   [i3]
-    */
-
-    r0 = VADD(sr0, sr1); i0 = VADD(si0, si1);
-    r1 = VADD(dr0, di1); i1 = VSUB(di0, dr1);
-    r2 = VSUB(sr0, sr1); i2 = VSUB(si0, si1);
-    r3 = VSUB(dr0, di1); i3 = VADD(di0, dr1);
-
-    *out++ = r0; *out++ = i0; *out++ = r1; *out++ = i1;
-    *out++ = r2; *out++ = i2; *out++ = r3; *out++ = i3;
-  }
-}
-
-void FUNC_CPLX_PREPROCESS(int Ncvec, const v4sf *in, v4sf *out, const v4sf *e) {
-  int k, dk = Ncvec/SIMD_SZ; /* number of 4x4 matrix blocks */
-  v4sf r0, i0, r1, i1, r2, i2, r3, i3;
-  v4sf sr0, dr0, sr1, dr1, si0, di0, si1, di1;
-  assert(in != out);
-  for (k=0; k < dk; ++k) {
-    r0 = in[8*k+0]; i0 = in[8*k+1];
-    r1 = in[8*k+2]; i1 = in[8*k+3];
-    r2 = in[8*k+4]; i2 = in[8*k+5];
-    r3 = in[8*k+6]; i3 = in[8*k+7];
-
-    sr0 = VADD(r0,r2); dr0 = VSUB(r0, r2);
-    sr1 = VADD(r1,r3); dr1 = VSUB(r1, r3);
-    si0 = VADD(i0,i2); di0 = VSUB(i0, i2);
-    si1 = VADD(i1,i3); di1 = VSUB(i1, i3);
-
-    r0 = VADD(sr0, sr1); i0 = VADD(si0, si1);
-    r1 = VSUB(dr0, di1); i1 = VADD(di0, dr1);
-    r2 = VSUB(sr0, sr1); i2 = VSUB(si0, si1);
-    r3 = VADD(dr0, di1); i3 = VSUB(di0, dr1);
-
-    VCPLXMULCONJ(r1,i1,e[k*6+0],e[k*6+1]);
-    VCPLXMULCONJ(r2,i2,e[k*6+2],e[k*6+3]);
-    VCPLXMULCONJ(r3,i3,e[k*6+4],e[k*6+5]);
-
-    VTRANSPOSE4(r0,r1,r2,r3);
-    VTRANSPOSE4(i0,i1,i2,i3);
-
-    *out++ = r0; *out++ = i0; *out++ = r1; *out++ = i1;
-    *out++ = r2; *out++ = i2; *out++ = r3; *out++ = i3;
-  }
-}
+#define PFFFT_CPLX_ORDERED 1
+#define PFFFT_CPLX_SCOPE static
+#define PFFFT_CPLX_FINALIZE pffft_cplx_finalize_ordered
+#define PFFFT_CPLX_PREPROCESS pffft_cplx_preprocess_ordered
+#include "pffft_cplx_impl.h"
+#undef PFFFT_CPLX_ORDERED
+#undef PFFFT_CPLX_SCOPE
+#undef PFFFT_CPLX_FINALIZE
+#undef PFFFT_CPLX_PREPROCESS
 
 
 static ALWAYS_INLINE(void) FUNC_REAL_FINALIZE_4X4(const v4sf *in0, const v4sf *in1, const v4sf *in,
@@ -1805,6 +1748,46 @@ void FUNC_TRANSFORM_INTERNAL(const SETUP_STRUCT *setup, const float *finput, flo
     ib = !ib;
   }
   assert(buff[ib] == voutput);
+}
+
+/* Complex ordered transforms fuse zreorder into the final/preprocessing pass.
+   Keep their buffer selection separate from the real and unordered paths.
+   Do not inline: otherwise the compiler can impose this function's stack
+   alignment/prologue on the real transform's small dispatch wrapper too. */
+static NEVER_INLINE(void) pffft_transform_complex_ordered(const SETUP_STRUCT *setup,
+                                          const float *input, float *output,
+                                          v4sf *scratch, pffft_direction_t direction) {
+  int k, Ncvec = setup->Ncvec;
+  int ib = setup->ifac[1] & 1;
+  int stack_allocate = scratch ? 1 : Ncvec*2;
+  VLA_ARRAY_ON_STACK(v4sf, scratch_on_stack, stack_allocate);
+  const v4sf *vinput = (const v4sf*)input;
+  v4sf *voutput = (v4sf*)output;
+  v4sf *buff[2] = { voutput, scratch ? scratch : scratch_on_stack };
+
+  assert(VALIGNED(input) && VALIGNED(output));
+  if (direction == PFFFT_FORWARD) {
+    ib = !ib;
+    for (k=0; k < Ncvec; ++k) {
+      UNINTERLEAVE2(vinput[k*2], vinput[k*2+1], buff[ib][k*2], buff[ib][k*2+1]);
+    }
+    ib = (cfftf1_ps(Ncvec, buff[ib], buff[!ib], buff[ib],
+                    setup->twiddle, setup->ifac, -1) == buff[0] ? 0 : 1);
+    pffft_cplx_finalize_ordered(Ncvec, buff[ib], buff[!ib], (v4sf*)setup->e);
+    ib = !ib;
+  } else {
+    if (vinput == buff[ib]) ib = !ib;
+    pffft_cplx_preprocess_ordered(Ncvec, vinput, buff[ib], (v4sf*)setup->e);
+    ib = (cfftf1_ps(Ncvec, buff[ib], buff[0], buff[1],
+                    setup->twiddle, setup->ifac, +1) == buff[0] ? 0 : 1);
+    for (k=0; k < Ncvec; ++k) {
+      INTERLEAVE2(buff[ib][k*2], buff[ib][k*2+1], buff[ib][k*2], buff[ib][k*2+1]);
+    }
+  }
+  if (buff[ib] != voutput) {
+    assert(input == output);
+    for (k=0; k < 2*Ncvec; ++k) voutput[k] = buff[ib][k];
+  }
 }
 
 void FUNC_ZCONVOLVE_ACCUMULATE(const SETUP_STRUCT *s, const float *a, const float *b, float *ab, float scaling) {
@@ -2226,6 +2209,12 @@ void FUNC_TRANSFORM_UNORDRD(const SETUP_STRUCT *setup, const float *input, float
 }
 
 void FUNC_TRANSFORM_ORDERED(const SETUP_STRUCT *setup, const float *input, float *output, float *work, pffft_direction_t direction) {
+#if SIMD_SZ == 4
+  if (setup->transform == PFFFT_COMPLEX) {
+    pffft_transform_complex_ordered(setup, input, output, (v4sf*)work, direction);
+    return;
+  }
+#endif
   FUNC_TRANSFORM_INTERNAL(setup, input, output, (v4sf*)work, direction, 1);
 }
 

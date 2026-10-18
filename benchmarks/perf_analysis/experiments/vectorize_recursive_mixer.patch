@@ -1,0 +1,41 @@
+--- a/src/pf_mixer.cpp
++++ b/src/pf_mixer.cpp
+@@ -1012,6 +1012,30 @@
+ void shift_recursive_osc_inp_c(complexf* in_out,
+     int size, const shift_recursive_osc_conf_t *conf, shift_recursive_osc_t* state_ext)
+ {
++#ifdef HAVE_SSE_INTRINSICS
++    const v4sf k1 = LD_PS1(conf->k1), k2 = LD_PS1(conf->k2);
++    v4sf u_cos[2] = { VLOAD(state_ext->u_cos), VLOAD(state_ext->u_cos+4) };
++    v4sf v_sin[2] = { VLOAD(state_ext->v_sin), VLOAD(state_ext->v_sin+4) };
++    for (int i = 0; i < size / 8; ++i) {
++        for (int j = 0; j < 2; ++j) {
++            float *p = reinterpret_cast<float *>(in_out + 8*i + 4*j);
++            v4sf re, im, lo, hi, out_re, out_im, tmp;
++            UNINTERLEAVE2(VLOAD(p), VLOAD(p+4), re, im);
++            out_re = VMSUB(im, v_sin[j], VMUL(re, u_cos[j]));
++            out_im = VMADD(im, u_cos[j], VMUL(re, v_sin[j]));
++            INTERLEAVE2(out_re, out_im, lo, hi);
++            VSTORE(p, lo); VSTORE(p+4, hi);
++            tmp = VMSUB(k1, v_sin[j], u_cos[j]);
++            v_sin[j] = VMADD(k2, tmp, v_sin[j]);
++            u_cos[j] = VMSUB(k1, v_sin[j], tmp);
++        }
++    }
++    VSTORE(state_ext->u_cos, u_cos[0]);
++    VSTORE(state_ext->u_cos+4, u_cos[1]);
++    VSTORE(state_ext->v_sin, v_sin[0]);
++    VSTORE(state_ext->v_sin+4, v_sin[1]);
++#else
++
+     float tmp[PF_SHIFT_RECURSIVE_SIMD_SZ];
+     float inp_i[PF_SHIFT_RECURSIVE_SIMD_SZ];
+     float inp_q[PF_SHIFT_RECURSIVE_SIMD_SZ];
+@@ -1040,6 +1064,7 @@
+             state.u_cos[j] = tmp[j] - k1 * state.v_sin[j];
+     }
+     *state_ext = state;
++#endif
+ }
+ 
+ PF_TARGET_CLONES

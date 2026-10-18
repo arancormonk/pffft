@@ -1,0 +1,59 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": { "major": 3, "minor": 21, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "release",
+      "displayName": "Release with the compiler's baseline ISA",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build_${presetName}",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "TARGET_C_ARCH": "none",
+        "TARGET_CXX_ARCH": "none"
+      }
+    },
+    {
+      "name": "release-native",
+      "displayName": "Release for this host (GCC/Clang)",
+      "description": "Uses -march=native; install only on CPUs compatible with the build host.",
+      "inherits": "release",
+      "cacheVariables": {
+        "TARGET_C_ARCH": "native",
+        "TARGET_CXX_ARCH": "native"
+      }
+    },
+    {
+      "name": "release-haswell",
+      "displayName": "Release for x86 Haswell-compatible CPUs (GCC/Clang)",
+      "description": "Explicit x86 package using AVX double and FMA; requires the Haswell instruction set.",
+      "inherits": "release",
+      "cacheVariables": {
+        "TARGET_C_ARCH": "haswell",
+        "TARGET_CXX_ARCH": "haswell"
+      }
+    },
+    {
+      "name": "release-native-unfused",
+      "displayName": "Native Release without fused arithmetic (GCC/Clang)",
+      "inherits": "release-native",
+      "cacheVariables": {
+        "PFFFT_DISABLE_FMA": "ON",
+        "CMAKE_C_FLAGS": "-ffp-contract=off",
+        "CMAKE_CXX_FLAGS": "-ffp-contract=off"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "release", "configurePreset": "release" },
+    { "name": "release-native", "configurePreset": "release-native" },
+    { "name": "release-haswell", "configurePreset": "release-haswell" },
+    { "name": "release-native-unfused", "configurePreset": "release-native-unfused" }
+  ],
+  "testPresets": [
+    { "name": "release", "configurePreset": "release", "output": { "outputOnFailure": true } },
+    { "name": "release-native", "configurePreset": "release-native", "output": { "outputOnFailure": true } },
+    { "name": "release-haswell", "configurePreset": "release-haswell", "output": { "outputOnFailure": true } },
+    { "name": "release-native-unfused", "configurePreset": "release-native-unfused", "output": { "outputOnFailure": true } }
+  ]
+}

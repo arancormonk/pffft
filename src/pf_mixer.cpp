@@ -134,7 +134,7 @@ typedef union v4_union {
 #  include <immintrin.h>
 #  define VMADD(a,b,c)            _mm_fmadd_ps(a,b,c)
 #  define VMSUB(a,b,c)            _mm_fnmadd_ps(a,b,c)
-#elif defined(__aarch64__) || defined(__arm64__)
+#elif !defined(PFFFT_DISABLE_FMA) && (defined(__aarch64__) || defined(__arm64__))
 #  define VMADD(a,b,c)            _mm_fmadd_ps(a,b,c)
 #  define VMSUB(a,b,c)            _mm_sub_ps(c, _mm_mul_ps(a,b))
 #else
@@ -933,142 +933,138 @@ void shift_limited_unroll_C_sse_inp_c(complexf*, int, shift_limited_unroll_C_sse
 /*** ALGO I ***/
 /**************/
 
-void shift_recursive_osc_update_rate(float rate, shift_recursive_osc_conf_t *conf, shift_recursive_osc_t* state)
-{
-    // constants for single phase step
-    float phase_increment_s = rate*PI;
-    float k1 = tanf(0.5f*phase_increment_s);
-    float k2 = 2*k1 /(1 + k1 * k1);
-    for (int j=1; j<PF_SHIFT_RECURSIVE_SIMD_SZ; j++)
-    {
-        float tmp;
-        state->u_cos[j] = state->u_cos[j-1];
-        state->v_sin[j] = state->v_sin[j-1];
-        // small steps
-        tmp = state->u_cos[j] - k1 * state->v_sin[j];
-        state->v_sin[j] += k2 * tmp;
-        state->u_cos[j] = tmp - k1 * state->v_sin[j];
-    }
-
-    // constants for PF_SHIFT_RECURSIVE_SIMD_SZ times phase step
-    float phase_increment_b = phase_increment_s * PF_SHIFT_RECURSIVE_SIMD_SZ;
-    while(phase_increment_b > PI) phase_increment_b-=2*PI;
-    while(phase_increment_b < -PI) phase_increment_b+=2*PI;
-    conf->k1 = tanf(0.5f*phase_increment_b);
-    conf->k2 = 2*conf->k1 / (1 + conf->k1 * conf->k1);
+/* Rebuild the lanes from the next sample's phase. Direct double-precision
+   rotations avoid the single-step tangent singularity at odd multiples of pi.
+   Reducing rate before multiplying also keeps large finite rates bounded. */
+static void recursive_osc_update(float rate, int lanes, float *u_cos, float *v_sin,
+                                 float *k1, float *k2) {
+  const double pi = 3.14159265358979323846;
+  const double step = fmod(static_cast<double>(rate), 2.0) * pi;
+  const double u = u_cos[0], v = v_sin[0];
+  for (int j = 1; j < lanes; ++j) {
+    const double c = cos(j * step), s = sin(j * step);
+    u_cos[j] = static_cast<float>(u * c - v * s);
+    v_sin[j] = static_cast<float>(v * c + u * s);
+  }
+  const double block_step = fmod(static_cast<double>(rate) * lanes, 2.0) * pi;
+  *k1 = static_cast<float>(tan(0.5 * block_step));
+  *k2 = static_cast<float>(sin(block_step));
 }
 
-void shift_recursive_osc_init(float rate, float starting_phase, shift_recursive_osc_conf_t *conf, shift_recursive_osc_t *state)
-{
-    if (starting_phase != 0.0F)
-    {
-        state->u_cos[0] = cosf(starting_phase);
-        state->v_sin[0] = sinf(starting_phase);
+/* For |k1| > 1, rotate by theta +/- pi, then negate both components:
+     tan((theta +/- pi)/2) = -1/k1, sin(theta +/- pi) = -k2.
+   This bounds the three-shear recurrence's intermediate values even at the
+   old singular rates (e.g. rate=1/8 for eight lanes). The public coefficient
+   and state layouts stay unchanged. Negate and Mix are compile-time choices. */
+template<int Lanes, bool Mix, bool Negate>
+static void recursive_osc_apply(const complexf *input, complexf *output, int size,
+                                float k1, float k2, float *u_cos, float *v_sin) {
+  assert(size >= 0 && size % Lanes == 0);
+  /* As in the original eight-lane loop, never overrun a partial final block
+     when assertions are disabled. Callers must still supply whole blocks. */
+  size = size / Lanes * Lanes;
+  if (Negate) {
+    k1 = -1.0f / k1;
+    k2 = -k2;
+  }
+#ifdef HAVE_SSE_INTRINSICS
+  const v4sf vk1 = LD_PS1(k1), vk2 = LD_PS1(k2);
+  v4sf u[Lanes / SIMD_SZ], v[Lanes / SIMD_SZ];
+  for (int j = 0; j < Lanes / SIMD_SZ; ++j) {
+    u[j] = VLOAD_UNALIGNED(u_cos + SIMD_SZ*j);
+    v[j] = VLOAD_UNALIGNED(v_sin + SIMD_SZ*j);
+  }
+  for (int i = 0; i < size; i += Lanes) {
+    for (int j = 0; j < Lanes / SIMD_SZ; ++j) {
+      v4sf re = u[j], im = v[j], lo, hi;
+      if (Mix) {
+        const float *p = reinterpret_cast<const float *>(input + i + SIMD_SZ*j);
+        v4sf in_re, in_im;
+        UNINTERLEAVE2(VLOAD_UNALIGNED(p), VLOAD_UNALIGNED(p+4), in_re, in_im);
+        re = VMSUB(in_im, v[j], VMUL(in_re, u[j]));
+        im = VMADD(in_im, u[j], VMUL(in_re, v[j]));
+      }
+      float *p = reinterpret_cast<float *>(output + i + SIMD_SZ*j);
+      INTERLEAVE2(re, im, lo, hi);
+      VSTORE_UNALIGNED(p, lo);
+      VSTORE_UNALIGNED(p+4, hi);
+      const v4sf tmp = VMSUB(vk1, v[j], u[j]);
+      v[j] = VMADD(vk2, tmp, v[j]);
+      u[j] = VMSUB(vk1, v[j], tmp);
+      if (Negate) {
+        u[j] = VSUB(LD_PS1(0), u[j]);
+        v[j] = VSUB(LD_PS1(0), v[j]);
+      }
     }
-    else
-    {
-        state->u_cos[0] = 1.0F;
-        state->v_sin[0] = 0.0F;
+  }
+  for (int j = 0; j < Lanes / SIMD_SZ; ++j) {
+    VSTORE_UNALIGNED(u_cos + SIMD_SZ*j, u[j]);
+    VSTORE_UNALIGNED(v_sin + SIMD_SZ*j, v[j]);
+  }
+#else
+  for (int i = 0; i < size; i += Lanes) {
+    for (int j = 0; j < Lanes; ++j) {
+      const float u = u_cos[j], v = v_sin[j];
+      if (Mix) {
+        const complexf in = input[i+j];
+        output[i+j].i = u * in.i - v * in.q;
+        output[i+j].q = v * in.i + u * in.q;
+      } else {
+        output[i+j].i = u;
+        output[i+j].q = v;
+      }
+      const float tmp = u - k1 * v;
+      const float next_v = v + k2 * tmp;
+      const float next_u = tmp - k1 * next_v;
+      u_cos[j] = Negate ? -next_u : next_u;
+      v_sin[j] = Negate ? -next_v : next_v;
     }
-    shift_recursive_osc_update_rate(rate, conf, state);
+  }
+#endif
 }
 
+template<int Lanes, bool Mix>
+static void recursive_osc_dispatch(const complexf *input, complexf *output, int size,
+                                   float k1, float k2, float *u_cos, float *v_sin) {
+  if (fabsf(k1) > 1.0f)
+    recursive_osc_apply<Lanes, Mix, true>(input, output, size, k1, k2, u_cos, v_sin);
+  else
+    recursive_osc_apply<Lanes, Mix, false>(input, output, size, k1, k2, u_cos, v_sin);
+}
+
+void shift_recursive_osc_update_rate(float rate, shift_recursive_osc_conf_t *conf,
+                                     shift_recursive_osc_t *state) {
+  recursive_osc_update(rate, PF_SHIFT_RECURSIVE_SIMD_SZ, state->u_cos, state->v_sin,
+                       &conf->k1, &conf->k2);
+}
+
+void shift_recursive_osc_init(float rate, float starting_phase,
+                              shift_recursive_osc_conf_t *conf, shift_recursive_osc_t *state) {
+  state->u_cos[0] = cosf(starting_phase);
+  state->v_sin[0] = sinf(starting_phase);
+  shift_recursive_osc_update_rate(rate, conf, state);
+}
 
 PF_TARGET_CLONES
-void shift_recursive_osc_cc(const complexf *input, complexf* output,
-    int size, const shift_recursive_osc_conf_t *conf, shift_recursive_osc_t* state_ext)
-{
-    float tmp[PF_SHIFT_RECURSIVE_SIMD_SZ];
-    float inp_i[PF_SHIFT_RECURSIVE_SIMD_SZ];
-    float inp_q[PF_SHIFT_RECURSIVE_SIMD_SZ];
-    shift_recursive_osc_t state = *state_ext;
-    const float k1 = conf->k1;
-    const float k2 = conf->k2;
-    for(int i=0;i<size/PF_SHIFT_RECURSIVE_SIMD_SZ; i++) //@shift_recursive_osc_cc
-    {
-        //we multiply two complex numbers - similar to shift_math_cc
-        for (int j=0;j<PF_SHIFT_RECURSIVE_SIMD_SZ;j++)
-        {
-            inp_i[j] = input[PF_SHIFT_RECURSIVE_SIMD_SZ*i+j].i;
-            inp_q[j] = input[PF_SHIFT_RECURSIVE_SIMD_SZ*i+j].q;
-        }
-        for (int j=0;j<PF_SHIFT_RECURSIVE_SIMD_SZ;j++)
-        {
-            iof(output,PF_SHIFT_RECURSIVE_SIMD_SZ*i+j) = state.u_cos[j] * inp_i[j] - state.v_sin[j] * inp_q[j];
-            qof(output,PF_SHIFT_RECURSIVE_SIMD_SZ*i+j) = state.v_sin[j] * inp_i[j] + state.u_cos[j] * inp_q[j];
-        }
-        // update complex phasor - like incrementing phase
-        for (int j=0;j<PF_SHIFT_RECURSIVE_SIMD_SZ;j++)
-            tmp[j] = state.u_cos[j] - k1 * state.v_sin[j];
-        for (int j=0;j<PF_SHIFT_RECURSIVE_SIMD_SZ;j++)
-            state.v_sin[j] += k2 * tmp[j];
-        for (int j=0;j<PF_SHIFT_RECURSIVE_SIMD_SZ;j++)
-            state.u_cos[j] = tmp[j] - k1 * state.v_sin[j];
-    }
-    *state_ext = state;
+void shift_recursive_osc_cc(const complexf *input, complexf *output, int size,
+                            const shift_recursive_osc_conf_t *conf, shift_recursive_osc_t *state) {
+  recursive_osc_dispatch<PF_SHIFT_RECURSIVE_SIMD_SZ, true>(
+      input, output, size, conf->k1, conf->k2, state->u_cos, state->v_sin);
 }
 
 PF_TARGET_CLONES
-void shift_recursive_osc_inp_c(complexf* in_out,
-    int size, const shift_recursive_osc_conf_t *conf, shift_recursive_osc_t* state_ext)
-{
-    float tmp[PF_SHIFT_RECURSIVE_SIMD_SZ];
-    float inp_i[PF_SHIFT_RECURSIVE_SIMD_SZ];
-    float inp_q[PF_SHIFT_RECURSIVE_SIMD_SZ];
-    shift_recursive_osc_t state = *state_ext;
-    const float k1 = conf->k1;
-    const float k2 = conf->k2;
-    for(int i=0;i<size/PF_SHIFT_RECURSIVE_SIMD_SZ; i++) //@shift_recursive_osc_inp_c
-    {
-        for (int j=0;j<PF_SHIFT_RECURSIVE_SIMD_SZ;j++)
-        {
-            inp_i[j] = in_out[PF_SHIFT_RECURSIVE_SIMD_SZ*i+j].i;
-            inp_q[j] = in_out[PF_SHIFT_RECURSIVE_SIMD_SZ*i+j].q;
-        }
-        //we multiply two complex numbers - similar to shift_math_cc
-        for (int j=0;j<PF_SHIFT_RECURSIVE_SIMD_SZ;j++)
-        {
-            iof(in_out,PF_SHIFT_RECURSIVE_SIMD_SZ*i+j) = state.u_cos[j] * inp_i[j] - state.v_sin[j] * inp_q[j];
-            qof(in_out,PF_SHIFT_RECURSIVE_SIMD_SZ*i+j) = state.v_sin[j] * inp_i[j] + state.u_cos[j] * inp_q[j];
-        }
-        // update complex phasor - like incrementing phase
-        for (int j=0;j<PF_SHIFT_RECURSIVE_SIMD_SZ;j++)
-            tmp[j] = state.u_cos[j] - k1 * state.v_sin[j];
-        for (int j=0;j<PF_SHIFT_RECURSIVE_SIMD_SZ;j++)
-            state.v_sin[j] += k2 * tmp[j];
-        for (int j=0;j<PF_SHIFT_RECURSIVE_SIMD_SZ;j++)
-            state.u_cos[j] = tmp[j] - k1 * state.v_sin[j];
-    }
-    *state_ext = state;
+void shift_recursive_osc_inp_c(complexf *in_out, int size,
+                               const shift_recursive_osc_conf_t *conf, shift_recursive_osc_t *state) {
+  recursive_osc_dispatch<PF_SHIFT_RECURSIVE_SIMD_SZ, true>(
+      in_out, in_out, size, conf->k1, conf->k2, state->u_cos, state->v_sin);
 }
 
 PF_TARGET_CLONES
-void gen_recursive_osc_c(complexf* output,
-    int size, const shift_recursive_osc_conf_t *conf, shift_recursive_osc_t* state_ext)
-{
-    float tmp[PF_SHIFT_RECURSIVE_SIMD_SZ];
-    shift_recursive_osc_t state = *state_ext;
-    const float k1 = conf->k1;
-    const float k2 = conf->k2;
-    for(int i=0;i<size/PF_SHIFT_RECURSIVE_SIMD_SZ; i++) //@gen_recursive_osc_c
-    {
-        // output complex oscillator value
-        for (int j=0;j<PF_SHIFT_RECURSIVE_SIMD_SZ;j++)
-        {
-            iof(output,PF_SHIFT_RECURSIVE_SIMD_SZ*i+j) = state.u_cos[j];
-            qof(output,PF_SHIFT_RECURSIVE_SIMD_SZ*i+j) = state.v_sin[j];
-        }
-        // update complex phasor - like incrementing phase
-        for (int j=0;j<PF_SHIFT_RECURSIVE_SIMD_SZ;j++)
-            tmp[j] = state.u_cos[j] - k1 * state.v_sin[j];
-        for (int j=0;j<PF_SHIFT_RECURSIVE_SIMD_SZ;j++)
-            state.v_sin[j] += k2 * tmp[j];
-        for (int j=0;j<PF_SHIFT_RECURSIVE_SIMD_SZ;j++)
-            state.u_cos[j] = tmp[j] - k1 * state.v_sin[j];
-    }
-    *state_ext = state;
+void gen_recursive_osc_c(complexf *output, int size,
+                          const shift_recursive_osc_conf_t *conf, shift_recursive_osc_t *state) {
+  recursive_osc_dispatch<PF_SHIFT_RECURSIVE_SIMD_SZ, false>(
+      NULL, output, size, conf->k1, conf->k2, state->u_cos, state->v_sin);
 }
-
 
 #ifdef HAVE_SSE_INTRINSICS
 
@@ -1078,84 +1074,26 @@ void gen_recursive_osc_c(complexf* output,
 /*** ALGO J ***/
 /**************/
 
-void shift_recursive_osc_sse_update_rate(float rate, shift_recursive_osc_sse_conf_t *conf, shift_recursive_osc_sse_t* state)
-{
-    // constants for single phase step
-    float phase_increment_s = rate*PI;
-    float k1 = tanf(0.5f*phase_increment_s);
-    float k2 = 2*k1 /(1 + k1 * k1);
-    for (int j=1; j<PF_SHIFT_RECURSIVE_SIMD_SSE_SZ; j++)
-    {
-        float tmp;
-        state->u_cos[j] = state->u_cos[j-1];
-        state->v_sin[j] = state->v_sin[j-1];
-        // small steps
-        tmp = state->u_cos[j] - k1 * state->v_sin[j];
-        state->v_sin[j] += k2 * tmp;
-        state->u_cos[j] = tmp - k1 * state->v_sin[j];
-    }
-
-    // constants for PF_SHIFT_RECURSIVE_SIMD_SSE_SZ times phase step
-    float phase_increment_b = phase_increment_s * PF_SHIFT_RECURSIVE_SIMD_SSE_SZ;
-    while(phase_increment_b > PI) phase_increment_b-=2*PI;
-    while(phase_increment_b < -PI) phase_increment_b+=2*PI;
-    conf->k1 = tanf(0.5f*phase_increment_b);
-    conf->k2 = 2*conf->k1 / (1 + conf->k1 * conf->k1);
+void shift_recursive_osc_sse_update_rate(float rate, shift_recursive_osc_sse_conf_t *conf,
+                                         shift_recursive_osc_sse_t *state) {
+  recursive_osc_update(rate, PF_SHIFT_RECURSIVE_SIMD_SSE_SZ, state->u_cos, state->v_sin,
+                       &conf->k1, &conf->k2);
 }
 
-
-void shift_recursive_osc_sse_init(float rate, float starting_phase, shift_recursive_osc_sse_conf_t *conf, shift_recursive_osc_sse_t *state)
-{
-    if (starting_phase != 0.0F)
-    {
-        state->u_cos[0] = cosf(starting_phase);
-        state->v_sin[0] = sinf(starting_phase);
-    }
-    else
-    {
-        state->u_cos[0] = 1.0F;
-        state->v_sin[0] = 0.0F;
-    }
-    shift_recursive_osc_sse_update_rate(rate, conf, state);
+void shift_recursive_osc_sse_init(float rate, float starting_phase,
+                                  shift_recursive_osc_sse_conf_t *conf,
+                                  shift_recursive_osc_sse_t *state) {
+  state->u_cos[0] = cosf(starting_phase);
+  state->v_sin[0] = sinf(starting_phase);
+  shift_recursive_osc_sse_update_rate(rate, conf, state);
 }
-
 
 PF_TARGET_CLONES
-void shift_recursive_osc_sse_inp_c(complexf* in_out,
-    int N_cplx, const shift_recursive_osc_sse_conf_t *conf, shift_recursive_osc_sse_t* state_ext)
-{
-    const __m128 k1 = LD_PS1( conf->k1 );
-    const __m128 k2 = LD_PS1( conf->k2 );
-    __m128 u_cos = VLOAD( &state_ext->u_cos[0] );
-    __m128 v_sin = VLOAD( &state_ext->v_sin[0] );
-    __m128 inp_re, inp_im;
-    __m128 product_re, product_im;
-    __m128 interl_prod_a, interl_prod_b;
-    __m128 * RESTRICT u = (__m128*)in_out;
-
-    while (N_cplx)
-    {
-        UNINTERLEAVE2(VLOAD(u), VLOAD(u+1), inp_re, inp_im);  /* inp_re = all reals; inp_im = all imags */
-
-        // we multiply two complex numbers - similar to shift_math_cc:
-        // re = u_cos * inp_re - v_sin * inp_im, im = v_sin * inp_re + u_cos * inp_im
-        product_re = VMSUB( inp_im, v_sin, VMUL(inp_re, u_cos) );
-        product_im = VMADD( inp_im, u_cos, VMUL(inp_re, v_sin) );
-        INTERLEAVE2( product_re, product_im, interl_prod_a, interl_prod_b);
-        VSTORE(u, interl_prod_a);
-        VSTORE(u+1, interl_prod_b);
-        u += 2;
-
-        // update complex phasor - like incrementing phase:
-        // tmp = u_cos - k1 * v_sin, then v_sin += k2 * tmp, then u_cos = tmp - k1 * v_sin
-        product_re = VMSUB( k1, v_sin, u_cos );
-        v_sin = VMADD( k2, product_re, v_sin );
-        u_cos = VMSUB( k1, v_sin, product_re );
-
-        N_cplx -= 4;
-    }
-    VSTORE( &state_ext->u_cos[0], u_cos );
-    VSTORE( &state_ext->v_sin[0], v_sin );
+void shift_recursive_osc_sse_inp_c(complexf *in_out, int size,
+                                   const shift_recursive_osc_sse_conf_t *conf,
+                                   shift_recursive_osc_sse_t *state) {
+  recursive_osc_dispatch<PF_SHIFT_RECURSIVE_SIMD_SSE_SZ, true>(
+      in_out, in_out, size, conf->k1, conf->k2, state->u_cos, state->v_sin);
 }
 
 #else

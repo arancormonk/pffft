@@ -1,0 +1,63 @@
+
+build_simd_analysis/mixer/hotloops_mixer:     file format elf64-x86-64
+
+
+Disassembly of section .init:
+
+Disassembly of section .plt:
+
+Disassembly of section .text:
+
+0000000000003a40 <shift_recursive_osc_inp_c>:
+    3a40:	c5 f8 10 11          	vmovups xmm2,XMMWORD PTR [rcx]
+    3a44:	c5 f8 10 49 10       	vmovups xmm1,XMMWORD PTR [rcx+0x10]
+    3a49:	c5 f8 10 69 20       	vmovups xmm5,XMMWORD PTR [rcx+0x20]
+    3a4e:	c5 f8 10 61 30       	vmovups xmm4,XMMWORD PTR [rcx+0x30]
+    3a53:	83 fe 07             	cmp    esi,0x7
+    3a56:	0f 8e b3 00 00 00    	jle    3b0f <shift_recursive_osc_inp_c+0xcf>
+    3a5c:	c4 e2 79 18 32       	vbroadcastss xmm6,DWORD PTR [rdx]
+    3a61:	c4 e2 79 18 7a 04    	vbroadcastss xmm7,DWORD PTR [rdx+0x4]
+    3a67:	c1 fe 03             	sar    esi,0x3
+    3a6a:	31 c0                	xor    eax,eax
+    3a6c:	0f 1f 40 00          	nop    DWORD PTR [rax+0x0]
+    3a70:	c5 f8 10 5f 10       	vmovups xmm3,XMMWORD PTR [rdi+0x10]
+    3a75:	c5 f8 10 07          	vmovups xmm0,XMMWORD PTR [rdi]
+    3a79:	ff c0                	inc    eax
+    3a7b:	48 83 c7 40          	add    rdi,0x40
+    3a7f:	c5 78 c6 c3 88       	vshufps xmm8,xmm0,xmm3,0x88
+    3a84:	c5 f8 c6 c3 dd       	vshufps xmm0,xmm0,xmm3,0xdd
+    3a89:	c4 c1 68 59 d8       	vmulps xmm3,xmm2,xmm8
+    3a8e:	c4 41 50 59 c0       	vmulps xmm8,xmm5,xmm8
+    3a93:	c4 e2 79 bc dd       	vfnmadd231ps xmm3,xmm0,xmm5
+    3a98:	c4 e2 39 98 c2       	vfmadd132ps xmm0,xmm8,xmm2
+    3a9d:	c4 e2 49 bc d5       	vfnmadd231ps xmm2,xmm6,xmm5
+    3aa2:	c5 60 14 c0          	vunpcklps xmm8,xmm3,xmm0
+    3aa6:	c5 e0 15 d8          	vunpckhps xmm3,xmm3,xmm0
+    3aaa:	c5 f8 10 47 e0       	vmovups xmm0,XMMWORD PTR [rdi-0x20]
+    3aaf:	c4 e2 41 b8 ea       	vfmadd231ps xmm5,xmm7,xmm2
+    3ab4:	c5 f8 11 5f d0       	vmovups XMMWORD PTR [rdi-0x30],xmm3
+    3ab9:	c5 f8 10 5f f0       	vmovups xmm3,XMMWORD PTR [rdi-0x10]
+    3abe:	c5 78 11 47 c0       	vmovups XMMWORD PTR [rdi-0x40],xmm8
+    3ac3:	c4 e2 49 bc d5       	vfnmadd231ps xmm2,xmm6,xmm5
+    3ac8:	c5 78 c6 c3 88       	vshufps xmm8,xmm0,xmm3,0x88
+    3acd:	c5 f8 c6 c3 dd       	vshufps xmm0,xmm0,xmm3,0xdd
+    3ad2:	c4 c1 70 59 d8       	vmulps xmm3,xmm1,xmm8
+    3ad7:	c4 41 58 59 c0       	vmulps xmm8,xmm4,xmm8
+    3adc:	c4 e2 79 bc dc       	vfnmadd231ps xmm3,xmm0,xmm4
+    3ae1:	c4 e2 39 98 c1       	vfmadd132ps xmm0,xmm8,xmm1
+    3ae6:	c4 e2 49 bc cc       	vfnmadd231ps xmm1,xmm6,xmm4
+    3aeb:	c5 60 14 c0          	vunpcklps xmm8,xmm3,xmm0
+    3aef:	c5 e0 15 d8          	vunpckhps xmm3,xmm3,xmm0
+    3af3:	c4 e2 41 b8 e1       	vfmadd231ps xmm4,xmm7,xmm1
+    3af8:	c5 78 11 47 e0       	vmovups XMMWORD PTR [rdi-0x20],xmm8
+    3afd:	c5 f8 11 5f f0       	vmovups XMMWORD PTR [rdi-0x10],xmm3
+    3b02:	c4 e2 49 bc cc       	vfnmadd231ps xmm1,xmm6,xmm4
+    3b07:	39 c6                	cmp    esi,eax
+    3b09:	0f 8f 61 ff ff ff    	jg     3a70 <shift_recursive_osc_inp_c+0x30>
+    3b0f:	c5 f8 11 11          	vmovups XMMWORD PTR [rcx],xmm2
+    3b13:	c5 f8 11 49 10       	vmovups XMMWORD PTR [rcx+0x10],xmm1
+    3b18:	c5 f8 11 69 20       	vmovups XMMWORD PTR [rcx+0x20],xmm5
+    3b1d:	c5 f8 11 61 30       	vmovups XMMWORD PTR [rcx+0x30],xmm4
+    3b22:	c3                   	ret
+
+Disassembly of section .fini:

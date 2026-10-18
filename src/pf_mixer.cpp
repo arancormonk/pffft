@@ -72,12 +72,24 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
   #include <xmmintrin.h>
   #define HAVE_SSE_INTRINSICS 1
   
-#elif defined(PFFFT_ENABLE_NEON) && defined(__arm__)
+#elif defined(PFFFT_ENABLE_NEON) && (defined(__arm__) || defined(__aarch64__))
+  /* the vendored sse2neon.h is not clean under -Wall -Wextra: GCC-only
+     target pragmas, and an intentionally uninitialized _mm_undefined_ps() */
+  #if defined(__clang__)
+    #pragma clang diagnostic push
+    #pragma clang diagnostic ignored "-Wunknown-pragmas"
+    #pragma clang diagnostic ignored "-Wuninitialized"
+  #elif defined(__GNUC__)
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wuninitialized"
+    #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+  #endif
   #include "sse2neon.h"
-  #define HAVE_SSE_INTRINSICS 1
-  
-#elif defined(PFFFT_ENABLE_NEON) && defined(__aarch64__)
-  #include "sse2neon.h"
+  #if defined(__clang__)
+    #pragma clang diagnostic pop
+  #elif defined(__GNUC__)
+    #pragma GCC diagnostic pop
+  #endif
   #define HAVE_SSE_INTRINSICS 1
 
 #endif

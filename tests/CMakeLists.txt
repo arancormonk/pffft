@@ -47,6 +47,11 @@ foreach(prec float double)
     add_executable( test_pffft_accuracy_${prec}  test_pffft_accuracy.c )
     target_compile_definitions(test_pffft_accuracy_${prec} PRIVATE PFFFT_ENABLE_${PREC})
     target_link_libraries( test_pffft_accuracy_${prec}  PFFFT ${ASANLIB} ${MATHLIB} )
+    if (EMSCRIPTEN)
+      # work == NULL puts 2*N scalars of scratch on the stack (128 KiB for
+      # complex double at N = 8192): more than Emscripten's default stack
+      target_link_options(test_pffft_accuracy_${prec} PRIVATE "-sSTACK_SIZE=1048576")
+    endif()
     add_test(NAME test_pffft_accuracy_${prec} COMMAND test_pffft_accuracy_${prec})
   endif()
 endforeach()

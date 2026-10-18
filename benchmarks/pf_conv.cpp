@@ -301,7 +301,8 @@ const conv_f_ptrs* ARCHFUNCNAME(conv_ptrs)()
 #if defined(MIPP_NO_INTRINSICS)
     DPRINT("arch pointer for '%s' - BUT defined(MIPP_NO_INTRINSICS)\n", conv_ptrs.id);
     return &conv_ptrs;
-#elif defined(HAVE_MIPP)
+#else
+#if defined(HAVE_MIPP)
     DPRINT("arch pointer for '%s' - defined(HAVE_MIPP)\n", conv_ptrs.id);
     DPRINT("'%s': conv_ptrs.using_mipp %d\n", conv_ptrs.id, conv_ptrs.using_mipp);
     DPRINT("'%s': simd_size() %d\n", conv_ptrs.id, conv_ptrs.fp_conv_float_simd_size());
@@ -314,6 +315,7 @@ const conv_f_ptrs* ARCHFUNCNAME(conv_ptrs)()
 #endif
     DPRINT("arch pointer for '%s' => nullptr\n", conv_ptrs.id);
     return nullptr;
+#endif
 }
 
 static_assert(std::is_same<decltype(&ARCHFUNCNAME(conv_ptrs)), f_conv_ptrs>::value,

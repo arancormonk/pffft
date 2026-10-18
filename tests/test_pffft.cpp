@@ -478,14 +478,14 @@ main(void)
            ") succeeded successfully.\n");
 
 #ifdef PFFFT_ENABLE_FLOAT
-  resZP |= ZPRejectTest<float>(64);
-  resZP |= ZPRejectTest< ::std::complex<float> >(64);
-  resZP |= ZPtest<float>(64);
+  resZP |= ZPRejectTest<float>(64) ? 1 : 0;
+  resZP |= ZPRejectTest< ::std::complex<float> >(64) ? 1 : 0;
+  resZP |= ZPtest<float>(64) ? 1 : 0;
 #endif
 #ifdef PFFFT_ENABLE_DOUBLE
-  resZP |= ZPRejectTest<double>(64);
-  resZP |= ZPRejectTest< ::std::complex<double> >(64);
-  resZP |= ZPtest<double>(64);
+  resZP |= ZPRejectTest<double>(64) ? 1 : 0;
+  resZP |= ZPRejectTest< ::std::complex<double> >(64) ? 1 : 0;
+  resZP |= ZPtest<double>(64) ? 1 : 0;
 #endif
   if (!resZP)
     printf("zero-phase and unscaled convolve wrapper tests succeeded successfully.\n");

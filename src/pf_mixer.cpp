@@ -400,48 +400,61 @@ void shift_unroll_deinit(shift_unroll_data_t* d)
     d->dcos = NULL;
 }
 
-PF_TARGET_CLONES
-float shift_unroll_cc(complexf *input, complexf* output, int input_size, shift_unroll_data_t* d, float starting_phase)
-{
-    //input_size should be multiple of 4
-    //fprintf(stderr, "shift_addfast_cc: input_size = %d\n", input_size);
-    float cos_start = cosf(starting_phase);
-    float sin_start = sinf(starting_phase);
-    float cos_val = cos_start, sin_val = sin_start;
-    for(int i=0;i<input_size; i++)
-    {
-        iof(output,i) = cos_val*iof(input,i) - sin_val*qof(input,i);
-        qof(output,i) = sin_val*iof(input,i) + cos_val*qof(input,i);
-        // calculate complex phasor for next iteration
-        cos_val = cos_start * d->dcos[i] - sin_start * d->dsin[i];
-        sin_val = sin_start * d->dcos[i] + cos_start * d->dsin[i];
-    }
-    starting_phase+=input_size*d->phase_increment;
-    while(starting_phase>PI) starting_phase-=2*PI;
-    while(starting_phase<-PI) starting_phase+=2*PI;
-    return starting_phase;
+static ALWAYS_INLINE(float) shift_unroll_apply(const complexf *input, complexf *output,
+                                               int size, const shift_unroll_data_t *d,
+                                               float starting_phase) {
+  const float cos_start = cosf(starting_phase);
+  const float sin_start = sinf(starting_phase);
+  assert(size >= 0 && size <= d->size);
+  if (size > 0) {
+    const float re = input[0].i, im = input[0].q;
+    output[0].i = cos_start * re - sin_start * im;
+    output[0].q = sin_start * re + cos_start * im;
+  }
+  /* Table entry i-1 belongs to sample i. Independent phasors allow a
+     vector loop with separate real/imaginary lanes on every mixer backend. */
+  int i = 1;
+#ifdef HAVE_SSE_INTRINSICS
+  const v4sf vc = LD_PS1(cos_start), vs = LD_PS1(sin_start);
+  for (; i <= size-SIMD_SZ; i += SIMD_SZ) {
+    const v4sf tc = VLOAD_UNALIGNED(d->dcos + i-1);
+    const v4sf ts = VLOAD_UNALIGNED(d->dsin + i-1);
+    const v4sf c = VMSUB(vs, ts, VMUL(vc, tc));
+    const v4sf s = VMADD(vs, tc, VMUL(vc, ts));
+    const float *p = reinterpret_cast<const float *>(input + i);
+    v4sf in_re, in_im, lo, hi;
+    UNINTERLEAVE2(VLOAD_UNALIGNED(p), VLOAD_UNALIGNED(p+4), in_re, in_im);
+    const v4sf re = VMSUB(in_im, s, VMUL(in_re, c));
+    const v4sf im = VMADD(in_re, s, VMUL(in_im, c));
+    INTERLEAVE2(re, im, lo, hi);
+    float *q = reinterpret_cast<float *>(output + i);
+    VSTORE_UNALIGNED(q, lo);
+    VSTORE_UNALIGNED(q+4, hi);
+  }
+#endif
+  for (; i < size; ++i) {
+    const float c = cos_start * d->dcos[i-1] - sin_start * d->dsin[i-1];
+    const float s = sin_start * d->dcos[i-1] + cos_start * d->dsin[i-1];
+    const float re = input[i].i, im = input[i].q;
+    output[i].i = c * re - s * im;
+    output[i].q = s * re + c * im;
+  }
+  starting_phase += size * d->phase_increment;
+  while (starting_phase > PI) starting_phase -= 2*PI;
+  while (starting_phase < -PI) starting_phase += 2*PI;
+  return starting_phase;
 }
 
 PF_TARGET_CLONES
-float shift_unroll_inp_c(complexf* in_out, int size, shift_unroll_data_t* d, float starting_phase)
-{
-    float cos_start = cosf(starting_phase);
-    float sin_start = sinf(starting_phase);
-    float cos_val = cos_start, sin_val = sin_start;
-    for(int i=0;i<size; i++)
-    {
-        float inp_i = iof(in_out,i);
-        float inp_q = qof(in_out,i);
-        iof(in_out,i) = cos_val*inp_i - sin_val*inp_q;
-        qof(in_out,i) = sin_val*inp_i + cos_val*inp_q;
-        // calculate complex phasor for next iteration
-        cos_val = cos_start * d->dcos[i] - sin_start * d->dsin[i];
-        sin_val = sin_start * d->dcos[i] + cos_start * d->dsin[i];
-    }
-    starting_phase += size * d->phase_increment;
-    while(starting_phase>PI) starting_phase-=2*PI;
-    while(starting_phase<-PI) starting_phase+=2*PI;
-    return starting_phase;
+float shift_unroll_cc(complexf *input, complexf *output, int input_size,
+                      shift_unroll_data_t *d, float starting_phase) {
+  return shift_unroll_apply(input, output, input_size, d, starting_phase);
+}
+
+PF_TARGET_CLONES
+float shift_unroll_inp_c(complexf *in_out, int size, shift_unroll_data_t *d,
+                         float starting_phase) {
+  return shift_unroll_apply(in_out, in_out, size, d, starting_phase);
 }
 
 

@@ -34,6 +34,11 @@ if (PFFFT_USE_TYPE_FLOAT)
   target_link_libraries(test_pf_mixer PFDSP ${ASANLIB} ${MATHLIB})
   add_test(NAME test_pf_mixer COMMAND test_pf_mixer)
 
+  add_executable(test_pf_mixer_table test_pf_mixer_table.cpp)
+  set_property(TARGET test_pf_mixer_table PROPERTY CXX_STANDARD 11)
+  target_link_libraries(test_pf_mixer_table PFDSP ${ASANLIB} ${MATHLIB})
+  add_test(NAME test_pf_mixer_table COMMAND test_pf_mixer_table)
+
   add_executable( test_pffft_float  test_pffft.c )
   target_compile_definitions(test_pffft_float PRIVATE _USE_MATH_DEFINES)
   target_compile_definitions(test_pffft_float PRIVATE PFFFT_ENABLE_FLOAT)

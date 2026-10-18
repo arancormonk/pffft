@@ -1,0 +1,72 @@
+native
+25/25 Test #21: bench_pfconv_non_sym .............   Passed    6.36 sec
+
+100% tests passed out of 25
+
+Total Test time (real) =   6.36 sec
+
+default
+25/25 Test #21: bench_pfconv_non_sym .............   Passed    6.23 sec
+
+100% tests passed out of 25
+
+Total Test time (real) =   6.23 sec
+
+clang
+25/25 Test #21: bench_pfconv_non_sym .............   Passed    6.20 sec
+
+100% tests passed out of 25
+
+Total Test time (real) =   6.20 sec
+
+unfused
+25/25 Test #21: bench_pfconv_non_sym .............   Passed    6.35 sec
+
+100% tests passed out of 25
+
+Total Test time (real) =   6.35 sec
+
+haswell
+25/25 Test #20: bench_pfconv_symetric ............   Passed    6.36 sec
+
+100% tests passed out of 25
+
+Total Test time (real) =   6.36 sec
+
+scalar
+25/25 Test #22: bench_pffft_pow2 .................   Passed    6.32 sec
+
+100% tests passed out of 25
+
+Total Test time (real) =   6.32 sec
+
+scalvec
+25/25 Test #21: bench_pfconv_non_sym .............   Passed    6.21 sec
+
+100% tests passed out of 25
+
+Total Test time (real) =   6.21 sec
+
+asan
+23/23 Test #19: test_pfconv_lens_non_sym .........   Passed   15.05 sec
+
+100% tests passed out of 23
+
+Total Test time (real) =  15.05 sec
+
+ARM64 QEMU float
+pffft accuracy test: float, simd_size 4 (NEON), sizes up to 1024
+reference DFT self-check: max rel err 5.3e-34 (long double epsilon 1.93e-34)
+tested 19 REAL and 27 COMPLEX sizes
+worst rel. L2 error in eps*log2(N): forward 0.132, backward 0.127, convolution 0.296 (limit 2.0)
+all checks passed
+
+ARM64 QEMU double
+pffft accuracy test: double, simd_size 4 (NEON), sizes up to 1024
+reference DFT self-check: max rel err 5.3e-34 (long double epsilon 1.93e-34)
+tested 19 REAL and 27 COMPLEX sizes
+worst rel. L2 error in eps*log2(N): forward 0.116, backward 0.124, convolution 0.374 (limit 2.0)
+all checks passed
+
+ARM64 QEMU mixer
+399 table mixer cases and continuity passed; worst error 0.0004701391

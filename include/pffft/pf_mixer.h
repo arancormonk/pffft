@@ -120,6 +120,11 @@ typedef struct shift_unroll_data_s
 
 PFDSP_EXPORT shift_unroll_data_t shift_unroll_init(float rate, int size);
 PFDSP_EXPORT void shift_unroll_deinit(shift_unroll_data_t* d);
+/* Table-driven rotation: rate is in cycles per sample, phases in radians.
+ * Process 0 <= size <= d->size samples; no vector-width multiple or alignment
+ * is required. The returned phase starts the next block. Input and output
+ * may be identical; otherwise they must not overlap. Keep the tables separate
+ * from the sample buffers. */
 PFDSP_EXPORT float shift_unroll_cc(complexf *input, complexf* output, int size, shift_unroll_data_t* d, float starting_phase);
 PFDSP_EXPORT float shift_unroll_inp_c(complexf* in_out, int size, shift_unroll_data_t* d, float starting_phase);
 

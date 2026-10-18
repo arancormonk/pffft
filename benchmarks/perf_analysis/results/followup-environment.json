@@ -1,0 +1,111 @@
+{
+  "baseline_commit": "c21f0ba635a6477035842f7f21874ae2681a8739",
+  "host": "AMD Ryzen 9 5950X",
+  "cpu": 14,
+  "max_busy_cpus": 2.5,
+  "fft_samples": 1040,
+  "confirmation_samples": 18,
+  "mixer_samples": 168,
+  "compilers": {
+    "gcc": "gcc (GCC) 16.2.1 20260810",
+    "clang": "clang version 23.1.3"
+  },
+  "method": [
+    "Five FFT samples per build/case, 0.04 seconds target; randomized before/after order and fresh processes. Libraries compiled -O3 -DNDEBUG -march=native.",
+    "Seven mixer samples per build/case, 0.08 seconds target, rate -0.0009, 32 blocks; initial phase 0.37. The out-of-place mode reads a separate constant input block.",
+    "CPU 14 affinity; 0.1-second idle probes and aggregate host load rejection above 2.5 busy CPUs. Other projects caused delays; rejected samples are excluded.",
+    "In-place FFT samples use zeros to avoid overflow; random-data equivalence and round-trip checks precede timing.",
+    "Real in-place transforms with even FFT pass counts retain the original reorder path to avoid an extra copy. No host-specific size thresholds.",
+    "Intermediate unaligned-store, unconditional-fusion, and auto-vectorized table-mixer experiments are excluded from these results.",
+    "The noisy double real unordered inverse N=1024 control was repeated with nine samples per build at 0.1 seconds; the separate confirmation data are retained alongside the original samples.",
+    "ARM64 under QEMU validates correctness only. Final dispatch tested through N=1024; fused helpers also passed the full N=8192 sweep before the parity selection refinement."
+  ],
+  "source_sha256": {
+    "src/pf_mixer.cpp": "3c0cf14555f5afc8f2d5f2ed58665ec56ac7d4a3e41c2158b9ab2ba8f4c3c05a",
+    "src/pffft_priv_impl.h": "26fa5d186f64d15b3e7684aa95a7f174703839c3df21404bdea6fb89c5e1080a",
+    "src/pffft_real_impl.h": "1df14f928bdce1804df998d9a8859c630b0c9ff0dc7c83ba90068a2fe7646aab",
+    "src/pffft_cplx_impl.h": "00376252c195c5f523e89d8ae176ea8a0107682e13df6c48e26c808504ccb407",
+    "tests/test_pf_mixer_table.cpp": "c56029f724ad9d93685e1b832f3cd6d8fb0530471f77f6f793f8173a52e75ffe",
+    "benchmarks/perf_analysis/bench_hotloops.cpp": "d537a45b53342ac75576910f2bdd9ecdd61f8c56b5167e4dbf6ef97ddd20bb40",
+    "benchmarks/perf_analysis/bench_mixer.cpp": "7660b1bd4b1c66901dfa15d4cb8e4154414ad2ebdebdf5019fceb55f1b54d436"
+  },
+  "library_sha256": {
+    "build_impl_native/libpffft.a": "191d5d26f84ba19c4fe0d4acb9d7077eb7bf6d048a8e13f9c03becc64fb1c1e5",
+    "build_impl_native/libpfdsp.a": "d17ea1d3f1d02147d9eb4343bf485a8e03f569551164f19d7471f97453b26174",
+    "build_round2_native/libpffft.a": "b7eb2ab5a6bda1ac3798445e8ffcfc41d55e9887c269f9fa6e0f2130da0b698e",
+    "build_round2_native/libpfdsp.a": "cac801f21d2baec684ed1c27996e7a596e94e53904227373b28973571ce9aaa8",
+    "build_release/libpfdsp.a": "1ef0c4b85817fd326ad3b61b2efcb3715f668bdbaebd9291a4b498a03684022c",
+    "build_round2_default/libpfdsp.a": "b6945a407731298148a85d9afe8f67d2151f2cf353e7d54c3b821f53069ff194",
+    "build_impl_clang/libpfdsp.a": "d8eba69ea5ad3c816ad0d2672c6c0f56e7288f992aca58c5da1911ae7c8fdd29",
+    "build_round2_clang/libpfdsp.a": "0aeb88504ed2b0e54368b4c16814bee7b2bf693b2c41c1c4dc87a89a7a4585cf"
+  },
+  "compile_commands": {
+    "native": [
+      "/usr/bin/cc -DPFFFT_SCALVEC_ENABLED=1 -DPFFFT_STATIC_DEFINE -D_USE_MATH_DEFINES -I/home/mark/Documents/Projects/Software/pffft/include -I/home/mark/Documents/Projects/Software/pffft/src -I/home/mark/Documents/Projects/Software/pffft/include/pffft -O3 -DNDEBUG -std=c99 -fvisibility=hidden -Wall -Wextra -pedantic -march=native -Werror -o CMakeFiles/PFFFT.dir/src/pffft.c.o -c /home/mark/Documents/Projects/Software/pffft/src/pffft.c",
+      "/usr/bin/cc -DPFFFT_SCALVEC_ENABLED=1 -DPFFFT_STATIC_DEFINE -D_USE_MATH_DEFINES -I/home/mark/Documents/Projects/Software/pffft/include -I/home/mark/Documents/Projects/Software/pffft/src -I/home/mark/Documents/Projects/Software/pffft/include/pffft -O3 -DNDEBUG -std=c99 -fvisibility=hidden -Wall -Wextra -pedantic -march=native -Werror -o CMakeFiles/PFFFT.dir/src/pffft_double.c.o -c /home/mark/Documents/Projects/Software/pffft/src/pffft_double.c",
+      "/usr/bin/c++ -DPFDSP_STATIC_DEFINE -D_USE_MATH_DEFINES -I/home/mark/Documents/Projects/Software/pffft/include -I/home/mark/Documents/Projects/Software/pffft/src -I/home/mark/Documents/Projects/Software/pffft/include/pffft -O3 -DNDEBUG -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden -Wall -Wextra -pedantic -march=native -Werror -o CMakeFiles/PFDSP.dir/src/pf_mixer.cpp.o -c /home/mark/Documents/Projects/Software/pffft/src/pf_mixer.cpp"
+    ],
+    "default": [
+      "/usr/bin/cc -DPFFFT_SCALVEC_ENABLED=1 -DPFFFT_STATIC_DEFINE -D_USE_MATH_DEFINES -I/home/mark/Documents/Projects/Software/pffft/include -I/home/mark/Documents/Projects/Software/pffft/src -I/home/mark/Documents/Projects/Software/pffft/include/pffft -O3 -DNDEBUG -std=c99 -fvisibility=hidden -Wall -Wextra -pedantic -Werror -o CMakeFiles/PFFFT.dir/src/pffft.c.o -c /home/mark/Documents/Projects/Software/pffft/src/pffft.c",
+      "/usr/bin/cc -DPFFFT_SCALVEC_ENABLED=1 -DPFFFT_STATIC_DEFINE -D_USE_MATH_DEFINES -I/home/mark/Documents/Projects/Software/pffft/include -I/home/mark/Documents/Projects/Software/pffft/src -I/home/mark/Documents/Projects/Software/pffft/include/pffft -O3 -DNDEBUG -std=c99 -fvisibility=hidden -Wall -Wextra -pedantic -Werror -o CMakeFiles/PFFFT.dir/src/pffft_double.c.o -c /home/mark/Documents/Projects/Software/pffft/src/pffft_double.c",
+      "/usr/bin/c++ -DPFDSP_STATIC_DEFINE -D_USE_MATH_DEFINES -I/home/mark/Documents/Projects/Software/pffft/include -I/home/mark/Documents/Projects/Software/pffft/src -I/home/mark/Documents/Projects/Software/pffft/include/pffft -O3 -DNDEBUG -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden -Wall -Wextra -pedantic -Werror -o CMakeFiles/PFDSP.dir/src/pf_mixer.cpp.o -c /home/mark/Documents/Projects/Software/pffft/src/pf_mixer.cpp"
+    ],
+    "clang": [
+      "/usr/bin/clang -DPFFFT_SCALVEC_ENABLED=1 -DPFFFT_STATIC_DEFINE -D_USE_MATH_DEFINES -I/home/mark/Documents/Projects/Software/pffft/include -I/home/mark/Documents/Projects/Software/pffft/src -I/home/mark/Documents/Projects/Software/pffft/include/pffft -O3 -DNDEBUG -std=c99 -fvisibility=hidden -Wall -Wextra -pedantic -march=native -Werror -o CMakeFiles/PFFFT.dir/src/pffft.c.o -c /home/mark/Documents/Projects/Software/pffft/src/pffft.c",
+      "/usr/bin/clang -DPFFFT_SCALVEC_ENABLED=1 -DPFFFT_STATIC_DEFINE -D_USE_MATH_DEFINES -I/home/mark/Documents/Projects/Software/pffft/include -I/home/mark/Documents/Projects/Software/pffft/src -I/home/mark/Documents/Projects/Software/pffft/include/pffft -O3 -DNDEBUG -std=c99 -fvisibility=hidden -Wall -Wextra -pedantic -march=native -Werror -o CMakeFiles/PFFFT.dir/src/pffft_double.c.o -c /home/mark/Documents/Projects/Software/pffft/src/pffft_double.c",
+      "/usr/bin/clang++ -DPFDSP_STATIC_DEFINE -D_USE_MATH_DEFINES -I/home/mark/Documents/Projects/Software/pffft/include -I/home/mark/Documents/Projects/Software/pffft/src -I/home/mark/Documents/Projects/Software/pffft/include/pffft -O3 -DNDEBUG -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden -Wall -Wextra -pedantic -march=native -Werror -o CMakeFiles/PFDSP.dir/src/pf_mixer.cpp.o -c /home/mark/Documents/Projects/Software/pffft/src/pf_mixer.cpp"
+    ],
+    "unfused": [
+      "/usr/bin/cc -DPFFFT_DISABLE_FMA=1 -DPFFFT_SCALVEC_ENABLED=1 -DPFFFT_STATIC_DEFINE -D_USE_MATH_DEFINES -I/home/mark/Documents/Projects/Software/pffft/include -I/home/mark/Documents/Projects/Software/pffft/src -I/home/mark/Documents/Projects/Software/pffft/include/pffft -ffp-contract=off -O3 -DNDEBUG -std=c99 -fvisibility=hidden -Wall -Wextra -pedantic -march=native -Werror -o CMakeFiles/PFFFT.dir/src/pffft.c.o -c /home/mark/Documents/Projects/Software/pffft/src/pffft.c",
+      "/usr/bin/cc -DPFFFT_DISABLE_FMA=1 -DPFFFT_SCALVEC_ENABLED=1 -DPFFFT_STATIC_DEFINE -D_USE_MATH_DEFINES -I/home/mark/Documents/Projects/Software/pffft/include -I/home/mark/Documents/Projects/Software/pffft/src -I/home/mark/Documents/Projects/Software/pffft/include/pffft -ffp-contract=off -O3 -DNDEBUG -std=c99 -fvisibility=hidden -Wall -Wextra -pedantic -march=native -Werror -o CMakeFiles/PFFFT.dir/src/pffft_double.c.o -c /home/mark/Documents/Projects/Software/pffft/src/pffft_double.c",
+      "/usr/bin/c++ -DPFDSP_STATIC_DEFINE -DPFFFT_DISABLE_FMA=1 -D_USE_MATH_DEFINES -I/home/mark/Documents/Projects/Software/pffft/include -I/home/mark/Documents/Projects/Software/pffft/src -I/home/mark/Documents/Projects/Software/pffft/include/pffft -ffp-contract=off -O3 -DNDEBUG -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden -Wall -Wextra -pedantic -march=native -Werror -o CMakeFiles/PFDSP.dir/src/pf_mixer.cpp.o -c /home/mark/Documents/Projects/Software/pffft/src/pf_mixer.cpp"
+    ],
+    "haswell": [
+      "/usr/bin/cc -DPFFFT_SCALVEC_ENABLED=1 -DPFFFT_STATIC_DEFINE -D_USE_MATH_DEFINES -I/home/mark/Documents/Projects/Software/pffft/include -I/home/mark/Documents/Projects/Software/pffft/src -I/home/mark/Documents/Projects/Software/pffft/include/pffft -O3 -DNDEBUG -std=c99 -fvisibility=hidden -Wall -Wextra -pedantic -march=haswell -Werror -o CMakeFiles/PFFFT.dir/src/pffft.c.o -c /home/mark/Documents/Projects/Software/pffft/src/pffft.c",
+      "/usr/bin/cc -DPFFFT_SCALVEC_ENABLED=1 -DPFFFT_STATIC_DEFINE -D_USE_MATH_DEFINES -I/home/mark/Documents/Projects/Software/pffft/include -I/home/mark/Documents/Projects/Software/pffft/src -I/home/mark/Documents/Projects/Software/pffft/include/pffft -O3 -DNDEBUG -std=c99 -fvisibility=hidden -Wall -Wextra -pedantic -march=haswell -Werror -o CMakeFiles/PFFFT.dir/src/pffft_double.c.o -c /home/mark/Documents/Projects/Software/pffft/src/pffft_double.c",
+      "/usr/bin/c++ -DPFDSP_STATIC_DEFINE -D_USE_MATH_DEFINES -I/home/mark/Documents/Projects/Software/pffft/include -I/home/mark/Documents/Projects/Software/pffft/src -I/home/mark/Documents/Projects/Software/pffft/include/pffft -O3 -DNDEBUG -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden -Wall -Wextra -pedantic -march=haswell -Werror -o CMakeFiles/PFDSP.dir/src/pf_mixer.cpp.o -c /home/mark/Documents/Projects/Software/pffft/src/pf_mixer.cpp"
+    ],
+    "scalar": [
+      "/usr/bin/cc -DPFFFT_SIMD_DISABLE=1 -DPFFFT_STATIC_DEFINE -D_USE_MATH_DEFINES -I/home/mark/Documents/Projects/Software/pffft/include -I/home/mark/Documents/Projects/Software/pffft/src -I/home/mark/Documents/Projects/Software/pffft/include/pffft -O3 -DNDEBUG -std=c99 -fvisibility=hidden -Wall -Wextra -pedantic -Werror -o CMakeFiles/PFFFT.dir/src/pffft.c.o -c /home/mark/Documents/Projects/Software/pffft/src/pffft.c",
+      "/usr/bin/cc -DPFFFT_SIMD_DISABLE=1 -DPFFFT_STATIC_DEFINE -D_USE_MATH_DEFINES -I/home/mark/Documents/Projects/Software/pffft/include -I/home/mark/Documents/Projects/Software/pffft/src -I/home/mark/Documents/Projects/Software/pffft/include/pffft -O3 -DNDEBUG -std=c99 -fvisibility=hidden -Wall -Wextra -pedantic -Werror -o CMakeFiles/PFFFT.dir/src/pffft_double.c.o -c /home/mark/Documents/Projects/Software/pffft/src/pffft_double.c",
+      "/usr/bin/c++ -DPFDSP_STATIC_DEFINE -DPFFFT_SIMD_DISABLE=1 -D_USE_MATH_DEFINES -I/home/mark/Documents/Projects/Software/pffft/include -I/home/mark/Documents/Projects/Software/pffft/src -I/home/mark/Documents/Projects/Software/pffft/include/pffft -O3 -DNDEBUG -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden -Wall -Wextra -pedantic -Werror -o CMakeFiles/PFDSP.dir/src/pf_mixer.cpp.o -c /home/mark/Documents/Projects/Software/pffft/src/pf_mixer.cpp"
+    ],
+    "scalvec": [
+      "/usr/bin/cc -DPFFFT_SCALVEC_ENABLED=1 -DPFFFT_SIMD_DISABLE=1 -DPFFFT_STATIC_DEFINE -D_USE_MATH_DEFINES -I/home/mark/Documents/Projects/Software/pffft/include -I/home/mark/Documents/Projects/Software/pffft/src -I/home/mark/Documents/Projects/Software/pffft/include/pffft -O3 -DNDEBUG -std=c99 -fvisibility=hidden -Wall -Wextra -pedantic -Werror -o CMakeFiles/PFFFT.dir/src/pffft.c.o -c /home/mark/Documents/Projects/Software/pffft/src/pffft.c",
+      "/usr/bin/cc -DPFFFT_SCALVEC_ENABLED=1 -DPFFFT_SIMD_DISABLE=1 -DPFFFT_STATIC_DEFINE -D_USE_MATH_DEFINES -I/home/mark/Documents/Projects/Software/pffft/include -I/home/mark/Documents/Projects/Software/pffft/src -I/home/mark/Documents/Projects/Software/pffft/include/pffft -O3 -DNDEBUG -std=c99 -fvisibility=hidden -Wall -Wextra -pedantic -Werror -o CMakeFiles/PFFFT.dir/src/pffft_double.c.o -c /home/mark/Documents/Projects/Software/pffft/src/pffft_double.c",
+      "/usr/bin/c++ -DPFDSP_STATIC_DEFINE -DPFFFT_SIMD_DISABLE=1 -D_USE_MATH_DEFINES -I/home/mark/Documents/Projects/Software/pffft/include -I/home/mark/Documents/Projects/Software/pffft/src -I/home/mark/Documents/Projects/Software/pffft/include/pffft -O3 -DNDEBUG -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden -Wall -Wextra -pedantic -Werror -o CMakeFiles/PFDSP.dir/src/pf_mixer.cpp.o -c /home/mark/Documents/Projects/Software/pffft/src/pf_mixer.cpp"
+    ],
+    "asan": [
+      "/usr/bin/cc -DPFFFT_SCALVEC_ENABLED=1 -DPFFFT_STATIC_DEFINE -D_USE_MATH_DEFINES -I/home/mark/Documents/Projects/Software/pffft/include -I/home/mark/Documents/Projects/Software/pffft/src -I/home/mark/Documents/Projects/Software/pffft/include/pffft -g -std=c99 -fvisibility=hidden -Wall -Wextra -pedantic -fsanitize=address -Werror -o CMakeFiles/PFFFT.dir/src/pffft.c.o -c /home/mark/Documents/Projects/Software/pffft/src/pffft.c",
+      "/usr/bin/cc -DPFFFT_SCALVEC_ENABLED=1 -DPFFFT_STATIC_DEFINE -D_USE_MATH_DEFINES -I/home/mark/Documents/Projects/Software/pffft/include -I/home/mark/Documents/Projects/Software/pffft/src -I/home/mark/Documents/Projects/Software/pffft/include/pffft -g -std=c99 -fvisibility=hidden -Wall -Wextra -pedantic -fsanitize=address -Werror -o CMakeFiles/PFFFT.dir/src/pffft_double.c.o -c /home/mark/Documents/Projects/Software/pffft/src/pffft_double.c",
+      "/usr/bin/c++ -DPFDSP_STATIC_DEFINE -D_USE_MATH_DEFINES -I/home/mark/Documents/Projects/Software/pffft/include -I/home/mark/Documents/Projects/Software/pffft/src -I/home/mark/Documents/Projects/Software/pffft/include/pffft -g -std=c++11 -fvisibility=hidden -fvisibility-inlines-hidden -Wall -Wextra -pedantic -fsanitize=address -Werror -o CMakeFiles/PFDSP.dir/src/pf_mixer.cpp.o -c /home/mark/Documents/Projects/Software/pffft/src/pf_mixer.cpp"
+    ]
+  },
+  "validation": {
+    "native": "100% tests passed out of 25",
+    "default": "100% tests passed out of 25",
+    "clang": "100% tests passed out of 25",
+    "unfused": "100% tests passed out of 25",
+    "haswell": "100% tests passed out of 25",
+    "scalar": "100% tests passed out of 25",
+    "scalvec": "100% tests passed out of 25",
+    "asan": "100% tests passed out of 23",
+    "arm64_float": [
+      "pffft accuracy test: float, simd_size 4 (NEON), sizes up to 1024",
+      "reference DFT self-check: max rel err 5.3e-34 (long double epsilon 1.93e-34)",
+      "tested 19 REAL and 27 COMPLEX sizes",
+      "worst rel. L2 error in eps*log2(N): forward 0.132, backward 0.127, convolution 0.296 (limit 2.0)",
+      "all checks passed"
+    ],
+    "arm64_double": [
+      "pffft accuracy test: double, simd_size 4 (NEON), sizes up to 1024",
+      "reference DFT self-check: max rel err 5.3e-34 (long double epsilon 1.93e-34)",
+      "tested 19 REAL and 27 COMPLEX sizes",
+      "worst rel. L2 error in eps*log2(N): forward 0.116, backward 0.124, convolution 0.374 (limit 2.0)",
+      "all checks passed"
+    ],
+    "arm64_mixer": [
+      "399 table mixer cases and continuity passed; worst error 0.0004701391"
+    ]
+  }
+}

@@ -110,6 +110,70 @@ jobs:
         name: pffft_ubuntu-amd64
         path: pffft_ubuntu-amd64.tar.gz
 
+  build_ubuntu-arm64:
+    # native AArch64 with gcc: NEON float and double, and the sse2neon mixer
+    runs-on: ubuntu-24.04-arm
+
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+    - name: cmake_make_simd_float_double
+      run: cmake -S . -B build_simd_full -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF && cmake --build build_simd_full --parallel && ctest --test-dir build_simd_full --output-on-failure -j 4
+    - name: cmake_make_simd_debug
+      # asserts enabled: buffer alignment checks and the SIMD macro validation
+      run: cmake -S . -B build_simd_debug -DCMAKE_BUILD_TYPE=Debug -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF && cmake --build build_simd_debug --parallel && ctest --test-dir build_simd_debug --output-on-failure -j 4
+    - name: cmake_make_no-simd_float_double
+      run: cmake -S . -B build_no-simd_full -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_SIMD=OFF -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF && cmake --build build_no-simd_full --parallel && ctest --test-dir build_no-simd_full --output-on-failure -j 4
+
+  build_linux_cross_qemu:
+    # SIMD backends no hosted runner provides, run under qemu-user
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: armv7-neon
+            triple: arm-linux-gnueabihf
+            processor: armv7l
+            qemu: qemu-arm
+            flags: -march=armv7-a -mfpu=neon-vfpv4 -mfloat-abi=hard
+          - name: ppc64le-altivec-vsx
+            triple: powerpc64le-linux-gnu
+            processor: ppc64le
+            qemu: qemu-ppc64le
+            flags: ""
+    name: build_linux_cross_qemu (${{ matrix.name }})
+
+    steps:
+    - name: prerequisites
+      env:
+        TRIPLE: ${{ matrix.triple }}
+      run: |
+        sudo apt-get -qq update
+        sudo apt-get -yqq install qemu-user "g++-$TRIPLE"
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+    - name: configure
+      env:
+        TRIPLE: ${{ matrix.triple }}
+        PROCESSOR: ${{ matrix.processor }}
+        QEMU: ${{ matrix.qemu }}
+        FLAGS: ${{ matrix.flags }}
+      run: |
+        cmake -S . -B build -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
+          -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR="$PROCESSOR" \
+          -DCMAKE_C_COMPILER="$TRIPLE-gcc" -DCMAKE_CXX_COMPILER="$TRIPLE-g++" \
+          -DCMAKE_C_FLAGS="$FLAGS" -DCMAKE_CXX_FLAGS="$FLAGS" \
+          -DMATH_LIBRARY="/usr/$TRIPLE/lib/libm.so" \
+          "-DCMAKE_CROSSCOMPILING_EMULATOR=$QEMU;-L;/usr/$TRIPLE" \
+          -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DPFFFT_BUILD_EXAMPLES=OFF
+    - name: build
+      run: cmake --build build --parallel
+    - name: test
+      run: ctest --test-dir build --output-on-failure -j 4
+
   cross_build_win_from_linux:
     runs-on: ubuntu-24.04
 
@@ -271,6 +335,25 @@ jobs:
       with:
         name: pffft_windows-msvc-amd64
         path: pffft_windows-msvc-amd64.tar.gz
+
+
+  build_win_msvc_arm64:
+    # MSVC on Windows ARM64: NEON float and double
+    runs-on: windows-11-arm
+
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+    - name: Configure CMake
+      shell: bash
+      run: cmake -S . -B build_arm64 -G "Visual Studio 17 2022" -A ARM64 -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DENABLE_PFDSP=ON
+    - name: Build
+      shell: bash
+      run: cmake --build build_arm64 --config "$BUILD_TYPE"
+    - name: Test
+      shell: bash
+      run: ctest --test-dir build_arm64 -C "$BUILD_TYPE" --output-on-failure -j 4
 
 
   build_win_mingw:

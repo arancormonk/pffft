@@ -419,6 +419,13 @@ public:
                              Scalar* spectrum_internal_ab,
                              const Scalar scaling);
 
+  /*
+   * Copies prepare their own setup and work memory for the same length:
+   * the twiddle tables and the heap work buffer are never shared.
+   */
+  Fft(const Fft& other);
+  Fft& operator=(const Fft& other);
+
 private:
   detail::Setup<T> setup;
   Scalar* work;
@@ -587,6 +594,14 @@ public:
   void reorder(const Scalar* input, Scalar* output, pffft_direction_t direction)
   {
     pffft_zreorder(self, input, output, direction);
+  }
+
+  void convolveAccumulate(const Scalar* dft_a,
+                          const Scalar* dft_b,
+                          Scalar* dft_ab,
+                          const Scalar scaling)
+  {
+    pffft_zconvolve_accumulate(self, dft_a, dft_b, dft_ab, scaling);
   }
 
   void convolve(const Scalar* dft_a,
@@ -805,6 +820,26 @@ inline Fft<T>::Fft(int length, int stackThresholdLen)
   (void)static_assert_like;
 #endif
   prepareLength(length);
+}
+
+template<typename T>
+inline Fft<T>::Fft(const Fft& other)
+  : work(NULL)
+  , length(0)
+  , stackThresholdLen(other.stackThresholdLen)
+{
+  prepareLength(other.length);
+}
+
+template<typename T>
+inline Fft<T>&
+Fft<T>::operator=(const Fft& other)
+{
+  if (this != &other) {
+    stackThresholdLen = other.stackThresholdLen;
+    prepareLength(other.length);
+  }
+  return *this;
 }
 
 template<typename T>
@@ -1214,7 +1249,7 @@ class PFAlloc {
     }
 
     // deallocate storage p of deleted elements
-    void deallocate (pointer p, size_type num) {
+    void deallocate (pointer p, size_type /* num */) {
         // deallocate memory with pffft
         alignedFree( (void*)p );
     }

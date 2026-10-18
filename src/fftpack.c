@@ -53,6 +53,7 @@
 
 #include "fftpack.h"
 #include <math.h>
+#include <stdlib.h>
 
 typedef fftpack_real real;
 typedef fftpack_int  integer;
@@ -1038,6 +1039,29 @@ static void radb5(integer ido, integer l1, const real *cc, real *ch,
 #undef cc_ref
 
 
+/*
+  Rotation factors exp(2*pi*i*m/ip), m = 0 .. ip-1, for the generic radix
+  passes radbg() / radfg(). The original FFTPACK built them by repeated
+  rotation, which lets the rounding error grow like ip^2 (about 2% in
+  float for a prime N near 4096); each factor is computed directly here.
+  Falls back to computing the factors on the fly if malloc() fails.
+*/
+static real *radg_rotations(integer ip)
+{
+  real *rot = (real*)malloc(2 * (size_t)ip * sizeof(real));
+  integer m;
+  if (!rot)
+    return NULL;
+  for (m = 0; m < ip; ++m) {
+    const double a = (2 * M_PI) * (double)m / (double)ip;
+    rot[2*m] = (real)cos(a);
+    rot[2*m+1] = (real)sin(a);
+  }
+  return rot;
+}
+#define RADG_COS(m) (rot ? rot[2*(m)] : (real)cos((2 * M_PI) * (double)(m) / (double)ip))
+#define RADG_SIN(m) (rot ? rot[2*(m)+1] : (real)sin((2 * M_PI) * (double)(m) / (double)ip))
+
 static void radbg(integer ido, integer ip, integer l1, integer idl1, 
                   const real *cc, real *c1, real *c2, real *ch, real *ch2, const real *wa)
 {
@@ -1047,9 +1071,10 @@ static void radbg(integer ido, integer ip, integer l1, integer idl1,
 
   /* Local variables */
   integer i, j, k, l, j2, ic, jc, lc, ik, is;
-  real dc2, ai1, ai2, ar1, ar2, ds2;
+  real ai1, ai2, ar1, ar2;
   integer nbd;
-  real dcp, arg, dsp, ar1h, ar2h;
+  real *rot;
+  integer m;
   integer idp2, ipp2, idij, ipph;
 
 
@@ -1073,9 +1098,6 @@ static void radbg(integer ido, integer ip, integer l1, integer idl1,
   --wa;
 
   /* Function Body */
-  arg = (2*(real)M_PI) / (real) (ip);
-  dcp = FFTPACK_COS(arg);
-  dsp = FFTPACK_SIN(arg);
   idp2 = ido + 2;
   nbd = (ido - 1) / 2;
   ipp2 = ip + 2;
@@ -1130,32 +1152,30 @@ static void radbg(integer ido, integer ip, integer l1, integer idl1,
       }
     }
   }
-  ar1 = 1.;
-  ai1 = 0.;
+  rot = radg_rotations(ip);
   for (l = 2; l <= ipph; ++l) {
     lc = ipp2 - l;
-    ar1h = dcp * ar1 - dsp * ai1;
-    ai1 = dcp * ai1 + dsp * ar1;
-    ar1 = ar1h;
+    ar1 = RADG_COS(l - 1);
+    ai1 = RADG_SIN(l - 1);
     for (ik = 1; ik <= idl1; ++ik) {
       c2_ref(ik, l) = ch2_ref(ik, 1) + ar1 * ch2_ref(ik, 2);
       c2_ref(ik, lc) = ai1 * ch2_ref(ik, ip);
     }
-    dc2 = ar1;
-    ds2 = ai1;
-    ar2 = ar1;
-    ai2 = ai1;
+    m = l - 1;  /* (l-1)*(j-1) mod ip */
     for (j = 3; j <= ipph; ++j) {
       jc = ipp2 - j;
-      ar2h = dc2 * ar2 - ds2 * ai2;
-      ai2 = dc2 * ai2 + ds2 * ar2;
-      ar2 = ar2h;
+      m += l - 1;
+      if (m >= ip)
+        m -= ip;
+      ar2 = RADG_COS(m);
+      ai2 = RADG_SIN(m);
       for (ik = 1; ik <= idl1; ++ik) {
         c2_ref(ik, l) = c2_ref(ik, l) + ar2 * ch2_ref(ik, j);
         c2_ref(ik, lc) = c2_ref(ik, lc) + ai2 * ch2_ref(ik, jc);
       }
     }
   }
+  free(rot);
   for (j = 2; j <= ipph; ++j) {
     for (ik = 1; ik <= idl1; ++ik) {
       ch2_ref(ik, 1) = ch2_ref(ik, 1) + ch2_ref(ik, j);
@@ -1563,9 +1583,10 @@ static void radfg(integer ido, integer ip, integer l1, integer idl1,
 
   /* Local variables */
   integer i, j, k, l, j2, ic, jc, lc, ik, is;
-  real dc2, ai1, ai2, ar1, ar2, ds2;
+  real ai1, ai2, ar1, ar2;
   integer nbd;
-  real dcp, arg, dsp, ar1h, ar2h;
+  real *rot;
+  integer m;
   integer idp2, ipp2, idij, ipph;
 
 
@@ -1589,9 +1610,6 @@ static void radfg(integer ido, integer ip, integer l1, integer idl1,
   --wa;
 
   /* Function Body */
-  arg = (2*(real)M_PI) / (real) (ip);
-  dcp = FFTPACK_COS(arg);
-  dsp = FFTPACK_SIN(arg);
   ipph = (ip + 1) / 2;
   ipp2 = ip + 2;
   idp2 = ido + 2;
@@ -1680,32 +1698,30 @@ static void radfg(integer ido, integer ip, integer l1, integer idl1,
     }
   }
 
-  ar1 = 1.;
-  ai1 = 0.;
+  rot = radg_rotations(ip);
   for (l = 2; l <= ipph; ++l) {
     lc = ipp2 - l;
-    ar1h = dcp * ar1 - dsp * ai1;
-    ai1 = dcp * ai1 + dsp * ar1;
-    ar1 = ar1h;
+    ar1 = RADG_COS(l - 1);
+    ai1 = RADG_SIN(l - 1);
     for (ik = 1; ik <= idl1; ++ik) {
       ch2_ref(ik, l) = c2_ref(ik, 1) + ar1 * c2_ref(ik, 2);
       ch2_ref(ik, lc) = ai1 * c2_ref(ik, ip);
     }
-    dc2 = ar1;
-    ds2 = ai1;
-    ar2 = ar1;
-    ai2 = ai1;
+    m = l - 1;  /* (l-1)*(j-1) mod ip */
     for (j = 3; j <= ipph; ++j) {
       jc = ipp2 - j;
-      ar2h = dc2 * ar2 - ds2 * ai2;
-      ai2 = dc2 * ai2 + ds2 * ar2;
-      ar2 = ar2h;
+      m += l - 1;
+      if (m >= ip)
+        m -= ip;
+      ar2 = RADG_COS(m);
+      ai2 = RADG_SIN(m);
       for (ik = 1; ik <= idl1; ++ik) {
         ch2_ref(ik, l) = ch2_ref(ik, l) + ar2 * c2_ref(ik, j);
         ch2_ref(ik, lc) = ch2_ref(ik, lc) + ai2 * c2_ref(ik, jc);
       }
     }
   }
+  free(rot);
   for (j = 2; j <= ipph; ++j) {
     for (ik = 1; ik <= idl1; ++ik) {
       ch2_ref(ik, 1) = ch2_ref(ik, 1) + c2_ref(ik, j);

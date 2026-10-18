@@ -2033,6 +2033,13 @@ void pffft_transform_internal_nosimd(const SETUP_STRUCT *setup, const float *inp
   VLA_ARRAY_ON_STACK(v4sf, scratch_on_stack, stack_allocate);
   float *buff[2];
   int ib;
+  if (setup->ifac[1] == 0) {
+    /* N == 1 complex: no radix passes, the DFT is the identity. cfftf1_ps()
+       would hand back 'input' itself, which the buffer bookkeeping below
+       mistakes for the scratch buffer. */
+    output[0] = input[0]; output[1] = input[1];
+    return;
+  }
   if (scratch == 0) scratch = scratch_on_stack;
   buff[0] = output; buff[1] = scratch;
 

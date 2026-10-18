@@ -6,6 +6,19 @@ if (PFFFT_USE_FFTPACK)
   add_executable(test_fftpack_double ${PFFFT_SOURCE_DIR}/src/fftpack.c ${PFFFT_SOURCE_DIR}/src/fftpack.h)
   target_compile_definitions(test_fftpack_double PRIVATE _USE_MATH_DEFINES FFTPACK_DOUBLE_PRECISION TESTING_FFTPACK)
   target_link_libraries(test_fftpack_double ${MATHLIB})
+
+  # f2c's 1-based indexing ("--wsave;") points one element before the
+  # self-test's fixed-size arrays, which GCC then reports as out of bounds
+  foreach(t test_fftpack_float test_fftpack_double)
+    target_compile_options(${t} PRIVATE $<$<C_COMPILER_ID:GNU>:-Wno-array-bounds>)
+  endforeach()
+
+  foreach(prec float double)
+    string(TOUPPER "${prec}" PREC)
+    add_executable(test_fftpack_accuracy_${prec} test_fftpack_accuracy.c)
+    target_link_libraries(test_fftpack_accuracy_${prec} FFTPACK_${PREC} ${ASANLIB} ${MATHLIB})
+    add_test(NAME test_fftpack_accuracy_${prec} COMMAND test_fftpack_accuracy_${prec})
+  endforeach()
 endif()
 
 ######################################################
@@ -25,6 +38,33 @@ if (PFFFT_USE_TYPE_DOUBLE)
   target_compile_definitions(test_pffft_double PRIVATE PFFFT_ENABLE_DOUBLE)
   target_link_libraries( test_pffft_double  PFFFT ${ASANLIB} )
 endif()
+
+######################################################
+
+foreach(prec float double)
+  string(TOUPPER "${prec}" PREC)
+  if (PFFFT_USE_TYPE_${PREC})
+    add_executable( test_pffft_accuracy_${prec}  test_pffft_accuracy.c )
+    target_compile_definitions(test_pffft_accuracy_${prec} PRIVATE PFFFT_ENABLE_${PREC})
+    target_link_libraries( test_pffft_accuracy_${prec}  PFFFT ${ASANLIB} ${MATHLIB} )
+    add_test(NAME test_pffft_accuracy_${prec} COMMAND test_pffft_accuracy_${prec})
+  endif()
+endforeach()
+
+######################################################
+
+add_executable( test_pffft_cpp_api test_pffft_cpp_api.cpp )
+foreach(prec FLOAT DOUBLE)
+  if (PFFFT_USE_TYPE_${prec})
+    target_compile_definitions(test_pffft_cpp_api PRIVATE PFFFT_ENABLE_${prec})
+  endif()
+endforeach()
+target_link_libraries( test_pffft_cpp_api  PFFFT ${STDCXXLIB} ${ASANLIB} )
+if (EMSCRIPTEN)
+  # work memory of up to 4096 complex doubles lives on the stack
+  target_link_options(test_pffft_cpp_api PRIVATE "-sSTACK_SIZE=1048576")
+endif()
+add_test(NAME test_pffft_cpp_api COMMAND test_pffft_cpp_api)
 
 ######################################################
 
@@ -93,6 +133,10 @@ if (PFFFT_USE_TYPE_FLOAT)
   if (EMSCRIPTEN)
     target_link_options(test_pffastconv PRIVATE "-sALLOW_MEMORY_GROWTH=1")
   endif()
+
+  add_executable(test_pffastconv_modes test_pffastconv_modes.c)
+  target_link_libraries(test_pffastconv_modes PFFASTCONV ${ASANLIB} ${MATHLIB})
+  add_test(NAME test_pffastconv_modes COMMAND test_pffastconv_modes)
 endif()
 
 ######################################################
@@ -202,6 +246,7 @@ if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang" AND NOT MSVC)
     target_compile_definitions(test_simd_unfused PRIVATE PFFFT_SIMD_DISABLE=1)
   endif()
   add_test(NAME test_simd_unfused COMMAND test_simd_unfused)
+  set_tests_properties(test_simd_unfused PROPERTIES SKIP_RETURN_CODE 77)
 endif()
 
 # Keep direct C99 source consumers warning-clean, also with NDEBUG.

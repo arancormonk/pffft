@@ -70,7 +70,13 @@ PFFASTCONV_Setup * pffastconv_new_setup( const float * filterCoeffs, int filterL
   if ( flags & PFFASTCONV_CPLX_FILTER )
     return NULL;
 
+  /* documented: the DIRECT_* options are ignored for complex input/output */
+  if ( flags & PFFASTCONV_CPLX_INP_OUT )
+    flags &= ~(PFFASTCONV_DIRECT_INP | PFFASTCONV_DIRECT_OUT);
+
   s = pffastconv_malloc( sizeof(struct PFFASTCONV_Setup) );
+  if ( !s )
+    return NULL;
 
   if ( *blockLen > Nfft ) {
     Nfft = *blockLen;
@@ -80,14 +86,18 @@ PFFASTCONV_Setup * pffastconv_new_setup( const float * filterCoeffs, int filterL
 
   Nfft *= cplxFactor;
 
-  if ( (flags & PFFASTCONV_DIRECT_INP) && !(flags & PFFASTCONV_CPLX_INP_OUT) )
-    s->Xt = NULL;
-  else
-    s->Xt = pffastconv_malloc((unsigned)Nfft * sizeof(float));
+  /* Xt is needed even with PFFASTCONV_DIRECT_INP: the filter is
+     transformed through it below, and the backward transform uses it
+     as work area */
+  s->Xt = pffastconv_malloc((unsigned)Nfft * sizeof(float));
   s->Xf = pffastconv_malloc((unsigned)Nfft * sizeof(float));
   s->Hf = pffastconv_malloc((unsigned)Nfft * sizeof(float));
   s->Mf = pffastconv_malloc((unsigned)Nfft * sizeof(float));
   s->st = pffft_new_setup(Nfft, PFFFT_REAL);  /* with complex: we do 2 x fft() */
+  if ( !s->Xt || !s->Xf || !s->Hf || !s->Mf || !s->st ) {
+    pffastconv_destroy_setup(s);
+    return NULL;
+  }
   s->filterLen = filterLen;        /* filterLen == convolution length == length of impulse response */
   if ( cplxFactor == 2 )
     s->filterLen = 2 * filterLen - 1;
@@ -133,8 +143,7 @@ void pffastconv_destroy_setup( PFFASTCONV_Setup * s )
   pffastconv_free(s->Mf);
   pffastconv_free(s->Hf);
   pffastconv_free(s->Xf);
-  if ( s->Xt )
-    pffastconv_free(s->Xt);
+  pffastconv_free(s->Xt);
   pffastconv_free(s);
 }
 

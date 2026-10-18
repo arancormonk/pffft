@@ -184,8 +184,8 @@ extern "C" {
      
      (for real transforms, both 0-frequency and half frequency
      components, which are real, are assembled in the first entry as
-     F(0)+i*F(n/2+1). Note that the original fftpack did place
-     F(n/2+1) at the end of the arrays).
+     F(0)+i*F(N/2). Note that the original fftpack did place
+     F(N/2) at the end of the arrays).
      
      input and output should not alias.
   */

@@ -2,7 +2,9 @@
  * Copyright (c) 2026 Mark Connor
  */
 #include <assert.h>
+#include <float.h>
 #include <math.h>
+#include <stdio.h>
 #define ALWAYS_INLINE(type) inline type
 #include "simd/pf_float.h"
 
@@ -15,6 +17,12 @@ int main(void) {
   float aa = a, bb = b, cc = c;
   v4sf_union result;
   int i;
+  if (FLT_EVAL_METHOD != 0) {
+    /* x87 math (e.g. i686 without SSE) keeps a*b in extended precision,
+       so no float operation is rounded on its own: nothing to test */
+    printf("skipped: FLT_EVAL_METHOD == %d\n", (int)FLT_EVAL_METHOD);
+    return 77;
+  }
   /* The product rounds to one before the subtraction; FMA yields -2^-46. */
   result.v = VMADD(LD_PS1(aa), LD_PS1(bb), LD_PS1(cc));
   for (i = 0; i < SIMD_SZ; ++i) assert(fabsf(result.f[i]) < 0x1p-47f);

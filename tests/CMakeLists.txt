@@ -169,6 +169,18 @@ if (PFFFT_USE_TYPE_DOUBLE)
   )
 endif()
 
+# check every SIMD macro of the selected backend against known results
+# (a no-op that passes when SIMD_SZ != 4)
+foreach(prec float double)
+  string(TOUPPER "${prec}" PREC)
+  if (PFFFT_USE_TYPE_${PREC})
+    add_test(NAME test_pffft_simd_macros_${prec}
+      COMMAND test_pffft_${prec} --test-simd
+      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    )
+  endif()
+endforeach()
+
 add_test(NAME test_pffft_cpp
   COMMAND test_pffft_cpp
   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}

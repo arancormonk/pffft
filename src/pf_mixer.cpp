@@ -68,21 +68,35 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 #ifndef PFFFT_SIMD_DISABLE
-#if (defined(__x86_64__) || defined(_M_X64) || defined(i386) || defined(_M_IX86))
+/* 32-bit x86: __i386__, not i386, which strict -std=c++11 does not define;
+   and only when SSE is enabled (-msse, MSVC /arch:SSE or higher) */
+#if (defined(__x86_64__) || defined(_M_X64) || defined(__SSE__) || (defined(_M_IX86_FP) && _M_IX86_FP >= 1))
   #include <xmmintrin.h>
   #define HAVE_SSE_INTRINSICS 1
-  
-#elif defined(PFFFT_ENABLE_NEON) && (defined(__arm__) || defined(__aarch64__))
-  /* the vendored sse2neon.h is not clean under -Wall -Wextra: GCC-only
-     target pragmas, and an intentionally uninitialized _mm_undefined_ps() */
+
+/* sse2neon.h supports exactly AArch64 and ARMv7-A, each with NEON enabled,
+   and not Windows (clang-cl): its _mm_malloc() needs posix_memalign() */
+#elif !defined(_WIN32) && \
+      ((defined(__aarch64__) && defined(__ARM_NEON)) || \
+       (defined(__arm__) && __ARM_ARCH == 7 && defined(__ARM_NEON) && defined(__ARM_NEON__)))
+  /* the vendored sse2neon.h is not clean under -Wall -Wextra -pedantic:
+     GCC-only target pragmas, an intentionally uninitialized
+     _mm_undefined_ps(), C99 compound literals and designated initializers,
+     and type-punned pointer casts (GCC on ARMv7) */
   #if defined(__clang__)
     #pragma clang diagnostic push
     #pragma clang diagnostic ignored "-Wunknown-pragmas"
     #pragma clang diagnostic ignored "-Wuninitialized"
+    #pragma clang diagnostic ignored "-Wpedantic"
+    #if __has_warning("-Wc99-designator")
+      #pragma clang diagnostic ignored "-Wc99-designator"
+    #endif
   #elif defined(__GNUC__)
     #pragma GCC diagnostic push
     #pragma GCC diagnostic ignored "-Wuninitialized"
     #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+    #pragma GCC diagnostic ignored "-Wpedantic"
+    #pragma GCC diagnostic ignored "-Wstrict-aliasing"
   #endif
   #include "sse2neon.h"
   #if defined(__clang__)

@@ -2482,6 +2482,33 @@ PFFFT_EXPORT int FUNC_VALIDATE_SIMD_EX(FILE * DbgOut)
     v4sf_union A, B, C, D;
     int k;
     for ( k = 0; k < 4; ++k )  A.f[k] = 10 + k+1;
+    for ( k = 0; k < 4; ++k )  B.f[k] = k+1;
+    for ( k = 0; k < 4; ++k )  C.f[k] = 100 + k;
+    for ( k = 0; k < 4; ++k )  D.f[k] = 40 + k+1;
+
+    if (DbgOut) {
+      fprintf(DbgOut, "\ninput: A,B,C = {\n" );
+      fprintf(DbgOut, "  Inp A:  %f, %f, %f, %f\n", A.f[0], A.f[1], A.f[2], A.f[3] );
+      fprintf(DbgOut, "  Inp B:  %f, %f, %f, %f\n", B.f[0], B.f[1], B.f[2], B.f[3] );
+      fprintf(DbgOut, "  Inp C:  %f, %f, %f, %f\n", C.f[0], C.f[1], C.f[2], C.f[3] );
+      fprintf(DbgOut, "}\n" );
+    }
+    D.v = VMSUB(A.v, B.v, C.v);
+    if (DbgOut) {
+      fprintf(DbgOut, "D = VMSUB(A,B,C) => {\n" );
+      fprintf(DbgOut, "  Out D:  %f, %f, %f, %f\n", D.f[0], D.f[1], D.f[2], D.f[3] );
+      fprintf(DbgOut, "}\n" );
+    }
+    PFFFT_ASSERT4( A,  11.0F,  12.0F,  13.0F,  14.0F, "VMSUB(): Inp A" );
+    PFFFT_ASSERT4( B,   1.0F,   2.0F,   3.0F,   4.0F, "VMSUB(): Inp B" );
+    PFFFT_ASSERT4( C, 100.0F, 101.0F, 102.0F, 103.0F, "VMSUB(): Inp C" );
+    PFFFT_ASSERT4( D,  89.0F,  77.0F,  63.0F,  47.0F, "VMSUB(): Out D" );
+  }
+
+  {
+    v4sf_union A, B, C, D;
+    int k;
+    for ( k = 0; k < 4; ++k )  A.f[k] = 10 + k+1;
     for ( k = 0; k < 4; ++k )  B.f[k] = 20 + k+1;
     for ( k = 0; k < 4; ++k )  C.f[k] = 30 + k+1;
     for ( k = 0; k < 4; ++k )  D.f[k] = 40 + k+1;

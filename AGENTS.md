@@ -39,6 +39,9 @@ ctest -R test_fft_factors
 ctest -R test_pffft_float
 ctest -R test_pffft_double
 ctest -R test_pfconv_lens_symetric
+ctest -R accuracy          # pffft/pffftd and FFTPACK vs. long double reference DFTs
+ctest -R test_pffastconv_modes
+ctest -R test_pffft_cpp_api
 
 # Run specific test executable directly (after build)
 ./test_fft_factors
@@ -240,7 +243,7 @@ void pffft_transform(...);
 - Add new sources to appropriate lists in CMakeLists.txt
 - Use `target_compile_definitions()` for preprocessor defines
 - Use `target_link_libraries()` for dependencies
-- Enable warnings with `target_activate_c_compiler_warnings()` or `target_activate_cxx_compiler_warnings()`
+- Warnings are applied to every first-party target (library, tests, benchmarks, examples) by `pffft_apply_project_warnings()` at the end of the top-level CMakeLists.txt: `-Wall -Wextra -pedantic` (GCC/Clang) or `/W4` (MSVC), as errors with `PFFFT_WARNINGS_AS_ERRORS` (ON by default for top-level builds, OFF when consumed as a dependency); keep all code warning-free
 - Set C/C++ standard via `set_property(TARGET name PROPERTY C_STANDARD 99)`
 
 ### Testing Guidelines

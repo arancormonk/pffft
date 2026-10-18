@@ -199,6 +199,7 @@ int test(int N, int cplx, int useOrdered) {
       }
 
       pwrOther = -1.0;
+      kmaxOther = -1;
       pwrCar = 0;
 
 
@@ -710,9 +711,9 @@ static int test_zerophase(int N)
 
 
 /* small functions inside pffft.c that will detect (compiler) bugs with respect to simd instructions */
-void validate_pffft_simd();
+void validate_pffft_simd(void);
 int  validate_pffft_simd_ex(FILE * DbgOut);
-void validate_pffftd_simd();
+void validate_pffftd_simd(void);
 int  validate_pffftd_simd_ex(FILE * DbgOut);
 
 
@@ -742,7 +743,7 @@ int main(int argc, char **argv)
 
   resNextPw2 = 0;
   resIsPw2 = 0;
-  for ( k = 0; k < (sizeof(inp_power_of_two)/sizeof(inp_power_of_two[0])); ++k) {
+  for ( k = 0; k < (int)(sizeof(inp_power_of_two)/sizeof(inp_power_of_two[0])); ++k) {
 #ifdef PFFFT_ENABLE_FLOAT
     N = pffft_next_power_of_two(inp_power_of_two[k]);
 #else

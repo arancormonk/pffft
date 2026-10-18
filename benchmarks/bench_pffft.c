@@ -267,7 +267,7 @@ unsigned Log2(unsigned v) {
 }
 
 
-double frand() {
+double frand(void) {
   return rand()/(double)RAND_MAX;
 }
 
@@ -1115,9 +1115,9 @@ void benchmark_ffts(int N, int cplx, int withFFTWfullMeas, double iterCal, doubl
 
 
 /* small functions inside pffft.c that will detect (compiler) bugs with respect to simd instructions */
-void validate_pffft_simd();
+void validate_pffft_simd(void);
 int  validate_pffft_simd_ex(FILE * DbgOut);
-void validate_pffftd_simd();
+void validate_pffftd_simd(void);
 int  validate_pffftd_simd_ex(FILE * DbgOut);
 
 

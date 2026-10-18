@@ -1,4 +1,8 @@
 cmake_minimum_required(VERSION 3.10)
+# MSVC: no default /W3 in CMAKE_<LANG>_FLAGS -- warning levels are set per target
+if(POLICY CMP0092)
+  cmake_policy(SET CMP0092 NEW)
+endif()
 project(PRETTY_FAST_FFT)
 
 include(GNUInstallDirs)
@@ -34,6 +38,10 @@ option(PFFFT_USE_BENCH_MKL    "use Intel MKL in fft benchmark? needs to be insta
 option(PFFFT_USE_FFTPACK      "compile and use FFTPACK in fft benchmark & validation?" ON)
 
 option(PFFFT_USE_DEBUG_ASAN  "use GCC's address sanitizer?" OFF)
+
+# fail the build on compiler warnings; ON for development, OFF when consumed
+# as a dependency so that newer compilers cannot break downstream builds
+option(PFFFT_WARNINGS_AS_ERRORS "Treat compiler warnings as errors?" ${PFFFT_IS_TOPLEVEL})
 
 option(PFFFT_DISABLE_LINK_WITH_M "Disables linking with m library to build with clangCL from MSVC" OFF)
 
@@ -363,3 +371,12 @@ endif()
 if (PFFFT_BUILD_EXAMPLES)
   add_subdirectory(examples)
 endif()
+
+set(PFFFT_WARNING_DIRS ${CMAKE_CURRENT_SOURCE_DIR})
+foreach(dir tests benchmarks examples)
+  string(TOUPPER "${dir}" DIR)
+  if (PFFFT_BUILD_${DIR})
+    list(APPEND PFFFT_WARNING_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/${dir})
+  endif()
+endforeach()
+pffft_apply_project_warnings(${PFFFT_WARNING_DIRS})

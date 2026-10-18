@@ -23,7 +23,6 @@ int test_float(int TL)
   {
     for (int cplx_i = 0; cplx_i <= 1; ++cplx_i)
     {
-      const pffft_direction_t dir = (!dir_i) ? PFFFT_FORWARD : PFFFT_BACKWARD;
       const pffft_transform_t cplx = (!cplx_i) ? PFFFT_REAL : PFFFT_COMPLEX;
       const int N_min = pffft_min_fft_size(cplx);
       const int N_max = N_min * 11 + N_min;
@@ -43,7 +42,11 @@ int test_float(int TL)
         while (R >= 3*N_min && (R % 3) == 0) {  R /= 3; ++f3; }
         while (R >= 2*N_min && (R % 2) == 0) {  R /= 2; ++f2; }
         tmp_f = (R == N_min) ? 1 : 0;
-        assert( factorizable == tmp_f );
+        if ( factorizable != tmp_f )
+        {
+          fprintf(stderr, "is_valid_size(%d) = %d, but factorization says %d\n", N, factorizable, tmp_f);
+          return 1;
+        }
 
         S = pffft_new_setup(N, cplx);
 
@@ -78,7 +81,6 @@ int test_double(int TL)
   {
     for (int cplx_i = 0; cplx_i <= 1; ++cplx_i)
     {
-      const pffft_direction_t dir = (!dir_i) ? PFFFT_FORWARD : PFFFT_BACKWARD;
       const pffft_transform_t cplx = (!cplx_i) ? PFFFT_REAL : PFFFT_COMPLEX;
       const int N_min = pffftd_min_fft_size(cplx);
       const int N_max = N_min * 11 + N_min;
@@ -98,7 +100,11 @@ int test_double(int TL)
         while (R >= 3*N_min && (R % 3) == 0) {  R /= 3; ++f3; }
         while (R >= 2*N_min && (R % 2) == 0) {  R /= 2; ++f2; }
         tmp_f = (R == N_min) ? 1 : 0;
-        assert( factorizable == tmp_f );
+        if ( factorizable != tmp_f )
+        {
+          fprintf(stderr, "is_valid_size(%d) = %d, but factorization says %d\n", N, factorizable, tmp_f);
+          return 1;
+        }
 
         S = pffftd_new_setup(N, cplx);
 

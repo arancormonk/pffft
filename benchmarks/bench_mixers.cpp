@@ -90,7 +90,7 @@
 
 #elif defined(WIN32)
     // https://docs.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-getprocesstimes
-    double uclock_sec(int find_start)
+    double uclock_sec(int /* find_start */)
     {
         FILETIME a, b, c, d;
         if (GetProcessTimes(GetCurrentProcess(), &a, &b, &c, &d) != 0)
@@ -108,7 +108,7 @@
     }
 
 #else
-    double uclock_sec(int find_start)
+    double uclock_sec(int /* find_start */)
     { return (double)clock()/(double)CLOCKS_PER_SEC; }
 #endif
 

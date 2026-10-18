@@ -1,0 +1,51 @@
+Test project /home/mark/Documents/Projects/Software/pffft/build_simd_analysis/release
+      Start  1: test_fftpack_accuracy_float
+ 1/23 Test  #1: test_fftpack_accuracy_float ......   Passed    0.72 sec
+      Start  2: test_fftpack_accuracy_double
+ 2/23 Test  #2: test_fftpack_accuracy_double .....   Passed    0.91 sec
+      Start  3: test_pffft_accuracy_float
+ 3/23 Test  #3: test_pffft_accuracy_float ........   Passed    0.67 sec
+      Start  4: test_pffft_accuracy_double
+ 4/23 Test  #4: test_pffft_accuracy_double .......   Passed    0.69 sec
+      Start  5: test_pffft_cpp_api
+ 5/23 Test  #5: test_pffft_cpp_api ...............   Passed    0.02 sec
+      Start  6: test_pffastconv_modes
+ 6/23 Test  #6: test_pffastconv_modes ............   Passed    0.62 sec
+      Start  7: test_pffft_float
+ 7/23 Test  #7: test_pffft_float .................   Passed    0.18 sec
+      Start  8: test_pffft_double
+ 8/23 Test  #8: test_pffft_double ................   Passed    0.24 sec
+      Start  9: test_pffft_simd_macros_float
+ 9/23 Test  #9: test_pffft_simd_macros_float .....   Passed    0.00 sec
+      Start 10: test_pffft_simd_macros_double
+10/23 Test #10: test_pffft_simd_macros_double ....   Passed    0.00 sec
+      Start 11: test_pffft_cpp
+11/23 Test #11: test_pffft_cpp ...................   Passed    0.25 sec
+      Start 12: test_pffft_cpp_11
+12/23 Test #12: test_pffft_cpp_11 ................   Passed    0.25 sec
+      Start 13: test_fft_factors
+13/23 Test #13: test_fft_factors .................   Passed    0.00 sec
+      Start 14: test_fftpack_float
+14/23 Test #14: test_fftpack_float ...............   Passed    0.00 sec
+      Start 15: test_fftpack_double
+15/23 Test #15: test_fftpack_double ..............   Passed    0.00 sec
+      Start 16: test_pfconv_lens_symetric
+16/23 Test #16: test_pfconv_lens_symetric ........   Passed    0.16 sec
+      Start 17: test_pfconv_lens_non_sym
+17/23 Test #17: test_pfconv_lens_non_sym .........   Passed    1.68 sec
+      Start 18: bench_pfconv_symetric
+18/23 Test #18: bench_pfconv_symetric ............   Passed    6.13 sec
+      Start 19: bench_pfconv_non_sym
+19/23 Test #19: bench_pfconv_non_sym .............   Passed    6.17 sec
+      Start 20: bench_pffft_pow2
+20/23 Test #20: bench_pffft_pow2 .................   Passed    4.21 sec
+      Start 21: bench_pffft_non2
+21/23 Test #21: bench_pffft_non2 .................   Passed    2.71 sec
+      Start 22: test_setup_alloc
+22/23 Test #22: test_setup_alloc .................   Passed    0.00 sec
+      Start 23: test_simd_unfused
+23/23 Test #23: test_simd_unfused ................   Passed    0.00 sec
+
+100% tests passed out of 23
+
+Total Test time (real) =  25.63 sec

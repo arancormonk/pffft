@@ -1,0 +1,126 @@
+[0/1] Re-running CMake...
+-- Could NOT find PAPI (missing: PAPI_LIBRARIES PAPI_INCLUDE_DIRS)
+-- Could NOT find MIPP (missing: MIPP_INCLUDE_DIRS)
+CMake Warning at cmake/FindMIPP.cmake:23 (message):
+  MIPP not found.
+Call Stack (most recent call first):
+  CMakeLists.txt:78 (find_package)
+
+
+-- NOT found MIPP
+-- INFO: CMAKE_C_COMPILER_ID is GNU
+-- INFO: CMAKE_CXX_COMPILER_ID is GNU
+-- INFO: NOT WIN32
+-- INFO: NOT MINGW
+-- INFO: detected Unix and found library: GNU will link math lib m
+-- C ARCH for target PFFFT set: native
+-- C additional options for target PFFFT is not set!
+-- C++ ARCH for target PFDSP set: native
+-- C++ additional options for target PFDSP is not set!
+-- C ARCH for target test_pffastconv set: native
+-- C additional options for target test_pffastconv is not set!
+-- C ARCH for target test_simd_unfused set: native
+-- C additional options for target test_simd_unfused is not set!
+CMake Warning at benchmarks/CMakeLists.txt:7 (message):
+  GreenFFT not found in subdir greenffts
+
+
+CMake Warning at benchmarks/CMakeLists.txt:18 (message):
+  KissFFT not found in subdir kissfft
+
+
+CMake Warning at benchmarks/CMakeLists.txt:29 (message):
+  PocketFFT not found in subdir pocketfft
+
+
+-- C++ ARCH for target pf_conv_arch_dflt set: native
+-- C++ additional options for target pf_conv_arch_dflt is not set!
+-- C++ ARCH for target pf_conv_arch_sse3: core2
+-- added library pf_conv_arch_sse3  with CONV_ARCH_POST=sse3
+-- C++ ARCH for target pf_conv_arch_sse4: nehalem
+-- added library pf_conv_arch_sse4  with CONV_ARCH_POST=sse4
+-- C++ ARCH for target pf_conv_arch_avx: sandybridge
+-- added library pf_conv_arch_avx  with CONV_ARCH_POST=avx
+-- C++ ARCH for target pf_conv_arch_avx2: haswell
+-- added library pf_conv_arch_avx2  with CONV_ARCH_POST=avx2
+-- INFO: detected NO MSVC: GNU: will link math lib m
+-- Configuring done (0.0s)
+-- Generating done (0.0s)
+-- Build files have been written to: /home/mark/Documents/Projects/Software/pffft/build_release-native-unfused
+[1/25] Building C object CMakeFiles/PFFFT.dir/src/pffft.c.o
+[2/25] Building C object CMakeFiles/PFFFT.dir/src/pffft_double.c.o
+[3/25] Linking C static library libpffft.a
+[4/25] Linking C executable tests/test_pffft_float
+[5/25] Linking C executable tests/test_pffft_double
+[6/25] Linking C executable tests/test_pffft_accuracy_float
+[7/25] Linking C executable tests/test_pffft_accuracy_double
+[8/25] Linking CXX executable tests/test_pffft_cpp_api
+[9/25] Linking C executable tests/test_fft_factors
+[10/25] Building C object tests/CMakeFiles/test_strict_scalar.dir/__/src/pffft.c.o
+[11/25] Linking CXX executable tests/test_pffft_cpp
+[12/25] Linking C executable tests/test_pffastconv
+[13/25] Linking C executable tests/test_pffastconv_modes
+[14/25] Linking CXX executable tests/test_pffft_cpp_11
+[15/25] Linking C executable tests/test_setup_alloc
+[16/25] Linking C executable benchmarks/bench_pffft_float
+[17/25] Linking C executable benchmarks/bench_pffft_double
+[18/25] Linking CXX executable examples/example_cpp11_real_dbl_fwd
+[19/25] Linking CXX executable examples/example_cpp11_cplx_dbl_fwd
+[20/25] Linking C executable examples/example_c_cplx_dbl_fwd
+[21/25] Linking CXX executable examples/example_cpp98_real_flt_fwd
+[22/25] Linking CXX executable examples/example_cpp98_cplx_flt_fwd
+[23/25] Linking C executable examples/example_c_real_flt_fwd
+[24/25] Building C object tests/CMakeFiles/test_strict_simd.dir/__/src/pffft.c.o
+Test project /home/mark/Documents/Projects/Software/pffft/build_release-native-unfused
+      Start 19: bench_pfconv_symetric
+      Start 20: bench_pfconv_non_sym
+      Start 21: bench_pffft_pow2
+ 1/24 Test #21: bench_pffft_pow2 .................   Passed    4.21 sec
+      Start 18: test_pfconv_lens_non_sym
+ 2/24 Test #20: bench_pfconv_non_sym .............   Passed    6.30 sec
+      Start 22: bench_pffft_non2
+ 3/24 Test #19: bench_pfconv_symetric ............   Passed    6.30 sec
+      Start  2: test_fftpack_accuracy_double
+ 4/24 Test #18: test_pfconv_lens_non_sym .........   Passed    3.26 sec
+      Start  1: test_fftpack_accuracy_float
+ 5/24 Test  #2: test_fftpack_accuracy_double .....   Passed    1.28 sec
+      Start  4: test_pffft_accuracy_float
+ 6/24 Test  #1: test_fftpack_accuracy_float ......   Passed    0.83 sec
+      Start  5: test_pffft_accuracy_double
+ 7/24 Test  #4: test_pffft_accuracy_float ........   Passed    0.73 sec
+      Start  7: test_pffastconv_modes
+ 8/24 Test  #7: test_pffastconv_modes ............   Passed    0.66 sec
+      Start 12: test_pffft_cpp
+ 9/24 Test #22: bench_pffft_non2 .................   Passed    2.71 sec
+      Start 13: test_pffft_cpp_11
+10/24 Test  #5: test_pffft_accuracy_double .......   Passed    0.77 sec
+      Start 17: test_pfconv_lens_symetric
+11/24 Test #12: test_pffft_cpp ...................   Passed    0.26 sec
+      Start  9: test_pffft_double
+12/24 Test #13: test_pffft_cpp_11 ................   Passed    0.25 sec
+      Start  3: test_pf_mixer
+13/24 Test #17: test_pfconv_lens_symetric ........   Passed    0.29 sec
+      Start  8: test_pffft_float
+14/24 Test  #3: test_pf_mixer ....................   Passed    0.13 sec
+      Start  6: test_pffft_cpp_api
+15/24 Test  #6: test_pffft_cpp_api ...............   Passed    0.02 sec
+      Start 16: test_fftpack_double
+16/24 Test #16: test_fftpack_double ..............   Passed    0.00 sec
+      Start 15: test_fftpack_float
+17/24 Test #15: test_fftpack_float ...............   Passed    0.00 sec
+      Start 14: test_fft_factors
+18/24 Test #14: test_fft_factors .................   Passed    0.00 sec
+      Start 10: test_pffft_simd_macros_float
+19/24 Test #10: test_pffft_simd_macros_float .....   Passed    0.00 sec
+      Start 11: test_pffft_simd_macros_double
+20/24 Test #11: test_pffft_simd_macros_double ....   Passed    0.00 sec
+      Start 23: test_setup_alloc
+21/24 Test #23: test_setup_alloc .................   Passed    0.00 sec
+      Start 24: test_simd_unfused
+22/24 Test #24: test_simd_unfused ................   Passed    0.00 sec
+23/24 Test  #9: test_pffft_double ................   Passed    0.21 sec
+24/24 Test  #8: test_pffft_float .................   Passed    0.19 sec
+
+100% tests passed out of 24
+
+Total Test time (real) =   9.57 sec

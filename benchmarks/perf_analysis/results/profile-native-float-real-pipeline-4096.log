@@ -1,0 +1,3 @@
+float,SSE1,real,pipeline,4096,0,163675,1.542074414,9421.564,717.346497
+[ perf record: Woken up 1 times to write data ]
+[ perf record: Captured and wrote 0.052 MB build_simd_analysis/results/native-float-real-pipeline-4096.data (1286 samples) ]

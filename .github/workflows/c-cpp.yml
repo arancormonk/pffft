@@ -18,6 +18,28 @@ env:
   BUILD_TYPE: Release
 
 jobs:
+  build_release_profiles:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler: [gcc, clang]
+        preset: [release, release-native, release-native-unfused, release-haswell]
+    env:
+      CC: ${{ matrix.compiler }}
+      CXX: ${{ matrix.compiler == 'gcc' && 'g++' || 'clang++' }}
+      PRESET: ${{ matrix.preset }}
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+    - name: Configure
+      run: cmake --preset "$PRESET" -DPFFFT_BUILD_BENCHMARKS=OFF -DPFFFT_BUILD_EXAMPLES=OFF
+    - name: Build
+      run: cmake --build --preset "$PRESET" --parallel 2
+    - name: Test
+      run: ctest --preset "$PRESET" -j 2
+
   build_emscripten:
     runs-on: ubuntu-latest
 

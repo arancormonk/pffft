@@ -1,0 +1,151 @@
+
+build_simd_analysis/clang_mixer_base/hotloops_mixer:     file format elf64-x86-64
+
+
+Disassembly of section .init:
+
+Disassembly of section .plt:
+
+Disassembly of section .text:
+
+0000000000004b10 <shift_recursive_osc_inp_c>:
+    4b10:	c5 fc 10 01          	vmovups ymm0,YMMWORD PTR [rcx]
+    4b14:	c5 fc 10 49 20       	vmovups ymm1,YMMWORD PTR [rcx+0x20]
+    4b19:	c5 f8 10 69 30       	vmovups xmm5,XMMWORD PTR [rcx+0x30]
+    4b1e:	83 fe 08             	cmp    esi,0x8
+    4b21:	0f 8c 6f 02 00 00    	jl     4d96 <shift_recursive_osc_inp_c+0x286>
+    4b27:	c5 fa 10 12          	vmovss xmm2,DWORD PTR [rdx]
+    4b2b:	c4 e2 79 18 25 e4 14 	vbroadcastss xmm4,DWORD PTR [rip+0x14e4]        # 6018 <_IO_stdin_used+0x18>
+    4b32:	00 00
+    4b34:	c1 ee 03             	shr    esi,0x3
+    4b37:	c5 e8 57 dc          	vxorps xmm3,xmm2,xmm4
+    4b3b:	c4 e2 7d 18 52 04    	vbroadcastss ymm2,DWORD PTR [rdx+0x4]
+    4b41:	c4 e2 7d 18 db       	vbroadcastss ymm3,xmm3
+    4b46:	83 fe 01             	cmp    esi,0x1
+    4b49:	75 07                	jne    4b52 <shift_recursive_osc_inp_c+0x42>
+    4b4b:	31 c0                	xor    eax,eax
+    4b4d:	e9 8a 01 00 00       	jmp    4cdc <shift_recursive_osc_inp_c+0x1cc>
+    4b52:	c5 fc 28 35 a6 15 00 	vmovaps ymm6,YMMWORD PTR [rip+0x15a6]        # 6100 <_IO_stdin_used+0x100>
+    4b59:	00
+    4b5a:	89 f2                	mov    edx,esi
+    4b5c:	81 e2 fe ff ff 0f    	and    edx,0xffffffe
+    4b62:	31 c0                	xor    eax,eax
+    4b64:	45 31 c0             	xor    r8d,r8d
+    4b67:	66 0f 1f 84 00 00 00 	nop    WORD PTR [rax+rax*1+0x0]
+    4b6e:	00 00
+    4b70:	c4 21 78 10 04 87    	vmovups xmm8,XMMWORD PTR [rdi+r8*4]
+    4b76:	c4 e3 7d 18 f9 01    	vinsertf128 ymm7,ymm0,xmm1,0x1
+    4b7c:	4d 63 c8             	movsxd r9,r8d
+    4b7f:	48 83 c0 02          	add    rax,0x2
+    4b83:	c4 21 38 c6 44 87 10 	vshufps xmm8,xmm8,XMMWORD PTR [rdi+r8*4+0x10],0xdd
+    4b8a:	dd
+    4b8b:	c5 38 57 cc          	vxorps xmm9,xmm8,xmm4
+    4b8f:	c4 43 35 18 c0 01    	vinsertf128 ymm8,ymm9,xmm8,0x1
+    4b95:	c4 63 75 18 c8 01    	vinsertf128 ymm9,ymm1,xmm0,0x1
+    4b9b:	c4 41 34 59 c0       	vmulps ymm8,ymm9,ymm8
+    4ba0:	c4 23 7d 04 0c 87 e8 	vpermilps ymm9,YMMWORD PTR [rdi+r8*4],0xe8
+    4ba7:	c4 43 fd 01 c9 88    	vpermpd ymm9,ymm9,0x88
+    4bad:	c4 42 45 a8 c8       	vfmadd213ps ymm9,ymm7,ymm8
+    4bb2:	c4 c2 4d 16 f9       	vpermps ymm7,ymm6,ymm9
+    4bb7:	c4 a1 7c 11 3c 8f    	vmovups YMMWORD PTR [rdi+r9*4],ymm7
+    4bbd:	c4 e3 7d 19 c7 01    	vextractf128 xmm7,ymm0,0x1
+    4bc3:	c4 21 78 10 44 87 20 	vmovups xmm8,XMMWORD PTR [rdi+r8*4+0x20]
+    4bca:	c4 21 38 c6 44 87 30 	vshufps xmm8,xmm8,XMMWORD PTR [rdi+r8*4+0x30],0xdd
+    4bd1:	dd
+    4bd2:	c4 e3 45 18 fd 01    	vinsertf128 ymm7,ymm7,xmm5,0x1
+    4bd8:	c4 e3 7d 0c ed 0f    	vblendps ymm5,ymm0,ymm5,0xf
+    4bde:	c4 e2 65 b8 c1       	vfmadd231ps ymm0,ymm3,ymm1
+    4be3:	c4 e2 6d b8 c8       	vfmadd231ps ymm1,ymm2,ymm0
+    4be8:	c5 38 57 cc          	vxorps xmm9,xmm8,xmm4
+    4bec:	c4 43 35 18 c0 01    	vinsertf128 ymm8,ymm9,xmm8,0x1
+    4bf2:	c4 e2 65 b8 c1       	vfmadd231ps ymm0,ymm3,ymm1
+    4bf7:	c5 bc 59 ed          	vmulps ymm5,ymm8,ymm5
+    4bfb:	c4 23 7d 04 44 87 20 	vpermilps ymm8,YMMWORD PTR [rdi+r8*4+0x20],0xe8
+    4c02:	e8
+    4c03:	c4 63 75 06 d0 31    	vperm2f128 ymm10,ymm1,ymm0,0x31
+    4c09:	c4 43 fd 01 c0 88    	vpermpd ymm8,ymm8,0x88
+    4c0f:	c4 62 45 a8 c5       	vfmadd213ps ymm8,ymm7,ymm5
+    4c14:	c4 c2 4d 16 e8       	vpermps ymm5,ymm6,ymm8
+    4c19:	c4 a1 7c 11 6c 8f 20 	vmovups YMMWORD PTR [rdi+r9*4+0x20],ymm5
+    4c20:	c4 e3 7d 18 e9 01    	vinsertf128 ymm5,ymm0,xmm1,0x1
+    4c26:	41 83 c1 10          	add    r9d,0x10
+    4c2a:	c4 a1 78 10 7c 87 40 	vmovups xmm7,XMMWORD PTR [rdi+r8*4+0x40]
+    4c31:	4d 63 c9             	movsxd r9,r9d
+    4c34:	c4 a1 40 c6 7c 87 50 	vshufps xmm7,xmm7,XMMWORD PTR [rdi+r8*4+0x50],0xdd
+    4c3b:	dd
+    4c3c:	c5 40 57 c4          	vxorps xmm8,xmm7,xmm4
+    4c40:	c4 e3 3d 18 ff 01    	vinsertf128 ymm7,ymm8,xmm7,0x1
+    4c46:	c4 63 75 18 c0 01    	vinsertf128 ymm8,ymm1,xmm0,0x1
+    4c4c:	c5 bc 59 ff          	vmulps ymm7,ymm8,ymm7
+    4c50:	c4 23 7d 04 44 87 40 	vpermilps ymm8,YMMWORD PTR [rdi+r8*4+0x40],0xe8
+    4c57:	e8
+    4c58:	c4 43 fd 01 c0 88    	vpermpd ymm8,ymm8,0x88
+    4c5e:	c4 62 55 a8 c7       	vfmadd213ps ymm8,ymm5,ymm7
+    4c63:	c4 c2 4d 16 e8       	vpermps ymm5,ymm6,ymm8
+    4c68:	c4 a1 7c 11 2c 8f    	vmovups YMMWORD PTR [rdi+r9*4],ymm5
+    4c6e:	c4 e3 7d 06 e9 31    	vperm2f128 ymm5,ymm0,ymm1,0x31
+    4c74:	c4 e2 65 b8 c1       	vfmadd231ps ymm0,ymm3,ymm1
+    4c79:	c4 a1 78 10 7c 87 60 	vmovups xmm7,XMMWORD PTR [rdi+r8*4+0x60]
+    4c80:	c4 23 7d 04 4c 87 60 	vpermilps ymm9,YMMWORD PTR [rdi+r8*4+0x60],0xe8
+    4c87:	e8
+    4c88:	c4 a1 40 c6 7c 87 70 	vshufps xmm7,xmm7,XMMWORD PTR [rdi+r8*4+0x70],0xdd
+    4c8f:	dd
+    4c90:	49 83 c0 20          	add    r8,0x20
+    4c94:	c4 e2 6d b8 c8       	vfmadd231ps ymm1,ymm2,ymm0
+    4c99:	c4 e2 65 b8 c1       	vfmadd231ps ymm0,ymm3,ymm1
+    4c9e:	c4 43 fd 01 c9 88    	vpermpd ymm9,ymm9,0x88
+    4ca4:	c5 40 57 c4          	vxorps xmm8,xmm7,xmm4
+    4ca8:	c4 e3 3d 18 ff 01    	vinsertf128 ymm7,ymm8,xmm7,0x1
+    4cae:	c5 ac 59 ff          	vmulps ymm7,ymm10,ymm7
+    4cb2:	c4 62 55 a8 cf       	vfmadd213ps ymm9,ymm5,ymm7
+    4cb7:	c4 c2 4d 16 e9       	vpermps ymm5,ymm6,ymm9
+    4cbc:	c4 a1 7c 11 6c 8f 20 	vmovups YMMWORD PTR [rdi+r9*4+0x20],ymm5
+    4cc3:	c4 e3 7d 19 cd 01    	vextractf128 xmm5,ymm1,0x1
+    4cc9:	48 39 c2             	cmp    rdx,rax
+    4ccc:	0f 85 9e fe ff ff    	jne    4b70 <shift_recursive_osc_inp_c+0x60>
+    4cd2:	40 f6 c6 01          	test   sil,0x1
+    4cd6:	0f 84 ba 00 00 00    	je     4d96 <shift_recursive_osc_inp_c+0x286>
+    4cdc:	48 89 c2             	mov    rdx,rax
+    4cdf:	48 c1 e2 06          	shl    rdx,0x6
+    4ce3:	c5 7c 28 0d 15 14 00 	vmovaps ymm9,YMMWORD PTR [rip+0x1415]        # 6100 <_IO_stdin_used+0x100>
+    4cea:	00
+    4ceb:	c4 e3 7d 18 f1 01    	vinsertf128 ymm6,ymm0,xmm1,0x1
+    4cf1:	c1 e0 04             	shl    eax,0x4
+    4cf4:	c5 f8 10 3c 17       	vmovups xmm7,XMMWORD PTR [rdi+rdx*1]
+    4cf9:	48 98                	cdqe
+    4cfb:	c5 c0 c6 7c 17 10 dd 	vshufps xmm7,xmm7,XMMWORD PTR [rdi+rdx*1+0x10],0xdd
+    4d02:	c5 40 57 c4          	vxorps xmm8,xmm7,xmm4
+    4d06:	c4 e3 3d 18 ff 01    	vinsertf128 ymm7,ymm8,xmm7,0x1
+    4d0c:	c4 63 75 18 c0 01    	vinsertf128 ymm8,ymm1,xmm0,0x1
+    4d12:	c5 bc 59 ff          	vmulps ymm7,ymm8,ymm7
+    4d16:	c4 63 7d 04 04 17 e8 	vpermilps ymm8,YMMWORD PTR [rdi+rdx*1],0xe8
+    4d1d:	c4 43 fd 01 c0 88    	vpermpd ymm8,ymm8,0x88
+    4d23:	c4 62 4d a8 c7       	vfmadd213ps ymm8,ymm6,ymm7
+    4d28:	c4 c2 35 16 f8       	vpermps ymm7,ymm9,ymm8
+    4d2d:	c5 fc 11 3c 87       	vmovups YMMWORD PTR [rdi+rax*4],ymm7
+    4d32:	c4 e3 7d 19 c7 01    	vextractf128 xmm7,ymm0,0x1
+    4d38:	c5 78 10 44 17 20    	vmovups xmm8,XMMWORD PTR [rdi+rdx*1+0x20]
+    4d3e:	c5 38 c6 44 17 30 dd 	vshufps xmm8,xmm8,XMMWORD PTR [rdi+rdx*1+0x30],0xdd
+    4d45:	c4 e3 45 18 fd 01    	vinsertf128 ymm7,ymm7,xmm5,0x1
+    4d4b:	c4 e3 7d 0c ed 0f    	vblendps ymm5,ymm0,ymm5,0xf
+    4d51:	c4 e2 65 b8 c1       	vfmadd231ps ymm0,ymm3,ymm1
+    4d56:	c4 e2 7d a8 d1       	vfmadd213ps ymm2,ymm0,ymm1
+    4d5b:	c5 b8 57 e4          	vxorps xmm4,xmm8,xmm4
+    4d5f:	c4 c3 5d 18 e0 01    	vinsertf128 ymm4,ymm4,xmm8,0x1
+    4d65:	c4 e2 6d b8 c3       	vfmadd231ps ymm0,ymm2,ymm3
+    4d6a:	c5 f8 28 ca          	vmovaps xmm1,xmm2
+    4d6e:	c5 d4 59 e4          	vmulps ymm4,ymm5,ymm4
+    4d72:	c4 e3 7d 04 6c 17 20 	vpermilps ymm5,YMMWORD PTR [rdi+rdx*1+0x20],0xe8
+    4d79:	e8
+    4d7a:	c4 e3 fd 01 ed 88    	vpermpd ymm5,ymm5,0x88
+    4d80:	c4 e2 45 a8 ec       	vfmadd213ps ymm5,ymm7,ymm4
+    4d85:	c4 e2 35 16 e5       	vpermps ymm4,ymm9,ymm5
+    4d8a:	c4 e3 7d 19 d5 01    	vextractf128 xmm5,ymm2,0x1
+    4d90:	c5 fc 11 64 87 20    	vmovups YMMWORD PTR [rdi+rax*4+0x20],ymm4
+    4d96:	c5 fc 11 01          	vmovups YMMWORD PTR [rcx],ymm0
+    4d9a:	c5 f8 11 49 20       	vmovups XMMWORD PTR [rcx+0x20],xmm1
+    4d9f:	c5 f8 11 69 30       	vmovups XMMWORD PTR [rcx+0x30],xmm5
+    4da4:	c5 f8 77             	vzeroupper
+    4da7:	c3                   	ret
+
+Disassembly of section .fini:

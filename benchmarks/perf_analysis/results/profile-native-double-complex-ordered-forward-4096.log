@@ -1,0 +1,3 @@
+double,AVX,complex,ordered-forward,4096,0,163078,1.980311258,12143.338,47.125
+[ perf record: Woken up 2 times to write data ]
+[ perf record: Captured and wrote 0.075 MB build_simd_analysis/results/native-double-complex-ordered-forward-4096.data (1888 samples) ]

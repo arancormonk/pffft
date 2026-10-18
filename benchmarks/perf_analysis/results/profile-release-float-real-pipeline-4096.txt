@@ -1,0 +1,23 @@
+# To display the perf.data header info, please use --header/--header-only options.
+#
+#
+# Total Lost Samples: 0
+#
+# Samples: 827  of event 'cycles:u'
+# Event count (approx.): 3575889111
+#
+# Overhead  Symbol                     Shared Object         IPC   [IPC Coverage]
+# ........  .........................  ....................  ....................
+#
+    35.59%  [.] radf4_ps               hotloops_float        -      -
+    34.37%  [.] radb4_ps               hotloops_float        -      -
+    11.06%  [.] pffft_real_preprocess  hotloops_float        -      -
+     8.69%  [.] pffft_real_finalize    hotloops_float        -      -
+     7.64%  [.] pffft_zconvolve        hotloops_float        -      -
+     1.27%  [.] rfftf1_ps              hotloops_float        -      -
+     0.87%  [.] rfftb1_ps              hotloops_float        -      -
+
+
+#
+# (Tip: Customize output of perf script with: perf script -F event,ip,sym)
+#

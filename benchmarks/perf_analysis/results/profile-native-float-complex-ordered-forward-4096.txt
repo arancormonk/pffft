@@ -1,0 +1,20 @@
+# To display the perf.data header info, please use --header/--header-only options.
+#
+#
+# Total Lost Samples: 0
+#
+# Samples: 801  of event 'cycles:u'
+# Event count (approx.): 3354861551
+#
+# Overhead  Symbol                        Shared Object         IPC   [IPC Coverage]
+# ........  ............................  ....................  ....................
+#
+    63.01%  [.] passf4_ps                 hotloops_float        -      -
+    21.84%  [.] pffft_transform_internal  hotloops_float        -      -
+    14.00%  [.] pffft_cplx_finalize       hotloops_float        -      -
+     0.78%  [.] cfftf1_ps                 hotloops_float        -      -
+
+
+#
+# (Tip: Order by the overhead of source file name and line number: perf report -s srcline)
+#

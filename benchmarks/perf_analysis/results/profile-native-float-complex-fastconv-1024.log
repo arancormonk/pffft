@@ -1,0 +1,4 @@
+filter=257 block=1024 produced=768
+float,SSE1,complex,fastconv,1024,0,593409,1.504015219,2534.534,0.185600639
+[ perf record: Woken up 2 times to write data ]
+[ perf record: Captured and wrote 0.062 MB build_simd_analysis/results/native-float-complex-fastconv-1024.data (1548 samples) ]

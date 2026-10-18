@@ -1,0 +1,3 @@
+float,SSE1,complex,ordered-forward,4096,0,81931,0.999594405,12200.442,47.1250796
+[ perf record: Woken up 1 times to write data ]
+[ perf record: Captured and wrote 0.034 MB build_simd_analysis/results/native-float-complex-ordered-forward-4096.data (801 samples) ]

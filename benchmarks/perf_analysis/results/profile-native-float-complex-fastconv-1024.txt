@@ -1,0 +1,24 @@
+# To display the perf.data header info, please use --header/--header-only options.
+#
+#
+# Total Lost Samples: 0
+#
+# Samples: 1K of event 'cycles:u'
+# Event count (approx.): 7211792940
+#
+# Overhead  Symbol                     Shared Object         IPC   [IPC Coverage]
+# ........  .........................  ....................  ....................
+#
+    25.09%  [.] radb4_ps               hotloops_float        -      -
+    23.94%  [.] radf4_ps               hotloops_float        -      -
+    21.75%  [.] pffastconv_apply       hotloops_float        -      -
+    10.29%  [.] pffft_real_finalize    hotloops_float        -      -
+     9.39%  [.] pffft_real_preprocess  hotloops_float        -      -
+     6.43%  [.] pffft_zconvolve        hotloops_float        -      -
+     1.77%  [.] rfftb1_ps              hotloops_float        -      -
+     0.98%  [.] rfftf1_ps              hotloops_float        -      -
+
+
+#
+# (Tip: To trace only single function with Processor Trace use perf record --filter 'filter func @ program' -e intel_pt//u ./program ; perf script --insn-trace)
+#

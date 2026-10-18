@@ -1,0 +1,1 @@
+cc -O3 -DNDEBUG -std=c99 -march=native -Wall -Wextra -pedantic -Werror -fvisibility=hidden -DPFFFT_STATIC_DEFINE -DPFFASTCONV_STATIC_DEFINE -D_USE_MATH_DEFINES -Iinclude/pffft -c src/pffastconv.c -o build_simd_analysis/conv_arch/pffastconv.o

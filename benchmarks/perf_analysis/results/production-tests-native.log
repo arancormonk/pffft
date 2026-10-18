@@ -1,0 +1,53 @@
+Test project /home/mark/Documents/Projects/Software/pffft/build_impl_native
+      Start 20: bench_pfconv_non_sym
+      Start 19: bench_pfconv_symetric
+      Start 21: bench_pffft_pow2
+      Start 18: test_pfconv_lens_non_sym
+ 1/24 Test #18: test_pfconv_lens_non_sym .........   Passed    3.07 sec
+      Start 22: bench_pffft_non2
+ 2/24 Test #21: bench_pffft_pow2 .................   Passed    4.21 sec
+      Start  2: test_fftpack_accuracy_double
+ 3/24 Test  #2: test_fftpack_accuracy_double .....   Passed    0.93 sec
+      Start  1: test_fftpack_accuracy_float
+ 4/24 Test #22: bench_pffft_non2 .................   Passed    2.71 sec
+      Start  5: test_pffft_accuracy_double
+ 5/24 Test  #1: test_fftpack_accuracy_float ......   Passed    0.74 sec
+      Start  4: test_pffft_accuracy_float
+ 6/24 Test #19: bench_pfconv_symetric ............   Passed    6.28 sec
+      Start  7: test_pffastconv_modes
+ 7/24 Test #20: bench_pfconv_non_sym .............   Passed    6.34 sec
+      Start 17: test_pfconv_lens_symetric
+ 8/24 Test  #5: test_pffft_accuracy_double .......   Passed    0.69 sec
+      Start 12: test_pffft_cpp
+ 9/24 Test  #4: test_pffft_accuracy_float ........   Passed    0.69 sec
+      Start 13: test_pffft_cpp_11
+10/24 Test #17: test_pfconv_lens_symetric ........   Passed    0.28 sec
+      Start  9: test_pffft_double
+11/24 Test #12: test_pffft_cpp ...................   Passed    0.24 sec
+      Start  8: test_pffft_float
+12/24 Test #13: test_pffft_cpp_11 ................   Passed    0.24 sec
+      Start  3: test_pf_mixer
+13/24 Test  #9: test_pffft_double ................   Passed    0.20 sec
+      Start  6: test_pffft_cpp_api
+14/24 Test  #6: test_pffft_cpp_api ...............   Passed    0.02 sec
+      Start 16: test_fftpack_double
+15/24 Test #16: test_fftpack_double ..............   Passed    0.00 sec
+      Start 15: test_fftpack_float
+16/24 Test #15: test_fftpack_float ...............   Passed    0.00 sec
+      Start 14: test_fft_factors
+17/24 Test #14: test_fft_factors .................   Passed    0.00 sec
+      Start 10: test_pffft_simd_macros_float
+18/24 Test #10: test_pffft_simd_macros_float .....   Passed    0.00 sec
+      Start 23: test_setup_alloc
+19/24 Test #23: test_setup_alloc .................   Passed    0.00 sec
+      Start 11: test_pffft_simd_macros_double
+20/24 Test #11: test_pffft_simd_macros_double ....   Passed    0.00 sec
+      Start 24: test_simd_unfused
+21/24 Test #24: test_simd_unfused ................   Passed    0.00 sec
+22/24 Test  #8: test_pffft_float .................   Passed    0.18 sec
+23/24 Test  #7: test_pffastconv_modes ............   Passed    0.64 sec
+24/24 Test  #3: test_pf_mixer ....................   Passed    0.12 sec
+
+100% tests passed out of 24
+
+Total Test time (real) =   6.94 sec

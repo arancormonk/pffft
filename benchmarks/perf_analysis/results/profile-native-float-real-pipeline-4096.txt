@@ -1,0 +1,24 @@
+# To display the perf.data header info, please use --header/--header-only options.
+#
+#
+# Total Lost Samples: 0
+#
+# Samples: 1K of event 'cycles:u'
+# Event count (approx.): 5573480547
+#
+# Overhead  Symbol                     Shared Object         IPC   [IPC Coverage]
+# ........  .........................  ....................  ....................
+#
+    35.95%  [.] radf4_ps               hotloops_float        -      -
+    34.19%  [.] radb4_ps               hotloops_float        -      -
+    10.02%  [.] pffft_real_finalize    hotloops_float        -      -
+     9.34%  [.] pffft_real_preprocess  hotloops_float        -      -
+     7.24%  [.] pffft_zconvolve        hotloops_float        -      -
+     1.20%  [.] rfftb1_ps              hotloops_float        -      -
+     1.14%  [.] rfftf1_ps              hotloops_float        -      -
+     0.72%  [.] pffft_transform        hotloops_float        -      -
+
+
+#
+# (Tip: When collecting LBR backtraces use --stitch-lbr to handle more than 32 deep entries: perf record --call-graph lbr ; perf report --stitch-lbr)
+#

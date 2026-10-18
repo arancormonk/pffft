@@ -1,0 +1,3 @@
+float,SSE1,real,forward,1536,0,2599508,2.302847107,885.878,450.606311
+[ perf record: Woken up 2 times to write data ]
+[ perf record: Captured and wrote 0.092 MB build_simd_analysis/results/native-float-real-forward-1536.data (2340 samples) ]

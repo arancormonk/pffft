@@ -1,0 +1,350 @@
+ Percent |	Source code & Disassembly of hotloops_float for cycles:u (457 samples, percent: local period)
+-------------------------------------------------------------------------------------------------------------
+         :
+         :
+         :
+         : 3    Disassembly of section .text:
+         :
+         : 5    00000000000067d0 <radf4_ps>:
+    0.00 :   67d0:   imul   %edi,%esi
+    0.00 :   67d3:   sub    $0x30,%rsp
+    0.23 :   67d7:   mov    %rdx,%rax
+    0.00 :   67da:   mov    %rcx,-0x30(%rsp)
+    0.00 :   67df:   mov    %rbx,(%rsp)
+    0.00 :   67e3:   mov    %edi,%ebx
+    0.00 :   67e5:   movslq %esi,%rcx
+    0.00 :   67e8:   mov    %esi,-0x4c(%rsp)
+    0.00 :   67ec:   mov    %rcx,%r10
+    0.00 :   67ef:   shl    $0x4,%r10
+    0.00 :   67f3:   lea    (%rdx,%r10,1),%rsi
+    0.00 :   67f7:   cmp    %rsi,%rdx
+    0.00 :   67fa:   jae    6961 <radf4_ps+0x191>
+    0.00 :   6800:   cmp    $0x1,%edi
+    0.00 :   6803:   jne    6878 <radf4_ps+0xa8>
+    0.00 :   6805:   mov    -0x30(%rsp),%rdx
+    0.00 :   680a:   mov    %rcx,%rdi
+    0.00 :   680d:   lea    (%rcx,%rcx,2),%rcx
+    0.00 :   6811:   shl    $0x5,%rdi
+    0.00 :   6815:   shl    $0x4,%rcx
+    0.00 :   6819:   add    $0x20,%rdx
+    0.00 :   681d:   nopl   (%rax)
+    0.00 :   6820:   vmovaps (%rax),%xmm2
+    0.45 :   6824:   vmovaps (%rax,%r10,1),%xmm4
+    0.67 :   682a:   add    $0x10,%rax
+    0.21 :   682e:   add    $0x40,%rdx
+    0.44 :   6832:   vmovaps -0x10(%rax,%rdi,1),%xmm5
+    1.31 :   6838:   vmovaps -0x10(%rax,%rcx,1),%xmm1
+    2.44 :   683e:   vaddps %xmm2,%xmm5,%xmm0
+    0.69 :   6842:   vaddps %xmm4,%xmm1,%xmm3
+    0.63 :   6846:   vsubps %xmm4,%xmm1,%xmm1
+    0.00 :   684a:   vsubps %xmm5,%xmm2,%xmm2
+    0.22 :   684e:   vmovaps %xmm1,-0x40(%rdx)
+    3.48 :   6853:   vaddps %xmm3,%xmm0,%xmm1
+    2.19 :   6857:   vsubps %xmm3,%xmm0,%xmm0
+    0.20 :   685b:   vmovaps %xmm2,-0x50(%rdx)
+    0.68 :   6860:   vmovaps %xmm1,-0x60(%rdx)
+    1.26 :   6865:   vmovaps %xmm0,-0x30(%rdx)
+    0.43 :   686a:   cmp    %rsi,%rax
+    0.00 :   686d:   jb     6820 <radf4_ps+0x50>
+    0.00 :   686f:   mov    (%rsp),%rbx
+    0.00 :   6873:   add    $0x30,%rsp
+    0.00 :   6877:   ret
+    0.00 :   6878:   lea    0x0(,%rdi,4),%edx
+    0.00 :   687f:   mov    %rbp,0x8(%rsp)
+    0.00 :   6884:   mov    %r12,0x10(%rsp)
+    0.00 :   6889:   movslq %edi,%rbp
+    0.00 :   688c:   movslq %edx,%rdx
+    0.00 :   688f:   lea    (%rdi,%rdi,1),%r12d
+    0.00 :   6893:   mov    %r13,0x18(%rsp)
+    0.00 :   6898:   mov    %r14,0x20(%rsp)
+    0.00 :   689d:   shl    $0x4,%rdx
+    0.00 :   68a1:   mov    %rcx,%r14
+    0.00 :   68a4:   lea    (%rcx,%rcx,2),%r13
+    0.00 :   68a8:   mov    %rcx,-0x48(%rsp)
+    0.00 :   68ad:   mov    %rdx,%r11
+    0.00 :   68b0:   mov    -0x30(%rsp),%rdi
+    0.00 :   68b5:   movslq %r12d,%r12
+    0.00 :   68b8:   mov    %r15,0x28(%rsp)
+    0.00 :   68bd:   mov    %r11,%rcx
+    0.00 :   68c0:   mov    0x38(%rsp),%r11
+    0.00 :   68c5:   mov    %rbp,%r15
+    0.00 :   68c8:   shl    $0x4,%r12
+    0.00 :   68cc:   neg    %rbp
+    0.00 :   68cf:   shl    $0x4,%r15
+    0.00 :   68d3:   shl    $0x5,%r14
+    0.00 :   68d7:   shl    $0x4,%r13
+    0.00 :   68db:   shl    $0x5,%rbp
+    0.00 :   68df:   mov    %rax,%rdx
+    0.00 :   68e2:   add    %r12,%rdi
+    0.00 :   68e5:   data16 cs nopw 0x0(%rax,%rax,1)
+    0.00 :   68f0:   vmovaps (%rdx),%xmm2
+    0.66 :   68f4:   vmovaps (%rdx,%r10,1),%xmm4
+    0.91 :   68fa:   vmovaps (%rdx,%r14,1),%xmm5
+    0.40 :   6900:   vmovaps (%rdx,%r13,1),%xmm1
+    0.23 :   6906:   add    %r15,%rdx
+    0.00 :   6909:   vaddps %xmm1,%xmm4,%xmm3
+    0.90 :   690d:   vaddps %xmm5,%xmm2,%xmm0
+    0.19 :   6911:   vsubps %xmm4,%xmm1,%xmm1
+    0.23 :   6915:   vsubps %xmm5,%xmm2,%xmm2
+    0.00 :   6919:   vmovaps %xmm1,(%rdi)
+    0.87 :   691d:   vaddps %xmm0,%xmm3,%xmm1
+    0.46 :   6921:   vsubps %xmm3,%xmm0,%xmm0
+    0.00 :   6925:   vmovaps %xmm2,-0x10(%rdi)
+    0.70 :   692a:   vmovaps %xmm1,(%rdi,%rbp,1)
+    0.46 :   692f:   vmovaps %xmm0,-0x10(%rdi,%r12,1)
+    1.74 :   6936:   add    %rcx,%rdi
+    0.00 :   6939:   cmp    %rsi,%rdx
+    0.00 :   693c:   jb     68f0 <radf4_ps+0x120>
+    0.00 :   693e:   mov    -0x48(%rsp),%rcx
+    0.00 :   6943:   mov    0x8(%rsp),%rbp
+    0.00 :   6948:   mov    %r11,0x38(%rsp)
+    0.00 :   694d:   mov    0x10(%rsp),%r12
+    0.00 :   6952:   mov    0x18(%rsp),%r13
+    0.00 :   6957:   mov    0x20(%rsp),%r14
+    0.00 :   695c:   mov    0x28(%rsp),%r15
+    0.00 :   6961:   cmp    $0x1,%ebx
+    0.00 :   6964:   jle    686f <radf4_ps+0x9f>
+    0.00 :   696a:   cmp    $0x3,%ebx
+    0.00 :   696d:   je     6c4f <radf4_ps+0x47f>
+    0.00 :   6973:   mov    %rbp,0x8(%rsp)
+    0.00 :   6978:   cmp    $0x2,%ebx
+    0.00 :   697b:   je     6c38 <radf4_ps+0x468>
+    0.00 :   6981:   mov    -0x4c(%rsp),%edx
+    0.00 :   6985:   test   %edx,%edx
+    0.00 :   6987:   jle    6c2a <radf4_ps+0x45a>
+    0.00 :   698d:   mov    %ebx,%esi
+    0.00 :   698f:   mov    %r13,0x18(%rsp)
+    0.00 :   6994:   mov    -0x30(%rsp),%r13
+    0.00 :   6999:   lea    (%rcx,%rcx,1),%rdx
+    0.00 :   699d:   mov    %rsi,%rdi
+    0.00 :   69a0:   mov    %r12,0x10(%rsp)
+    0.00 :   69a5:   lea    (%rdx,%rcx,1),%rbp
+    0.00 :   69a9:   mov    %rcx,%r12
+    0.00 :   69ac:   shl    $0x4,%rdi
+    0.00 :   69b0:   mov    %r14,0x20(%rsp)
+    0.00 :   69b5:   mov    %r15,0x28(%rsp)
+    0.00 :   69ba:   shl    $0x5,%r12
+    0.00 :   69be:   mov    %rdi,-0x48(%rsp)
+    0.00 :   69c3:   mov    %rsi,%rdi
+    0.00 :   69c6:   lea    0x10(%rax),%r15
+    0.00 :   69ca:   shl    $0x4,%rbp
+    0.00 :   69ce:   shl    $0x6,%rdi
+    0.00 :   69d2:   xor    %r14d,%r14d
+    0.00 :   69d5:   mov    %rcx,-0x28(%rsp)
+    0.00 :   69da:   mov    %rax,-0x20(%rsp)
+    0.00 :   69df:   mov    %rdi,-0x40(%rsp)
+    0.24 :   69e4:   mov    %rsi,%rdi
+    0.00 :   69e7:   mov    %rdx,-0x18(%rsp)
+    0.00 :   69ec:   mov    %rsi,-0x10(%rsp)
+    0.00 :   69f1:   shl    $0x5,%rdi
+    0.00 :   69f5:   lea    -0x30(%rdi),%r11
+    0.00 :   69f9:   mov    %r11,-0x38(%rsp)
+    0.00 :   69fe:   mov    0x38(%rsp),%r11
+    0.00 :   6a03:   xchg   %ax,%ax
+    0.00 :   6a05:   data16 cs nopw 0x0(%rax,%rax,1)
+    0.00 :   6a10:   mov    -0x38(%rsp),%rcx
+    0.42 :   6a15:   mov    %r15,%rax
+    0.00 :   6a18:   mov    $0x2,%edx
+    0.22 :   6a1d:   lea    (%rcx,%r13,1),%rsi
+    0.00 :   6a21:   mov    %r13,%rcx
+    0.00 :   6a24:   nop
+    0.00 :   6a25:   data16 cs nopw 0x0(%rax,%rax,1)
+    0.00 :   6a30:   vbroadcastss -0x8(%r8,%rdx,4),%xmm3
+    0.86 :   6a37:   vbroadcastss -0x4(%r8,%rdx,4),%xmm4
+    0.67 :   6a3e:   add    $0x20,%rax
+    0.65 :   6a42:   add    $0x20,%rcx
+    0.90 :   6a46:   vmovaps -0x10(%rax,%r10,1),%xmm0
+    0.23 :   6a4d:   vmovaps -0x20(%rax,%r10,1),%xmm1
+    2.94 :   6a54:   sub    $0x20,%rsi
+    0.45 :   6a58:   vbroadcastss -0x8(%r9,%rdx,4),%xmm5
+    0.19 :   6a5f:   vbroadcastss -0x4(%r9,%rdx,4),%xmm6
+    0.19 :   6a66:   vbroadcastss -0x8(%r11,%rdx,4),%xmm7
+    1.30 :   6a6d:   vbroadcastss -0x4(%r11,%rdx,4),%xmm8
+    0.89 :   6a74:   add    $0x2,%rdx
+    0.22 :   6a78:   vmulps %xmm3,%xmm0,%xmm2
+    1.29 :   6a7c:   vmulps %xmm4,%xmm0,%xmm0
+    1.81 :   6a80:   vfnmadd231ps %xmm4,%xmm1,%xmm2
+    1.52 :   6a85:   vfmadd132ps %xmm3,%xmm0,%xmm1
+    0.00 :   6a8a:   vmovaps -0x10(%rax,%r12,1),%xmm0
+    0.87 :   6a91:   vmovaps -0x20(%rax,%r12,1),%xmm3
+    0.23 :   6a98:   vmulps %xmm5,%xmm0,%xmm4
+    2.58 :   6a9c:   vmulps %xmm6,%xmm0,%xmm0
+    0.23 :   6aa0:   vfnmadd231ps %xmm6,%xmm3,%xmm4
+    1.54 :   6aa5:   vmovaps -0x10(%rax,%rbp,1),%xmm6
+    1.72 :   6aab:   vfmadd132ps %xmm5,%xmm0,%xmm3
+    0.66 :   6ab0:   vmovaps -0x20(%rax,%rbp,1),%xmm0
+    0.00 :   6ab6:   vmulps %xmm7,%xmm6,%xmm5
+    0.68 :   6aba:   vmulps %xmm8,%xmm6,%xmm6
+    0.23 :   6abf:   vfnmadd231ps %xmm8,%xmm0,%xmm5
+    3.01 :   6ac4:   vfmadd132ps %xmm7,%xmm6,%xmm0
+    0.23 :   6ac9:   vaddps %xmm0,%xmm1,%xmm7
+    3.85 :   6acd:   vsubps %xmm1,%xmm0,%xmm0
+    1.12 :   6ad1:   vmovaps -0x20(%rax),%xmm1
+    0.90 :   6ad6:   vaddps %xmm3,%xmm1,%xmm6
+    0.68 :   6ada:   vsubps %xmm3,%xmm1,%xmm1
+    0.00 :   6ade:   vaddps %xmm6,%xmm7,%xmm3
+    6.50 :   6ae2:   vsubps %xmm7,%xmm6,%xmm6
+    0.00 :   6ae6:   vmovaps %xmm3,-0x10(%rcx)
+    3.72 :   6aeb:   vaddps %xmm5,%xmm2,%xmm3
+    0.00 :   6aef:   vsubps %xmm5,%xmm2,%xmm2
+    0.23 :   6af3:   vmovaps %xmm6,0x20(%rsi,%rdi,1)
+    1.96 :   6af9:   vaddps %xmm2,%xmm1,%xmm5
+    0.44 :   6afd:   vsubps %xmm2,%xmm1,%xmm1
+    0.00 :   6b01:   vmovaps %xmm5,-0x10(%rcx,%rdi,1)
+    5.15 :   6b07:   vmovaps %xmm1,0x20(%rsi)
+    1.74 :   6b0c:   vmovaps -0x10(%rax),%xmm1
+    0.66 :   6b11:   vaddps %xmm4,%xmm1,%xmm2
+    0.23 :   6b15:   vsubps %xmm4,%xmm1,%xmm1
+    0.00 :   6b19:   vaddps %xmm2,%xmm3,%xmm4
+    0.47 :   6b1d:   vsubps %xmm2,%xmm3,%xmm3
+    0.00 :   6b21:   vaddps %xmm1,%xmm0,%xmm2
+    0.23 :   6b25:   vsubps %xmm1,%xmm0,%xmm0
+    2.79 :   6b29:   vmovaps %xmm4,(%rcx)
+    3.31 :   6b2d:   vmovaps %xmm3,0x30(%rsi,%rdi,1)
+    2.20 :   6b33:   vmovaps %xmm2,(%rcx,%rdi,1)
+    5.20 :   6b38:   vmovaps %xmm0,0x30(%rsi)
+    1.81 :   6b3d:   cmp    %edx,%ebx
+    0.00 :   6b3f:   jg     6a30 <radf4_ps+0x260>
+    0.00 :   6b45:   add    %ebx,%r14d
+    0.00 :   6b48:   add    -0x48(%rsp),%r15
+    0.00 :   6b4d:   add    -0x40(%rsp),%r13
+    0.00 :   6b52:   cmp    %r14d,-0x4c(%rsp)
+    0.44 :   6b57:   jg     6a10 <radf4_ps+0x240>
+    0.00 :   6b5d:   mov    -0x28(%rsp),%rcx
+    0.26 :   6b62:   mov    -0x20(%rsp),%rax
+    0.00 :   6b67:   mov    -0x18(%rsp),%rdx
+    0.00 :   6b6c:   mov    -0x10(%rsp),%rsi
+    0.00 :   6b71:   test   $0x1,%bl
+    0.00 :   6b74:   jne    6db3 <radf4_ps+0x5e3>
+    0.00 :   6b7a:   mov    0x10(%rsp),%r12
+    0.00 :   6b7f:   mov    0x18(%rsp),%r13
+    0.00 :   6b84:   mov    0x20(%rsp),%r14
+    0.00 :   6b89:   mov    0x28(%rsp),%r15
+    0.00 :   6b8e:   vbroadcastss 0x947d(%rip),%xmm5        # 10014 <_IO_stdin_used+0x14>
+    0.44 :   6b97:   mov    -0x30(%rsp),%rdi
+    0.00 :   6b9c:   mov    %rsi,%r9
+    0.00 :   6b9f:   lea    0x0(,%rbx,4),%r11d
+    0.00 :   6ba7:   mov    -0x4c(%rsp),%ebp
+    0.00 :   6bab:   shl    $0x4,%r9
+    0.00 :   6baf:   add    %rcx,%rdx
+    0.00 :   6bb2:   movslq %r11d,%r11
+    0.00 :   6bb5:   add    %r9,%rax
+    0.00 :   6bb8:   shl    $0x4,%r11
+    0.00 :   6bbc:   shl    $0x4,%rdx
+    0.00 :   6bc0:   shl    $0x5,%rcx
+    0.00 :   6bc4:   shl    $0x5,%rsi
+    0.00 :   6bc8:   xor    %r8d,%r8d
+    0.00 :   6bcb:   add    %r9,%rdi
+    0.26 :   6bce:   xchg   %ax,%ax
+    0.00 :   6bd0:   vmovaps -0x10(%rax,%r10,1),%xmm4
+    0.00 :   6bd7:   vmovaps -0x10(%rax,%rdx,1),%xmm0
+    0.22 :   6bdd:   add    %ebx,%r8d
+    0.00 :   6be0:   vmovaps -0x10(%rax),%xmm3
+    0.00 :   6be5:   vmovaps -0x10(%rax,%rcx,1),%xmm1
+    1.35 :   6beb:   add    %r9,%rax
+    0.00 :   6bee:   vaddps %xmm0,%xmm4,%xmm2
+    0.44 :   6bf2:   vsubps %xmm4,%xmm0,%xmm0
+    0.00 :   6bf6:   vmulps %xmm5,%xmm2,%xmm2
+    0.63 :   6bfa:   vmulps %xmm5,%xmm0,%xmm0
+    0.00 :   6bfe:   vaddps %xmm0,%xmm3,%xmm4
+    0.20 :   6c02:   vsubps %xmm0,%xmm3,%xmm3
+    0.00 :   6c06:   vsubps %xmm1,%xmm2,%xmm0
+    1.08 :   6c0a:   vaddps %xmm2,%xmm1,%xmm1
+    0.00 :   6c0e:   vmovaps %xmm4,-0x10(%rdi)
+    0.22 :   6c13:   vmovaps %xmm3,-0x10(%rdi,%rsi,1)
+    0.00 :   6c19:   vmovaps %xmm0,(%rdi)
+    0.81 :   6c1d:   vmovaps %xmm1,(%rdi,%rsi,1)
+    0.22 :   6c22:   add    %r11,%rdi
+    0.00 :   6c25:   cmp    %r8d,%ebp
+    0.00 :   6c28:   jg     6bd0 <radf4_ps+0x400>
+    0.00 :   6c2a:   mov    0x8(%rsp),%rbp
+    0.00 :   6c2f:   mov    (%rsp),%rbx
+    0.00 :   6c33:   add    $0x30,%rsp
+    0.00 :   6c37:   ret
+    0.00 :   6c38:   mov    -0x4c(%rsp),%edi
+    0.00 :   6c3c:   lea    (%rcx,%rcx,1),%rdx
+    0.00 :   6c40:   mov    $0x2,%esi
+    0.00 :   6c45:   test   %edi,%edi
+    0.00 :   6c47:   jg     6b8e <radf4_ps+0x3be>
+    0.00 :   6c4d:   jmp    6c2a <radf4_ps+0x45a>
+    0.00 :   6c4f:   mov    -0x4c(%rsp),%ebx
+    0.00 :   6c53:   test   %ebx,%ebx
+    0.00 :   6c55:   jle    686f <radf4_ps+0x9f>
+    0.00 :   6c5b:   vbroadcastss (%r9),%xmm6
+    0.00 :   6c60:   vbroadcastss 0x4(%r9),%xmm5
+    0.00 :   6c66:   lea    (%rcx,%rcx,2),%rsi
+    0.00 :   6c6a:   add    $0x10,%rax
+    0.00 :   6c6e:   mov    0x38(%rsp),%rdi
+    0.00 :   6c73:   mov    -0x30(%rsp),%rdx
+    0.00 :   6c78:   shl    $0x4,%rsi
+    0.00 :   6c7c:   vbroadcastss (%r8),%xmm8
+    0.00 :   6c81:   vbroadcastss 0x4(%r8),%xmm7
+    0.00 :   6c87:   mov    %ebx,%r8d
+    0.00 :   6c8a:   vbroadcastss (%rdi),%xmm4
+    0.00 :   6c8f:   vbroadcastss 0x4(%rdi),%xmm3
+    0.00 :   6c95:   mov    %rcx,%rdi
+    0.00 :   6c98:   add    $0x10,%rdx
+    0.00 :   6c9c:   shl    $0x5,%rdi
+    0.00 :   6ca0:   xor    %ecx,%ecx
+    0.00 :   6ca2:   nopl   (%rax)
+    0.00 :   6ca5:   data16 cs nopw 0x0(%rax,%rax,1)
+    0.00 :   6cb0:   vmovaps 0x10(%rax,%r10,1),%xmm0
+    0.00 :   6cb7:   vmovaps (%rax,%r10,1),%xmm1
+    0.00 :   6cbd:   add    $0x3,%ecx
+    0.00 :   6cc0:   add    $0x30,%rax
+    0.00 :   6cc4:   vmovaps -0x30(%rax,%rdi,1),%xmm9
+    0.00 :   6cca:   vmovaps -0x20(%rax,%rsi,1),%xmm12
+    0.00 :   6cd0:   add    $0xc0,%rdx
+    0.00 :   6cd7:   vmulps %xmm0,%xmm8,%xmm2
+    0.00 :   6cdb:   vmulps %xmm0,%xmm7,%xmm0
+    0.00 :   6cdf:   vmulps %xmm12,%xmm4,%xmm11
+    0.00 :   6ce4:   vmulps %xmm12,%xmm3,%xmm12
+    0.00 :   6ce9:   vfnmadd231ps %xmm7,%xmm1,%xmm2
+    0.00 :   6cee:   vfmadd132ps %xmm8,%xmm0,%xmm1
+    0.00 :   6cf3:   vmovaps -0x20(%rax,%rdi,1),%xmm0
+    0.00 :   6cf9:   vmulps %xmm0,%xmm6,%xmm10
+    0.00 :   6cfd:   vmulps %xmm0,%xmm5,%xmm0
+    0.00 :   6d01:   vfnmadd231ps %xmm5,%xmm9,%xmm10
+    0.00 :   6d06:   vfmadd132ps %xmm6,%xmm0,%xmm9
+    0.00 :   6d0b:   vmovaps -0x30(%rax,%rsi,1),%xmm0
+    0.00 :   6d11:   vfnmadd231ps %xmm3,%xmm0,%xmm11
+    0.00 :   6d16:   vfmadd132ps %xmm4,%xmm12,%xmm0
+    0.00 :   6d1b:   vaddps %xmm0,%xmm1,%xmm13
+    0.00 :   6d1f:   vsubps %xmm1,%xmm0,%xmm0
+    0.00 :   6d23:   vmovaps -0x30(%rax),%xmm1
+    0.00 :   6d28:   vaddps %xmm9,%xmm1,%xmm12
+    0.00 :   6d2d:   vsubps %xmm9,%xmm1,%xmm1
+    0.00 :   6d32:   vaddps %xmm12,%xmm13,%xmm9
+    0.00 :   6d37:   vsubps %xmm13,%xmm12,%xmm12
+    0.00 :   6d3c:   vmovaps %xmm9,-0xc0(%rdx)
+    0.00 :   6d44:   vaddps %xmm11,%xmm2,%xmm9
+    0.00 :   6d49:   vsubps %xmm11,%xmm2,%xmm2
+    0.00 :   6d4e:   vmovaps %xmm12,-0x40(%rdx)
+    0.00 :   6d53:   vaddps %xmm2,%xmm1,%xmm11
+    0.00 :   6d57:   vsubps %xmm2,%xmm1,%xmm1
+    0.00 :   6d5b:   vmovaps %xmm1,-0xa0(%rdx)
+    0.00 :   6d63:   vmovaps -0x20(%rax),%xmm1
+    0.00 :   6d68:   vmovaps %xmm11,-0x60(%rdx)
+    0.00 :   6d6d:   vaddps %xmm10,%xmm1,%xmm2
+    0.00 :   6d72:   vsubps %xmm10,%xmm1,%xmm1
+    0.00 :   6d77:   vaddps %xmm2,%xmm9,%xmm10
+    0.00 :   6d7b:   vsubps %xmm2,%xmm9,%xmm2
+    0.00 :   6d7f:   vmovaps %xmm2,-0x30(%rdx)
+    0.00 :   6d84:   vaddps %xmm1,%xmm0,%xmm2
+    0.00 :   6d88:   vsubps %xmm1,%xmm0,%xmm0
+    0.00 :   6d8c:   vmovaps %xmm10,-0xb0(%rdx)
+    0.00 :   6d94:   vmovaps %xmm2,-0x50(%rdx)
+    0.00 :   6d99:   vmovaps %xmm0,-0x90(%rdx)
+    0.00 :   6da1:   cmp    %ecx,%r8d
+    0.00 :   6da4:   jg     6cb0 <radf4_ps+0x4e0>
+    0.00 :   6daa:   mov    (%rsp),%rbx
+    0.00 :   6dae:   add    $0x30,%rsp
+    0.00 :   6db2:   ret
+    0.00 :   6db3:   mov    0x8(%rsp),%rbp
+    0.00 :   6db8:   mov    0x10(%rsp),%r12
+    0.00 :   6dbd:   mov    0x18(%rsp),%r13
+    0.00 :   6dc2:   mov    0x20(%rsp),%r14
+    0.00 :   6dc7:   mov    0x28(%rsp),%r15
+    0.00 :   6dcc:   mov    (%rsp),%rbx
+    0.00 :   6dd0:   add    $0x30,%rsp
+    0.00 :   6dd4:   ret

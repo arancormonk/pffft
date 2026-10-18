@@ -174,7 +174,8 @@ endif()
 
 ######################################################
 
-add_library(PFFFT ${FLOAT_SOURCES} ${DOUBLE_SOURCES} src/pffft_common.c src/pffft_priv_impl.h include/pffft/pffft.hpp )
+add_library(PFFFT ${FLOAT_SOURCES} ${DOUBLE_SOURCES} src/pffft_common.c
+  src/pffft_priv_impl.h src/pffft_cplx_impl.h include/pffft/pffft.hpp)
 add_library(PFFFT::PFFFT ALIAS PFFFT)
 set_target_properties(PFFFT PROPERTIES OUTPUT_NAME "pffft")
 target_compile_definitions(PFFFT PRIVATE _USE_MATH_DEFINES)
@@ -221,6 +222,9 @@ if (PFFFT_USE_TYPE_FLOAT)
   set_property(TARGET PFDSP PROPERTY CXX_STANDARD_REQUIRED ON)
   set_target_properties(PFDSP PROPERTIES OUTPUT_NAME "pfdsp")
   target_compile_definitions(PFDSP PRIVATE _USE_MATH_DEFINES)
+  if(PFFFT_DISABLE_FMA)
+    target_compile_definitions(PFDSP PRIVATE PFFFT_DISABLE_FMA=1)
+  endif()
   target_activate_cxx_compiler_warnings(PFDSP)
   if (PFFFT_USE_DEBUG_ASAN)
       target_compile_options(PFDSP PRIVATE "-fsanitize=address")

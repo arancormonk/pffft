@@ -233,6 +233,9 @@ PFDSP_EXPORT void shift_limited_unroll_C_sse_inp_c(complexf* in_out, int N_cplx,
 
 /* Recursive Quadrature Oscillator functions "recursive_osc"
  * see https://www.vicanek.de/articles/QuadOsc.pdf
+ * Finite rate is in half-cycles/sample: the phase increment is rate*pi.
+ * Init sets the first sample's phase in radians. Updating the rate preserves
+ * the next sample's phase and rebuilds the remaining oscillator lanes.
  */
 #define PF_SHIFT_RECURSIVE_SIMD_SZ  8
 typedef struct shift_recursive_osc_s
@@ -250,7 +253,8 @@ typedef struct shift_recursive_osc_conf_s
 PFDSP_EXPORT void shift_recursive_osc_init(float rate, float starting_phase, shift_recursive_osc_conf_t *conf, shift_recursive_osc_t *state);
 PFDSP_EXPORT void shift_recursive_osc_update_rate(float rate, shift_recursive_osc_conf_t *conf, shift_recursive_osc_t* state);
 
-/* size must be multiple of PF_SHIFT_LIMITED_SIMD_SZ */
+/* size must be nonnegative and a multiple of PF_SHIFT_RECURSIVE_SIMD_SZ.
+ * Input/output need only their natural float alignment; they may be identical. */
 /* starting_phase for next call is kept internal in state */
 PFDSP_EXPORT void shift_recursive_osc_cc(const complexf *input, complexf* output, int size, const shift_recursive_osc_conf_t *conf, shift_recursive_osc_t* state);
 PFDSP_EXPORT void shift_recursive_osc_inp_c(complexf* output, int size, const shift_recursive_osc_conf_t *conf, shift_recursive_osc_t* state);
@@ -277,6 +281,8 @@ typedef struct shift_recursive_osc_sse_conf_s
 
 PFDSP_EXPORT void shift_recursive_osc_sse_init(float rate, float starting_phase, shift_recursive_osc_sse_conf_t *conf, shift_recursive_osc_sse_t *state);
 PFDSP_EXPORT void shift_recursive_osc_sse_update_rate(float rate, shift_recursive_osc_sse_conf_t *conf, shift_recursive_osc_sse_t* state);
+/* Same rate/phase units; N_cplx must be a nonnegative multiple of
+ * PF_SHIFT_RECURSIVE_SIMD_SSE_SZ. Requires have_sse_shift_mixer_impl(). */
 PFDSP_EXPORT void shift_recursive_osc_sse_inp_c(complexf* in_out, int N_cplx, const shift_recursive_osc_sse_conf_t *conf, shift_recursive_osc_sse_t* state_ext);
 
 

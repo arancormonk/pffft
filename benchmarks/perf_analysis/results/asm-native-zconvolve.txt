@@ -1,0 +1,63 @@
+
+build_simd_analysis/native/hotloops_float:     file format elf64-x86-64
+
+
+Disassembly of section .init:
+
+Disassembly of section .plt:
+
+Disassembly of section .text:
+
+000000000000c3e0 <pffft_zconvolve>:
+    c3e0:	8b 47 04             	mov    eax,DWORD PTR [rdi+0x4]
+    c3e3:	49 89 c8             	mov    r8,rcx
+    c3e6:	c5 fa 10 36          	vmovss xmm6,DWORD PTR [rsi]
+    c3ea:	c5 fa 10 6e 10       	vmovss xmm5,DWORD PTR [rsi+0x10]
+    c3ef:	c5 7a 10 02          	vmovss xmm8,DWORD PTR [rdx]
+    c3f3:	c5 fa 10 7a 10       	vmovss xmm7,DWORD PTR [rdx+0x10]
+    c3f8:	8d 0c 00             	lea    ecx,[rax+rax*1]
+    c3fb:	85 c9                	test   ecx,ecx
+    c3fd:	0f 8e 8d 00 00 00    	jle    c490 <pffft_zconvolve+0xb0>
+    c403:	ff c9                	dec    ecx
+    c405:	4c 89 c0             	mov    rax,r8
+    c408:	c1 e9 02             	shr    ecx,0x2
+    c40b:	48 c1 e1 06          	shl    rcx,0x6
+    c40f:	48 8d 4c 0e 40       	lea    rcx,[rsi+rcx*1+0x40]
+    c414:	90                   	nop
+    c415:	66 66 2e 0f 1f 84 00 	data16 cs nop WORD PTR [rax+rax*1+0x0]
+    c41c:	00 00 00 00
+    c420:	c5 f8 28 1a          	vmovaps xmm3,XMMWORD PTR [rdx]
+    c424:	c5 f8 28 62 10       	vmovaps xmm4,XMMWORD PTR [rdx+0x10]
+    c429:	48 83 c6 40          	add    rsi,0x40
+    c42d:	48 83 c2 40          	add    rdx,0x40
+    c431:	c5 f8 28 4e c0       	vmovaps xmm1,XMMWORD PTR [rsi-0x40]
+    c436:	c5 f8 28 46 d0       	vmovaps xmm0,XMMWORD PTR [rsi-0x30]
+    c43b:	48 83 c0 40          	add    rax,0x40
+    c43f:	c5 f0 59 d3          	vmulps xmm2,xmm1,xmm3
+    c443:	c5 f0 59 cc          	vmulps xmm1,xmm1,xmm4
+    c447:	c4 e2 79 bc d4       	vfnmadd231ps xmm2,xmm0,xmm4
+    c44c:	c4 e2 71 98 c3       	vfmadd132ps xmm0,xmm1,xmm3
+    c451:	c5 f8 29 50 c0       	vmovaps XMMWORD PTR [rax-0x40],xmm2
+    c456:	c5 f8 29 40 d0       	vmovaps XMMWORD PTR [rax-0x30],xmm0
+    c45b:	c5 f8 28 4e e0       	vmovaps xmm1,XMMWORD PTR [rsi-0x20]
+    c460:	c5 f8 28 5a e0       	vmovaps xmm3,XMMWORD PTR [rdx-0x20]
+    c465:	c5 f8 28 62 f0       	vmovaps xmm4,XMMWORD PTR [rdx-0x10]
+    c46a:	c5 f8 28 46 f0       	vmovaps xmm0,XMMWORD PTR [rsi-0x10]
+    c46f:	c5 f0 59 d3          	vmulps xmm2,xmm1,xmm3
+    c473:	c5 f0 59 cc          	vmulps xmm1,xmm1,xmm4
+    c477:	c4 e2 79 bc d4       	vfnmadd231ps xmm2,xmm0,xmm4
+    c47c:	c4 e2 71 98 c3       	vfmadd132ps xmm0,xmm1,xmm3
+    c481:	c5 f8 29 50 e0       	vmovaps XMMWORD PTR [rax-0x20],xmm2
+    c486:	c5 f8 29 40 f0       	vmovaps XMMWORD PTR [rax-0x10],xmm0
+    c48b:	48 39 f1             	cmp    rcx,rsi
+    c48e:	75 90                	jne    c420 <pffft_zconvolve+0x40>
+    c490:	8b 47 6c             	mov    eax,DWORD PTR [rdi+0x6c]
+    c493:	85 c0                	test   eax,eax
+    c495:	75 14                	jne    c4ab <pffft_zconvolve+0xcb>
+    c497:	c4 c1 4a 59 f0       	vmulss xmm6,xmm6,xmm8
+    c49c:	c5 d2 59 ef          	vmulss xmm5,xmm5,xmm7
+    c4a0:	c4 c1 7a 11 30       	vmovss DWORD PTR [r8],xmm6
+    c4a5:	c4 c1 7a 11 68 10    	vmovss DWORD PTR [r8+0x10],xmm5
+    c4ab:	c3                   	ret
+
+Disassembly of section .fini:

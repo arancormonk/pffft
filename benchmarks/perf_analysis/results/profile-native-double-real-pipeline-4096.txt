@@ -1,0 +1,23 @@
+# To display the perf.data header info, please use --header/--header-only options.
+#
+#
+# Total Lost Samples: 0
+#
+# Samples: 945  of event 'cycles:u'
+# Event count (approx.): 4277232582
+#
+# Overhead  Symbol                        Shared Object         IPC   [IPC Coverage]
+# ........  ............................  ....................  ....................
+#
+    38.09%  [.] radb4_ps                  hotloops_double       -      -
+    35.29%  [.] radf4_ps                  hotloops_double       -      -
+     9.39%  [.] pffftd_zconvolve          hotloops_double       -      -
+     7.51%  [.] pffftd_real_preprocess    hotloops_double       -      -
+     7.32%  [.] pffftd_real_finalize      hotloops_double       -      -
+     1.18%  [.] rfftf1_ps                 hotloops_double       -      -
+     0.64%  [.] rfftb1_ps                 hotloops_double       -      -
+
+
+#
+# (Tip: Use --symfs <dir>[,layout] if your symbol files are in non-standard locations.)
+#

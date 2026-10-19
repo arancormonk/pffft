@@ -118,9 +118,13 @@ static NEVER_INLINE(void) PFFFT_REAL_FINALIZE(int Ncvec, const v4sf *in, v4sf *o
   }
 #if PFFFT_REAL_ORDERED
   /* The low pairs were written by the boundary formulas above. Complete
-     their high pairs without reading back those individual scalar stores. */
-  memcpy((float*)(out + 2*dk) + 2, (const float*)&previous1 + 2, 2*sizeof(float));
-  memcpy((float*)(out + 6*dk) + 2, (const float*)&previous3 + 2, 2*sizeof(float));
+     their high pairs without reading back those individual scalar stores.
+     Use byte offsets to copy part of each vector's object representation. */
+  const size_t pair_bytes = 2*sizeof(float);
+  memcpy((unsigned char*)&out[2*dk] + pair_bytes,
+         (const unsigned char*)&previous1 + pair_bytes, pair_bytes);
+  memcpy((unsigned char*)&out[6*dk] + pair_bytes,
+         (const unsigned char*)&previous3 + pair_bytes, pair_bytes);
 #endif
 }
 

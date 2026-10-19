@@ -36,7 +36,9 @@ static void check_case(float rate, float phase, int n) {
   const float next_in = shift_unroll_inp_c(inplace.data()+1, n, &table, phase);
   const float next_alias = shift_unroll_cc(aliased.data()+1, aliased.data()+1,
                                           n, &table, phase);
-  assert(next == next_in && next == next_alias);
+  /* All entry points must return the same phase bits. */
+  assert(!std::memcmp(&next, &next_in, sizeof(next)));
+  assert(!std::memcmp(&next, &next_alias, sizeof(next)));
   assert(std::isfinite(next) && std::fabs(next) <= 3.1415928f);
   assert(!std::memcmp(input.data(), original.data(), (n+2) * sizeof(complexf)));
   /* The existing table accumulates its phase in float. Allow its accumulated
@@ -80,8 +82,11 @@ static void check_continuity() {
     check_value(data[i], .5 * std::cos(a) - .25 * std::sin(a),
                          .5 * std::sin(a) + .25 * std::cos(a), 2e-5);
   }
-  assert(shift_unroll_inp_c(NULL, 0, &table, phase) == phase);
-  assert(shift_unroll_cc(NULL, NULL, 0, &table, phase) == phase);
+  /* Empty calls must preserve the phase bit for bit. */
+  const float next_in = shift_unroll_inp_c(NULL, 0, &table, phase);
+  const float next = shift_unroll_cc(NULL, NULL, 0, &table, phase);
+  assert(!std::memcmp(&next_in, &phase, sizeof(phase)));
+  assert(!std::memcmp(&next, &phase, sizeof(phase)));
   shift_unroll_deinit(&table);
 }
 

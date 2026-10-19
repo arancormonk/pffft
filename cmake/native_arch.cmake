@@ -11,7 +11,8 @@
 # The baseline is kept, with a status message saying why, when host tuning would
 # be wrong or surprising:
 #   - pffft is built as a dependency (add_subdirectory / FetchContent),
-#   - cross compiling, Android, iOS or Emscripten,
+#   - cross compiling, Android, iOS (also through an iOS/tvOS/watchOS/visionOS
+#     CMAKE_OSX_SYSROOT) or Emscripten,
 #   - CMAKE_OSX_ARCHITECTURES names several or a non-host architecture,
 #   - the compiler flags of any configuration already select an ISA (-march=,
 #     -mcpu=, /arch:), which also covers distribution CFLAGS such as makepkg's
@@ -66,6 +67,8 @@ function(pffft_native_arch_default lang out_var)
         set(_reason "cross compiling")
     elseif (ANDROID OR IOS OR EMSCRIPTEN)
         set(_reason "${CMAKE_SYSTEM_NAME} target")
+    elseif ("${CMAKE_OSX_SYSROOT}" MATCHES "(iphone|appletv|watch|xr)(os|simulator)")
+        set(_reason "CMAKE_OSX_SYSROOT='${CMAKE_OSX_SYSROOT}' is not a macOS SDK")
     elseif (CMAKE_OSX_ARCHITECTURES)
         list(LENGTH CMAKE_OSX_ARCHITECTURES _n_osx_archs)
         if ( (_n_osx_archs GREATER 1)
@@ -82,7 +85,7 @@ function(pffft_native_arch_default lang out_var)
             set(_flags "${_flags} ${CMAKE_${lang}_FLAGS_${_config}}")
         endforeach()
         string(REGEX REPLACE "[ \t\r\n]+" " " _flags " ${_flags}")
-        if ("${_flags}" MATCHES " (-march=|-mcpu=|[-/][Aa][Rr][Cc][Hh]:)")
+        if ("${_flags}" MATCHES " [\"']?(-march=|-mcpu=|[-/][Aa][Rr][Cc][Hh]:)")
             set(_reason "the ${lang} compiler command or flags already select an architecture")
         endif()
     endif()

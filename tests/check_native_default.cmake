@@ -11,7 +11,8 @@
 # A launcher such as "ccache gcc" keeps the compiler itself in ARG1; pass the
 # pair through CC/CXX, which CMake splits again. Plain compilers go through
 # -DCMAKE_<LANG>_COMPILER so that paths with spaces stay intact.
-set(_env_args --unset=CFLAGS --unset=CXXFLAGS --unset=LDFLAGS --unset=CMAKE_TOOLCHAIN_FILE)
+set(_env_args --unset=CFLAGS --unset=CXXFLAGS --unset=LDFLAGS --unset=CMAKE_TOOLCHAIN_FILE
+    --unset=CMAKE_OSX_ARCHITECTURES)
 set(_compiler_args "")
 foreach (_lang C CXX)
     string(STRIP "${${_lang}_COMPILER_ARG1}" _arg1)
@@ -20,7 +21,11 @@ foreach (_lang C CXX)
         if (_lang STREQUAL "CXX")
             set(_env_name CXX)
         endif()
-        list(APPEND _env_args "${_env_name}=${${_lang}_COMPILER} ${_arg1}")
+        set(_compiler "${${_lang}_COMPILER}")
+        if (_compiler MATCHES " ")
+            set(_compiler "\"${_compiler}\"")
+        endif()
+        list(APPEND _env_args "${_env_name}=${_compiler} ${_arg1}")
     else()
         list(APPEND _compiler_args "-DCMAKE_${_lang}_COMPILER=${${_lang}_COMPILER}")
     endif()
@@ -101,8 +106,14 @@ if (ISA_FLAG)
         "-DCMAKE_C_FLAGS_DEBUG=${ISA_FLAG}" "-DCMAKE_CXX_FLAGS_DEBUG=${ISA_FLAG}")
     expect_arch(debug_flags C "none")
     expect_arch(debug_flags CXX "none")
+    # single quotes only quote on POSIX command lines
+    set(_cxx_quote "'")
+    if (CMAKE_HOST_WIN32)
+        set(_cxx_quote "\"")
+    endif()
     configure_case(quoted_flags "${PFFFT_SOURCE_DIR}" _log
-        "-DCMAKE_C_FLAGS=-O2 \"${ISA_FLAG}\"" "-DCMAKE_CXX_FLAGS=-O2 '${ISA_FLAG}'")
+        "-DCMAKE_C_FLAGS=-O2 \"${ISA_FLAG}\""
+        "-DCMAKE_CXX_FLAGS=-O2 ${_cxx_quote}${ISA_FLAG}${_cxx_quote}")
     expect_arch(quoted_flags C "none")
     expect_arch(quoted_flags CXX "none")
     configure_case(tab_flags "${PFFFT_SOURCE_DIR}" _log

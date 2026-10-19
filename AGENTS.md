@@ -5,9 +5,12 @@ This guide provides build commands, testing procedures, and code style conventio
 ## Build Commands
 
 ```bash
-# Configure with CMake (Release build, default)
+# Configure with CMake (Release build, default; tuned for this machine)
 mkdir build && cd build
 cmake -DCMAKE_BUILD_TYPE=Release ..
+
+# Portable build for other machines (baseline ISA, as CI archives use)
+cmake -DCMAKE_BUILD_TYPE=Release -DTARGET_C_ARCH=none -DTARGET_CXX_ARCH=none ..
 
 # Configure with specific compiler (clang example)
 CC=/usr/bin/clang CXX=/usr/bin/clang++ cmake -DCMAKE_BUILD_TYPE=Debug ..
@@ -278,7 +281,8 @@ cmake -DPFFFT_USE_BENCH_FFTW=ON ..
 
 ## Platform-Specific Notes
 
-- Windows MSVC: Use `/arch:SSE`, `/arch:AVX` etc. for SIMD
+- Windows MSVC: `TARGET_C_ARCH`/`TARGET_CXX_ARCH` take `/arch` levels (`SSE2`, `AVX`, `AVX2`, `AVX512`);
+  the top-level default is the build host's level, probed at configure time
 - Windows MinGW: Cross-compilation scripts available
 - macOS: Works with native toolchain; Accelerate framework optional
 - Linux: Works with GCC or Clang; standard `libm` linked by default

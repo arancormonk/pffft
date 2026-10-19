@@ -299,3 +299,26 @@ if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang" AND NOT MSVC)
     endif()
   endforeach()
 endif()
+
+# Fresh top-level configures tune for the build host; flags that already pick
+# an ISA and dependency builds keep the baseline. Visual Studio configures are
+# too slow to repeat here; CI checks the MSVC default separately.
+if(PFFFT_IS_TOPLEVEL AND NOT CMAKE_CROSSCOMPILING AND NOT CMAKE_GENERATOR MATCHES "Visual Studio")
+  if(CMAKE_C_COMPILER_ID MATCHES "MSVC" OR CMAKE_C_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
+    set(_pffft_isa_flag "/arch:AVX")
+  elseif(PFFFT_TARGET_IS_X86)
+    set(_pffft_isa_flag "-march=x86-64")
+  else()
+    set(_pffft_isa_flag "-mcpu=generic")
+  endif()
+  add_test(NAME test_native_default
+    COMMAND "${CMAKE_COMMAND}"
+      "-DPFFFT_SOURCE_DIR=${PFFFT_SOURCE_DIR}"
+      "-DWORK_DIR=${CMAKE_CURRENT_BINARY_DIR}/native_default"
+      "-DGENERATOR=${CMAKE_GENERATOR}"
+      "-DMAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}"
+      "-DC_COMPILER=${CMAKE_C_COMPILER}"
+      "-DCXX_COMPILER=${CMAKE_CXX_COMPILER}"
+      "-DISA_FLAG=${_pffft_isa_flag}"
+      -P "${CMAKE_CURRENT_SOURCE_DIR}/check_native_default.cmake")
+endif()

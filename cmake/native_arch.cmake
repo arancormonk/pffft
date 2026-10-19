@@ -13,8 +13,9 @@
 #   - pffft is built as a dependency (add_subdirectory / FetchContent),
 #   - cross compiling, Android, iOS or Emscripten,
 #   - CMAKE_OSX_ARCHITECTURES names several or a non-host architecture,
-#   - the compiler flags already select an ISA (-march=, -mcpu=, /arch:), which
-#     also covers distribution CFLAGS such as makepkg's -march=x86-64,
+#   - the compiler flags of any configuration already select an ISA (-march=,
+#     -mcpu=, /arch:), which also covers distribution CFLAGS such as makepkg's
+#     -march=x86-64,
 #   - the compiler rejects -march=native.
 # Packages meant for other machines should configure with --preset release or
 # -DTARGET_C_ARCH=none -DTARGET_CXX_ARCH=none.
@@ -57,9 +58,10 @@ function(pffft_native_arch_default lang out_var)
         endif()
     endif()
     if ("${_reason}" STREQUAL "")
-        string(TOUPPER "${CMAKE_BUILD_TYPE}" _build_type)
+        # arch flags apply to every configuration, so check all of them
+        string(TOUPPER "${CMAKE_BUILD_TYPE};${CMAKE_CONFIGURATION_TYPES}" _configs)
         set(_flags "${CMAKE_${lang}_FLAGS}")
-        foreach (_config RELEASE RELWITHDEBINFO MINSIZEREL ${_build_type})
+        foreach (_config DEBUG RELEASE RELWITHDEBINFO MINSIZEREL ${_configs})
             set(_flags "${_flags} ${CMAKE_${lang}_FLAGS_${_config}}")
         endforeach()
         if ("${_flags}" MATCHES "(^| )(-march=|-mcpu=|[-/][Aa][Rr][Cc][Hh]:)")

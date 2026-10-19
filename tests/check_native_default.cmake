@@ -5,13 +5,30 @@
 #   - built as a dependency through add_subdirectory(): "none"
 #
 # cmake -DPFFFT_SOURCE_DIR=... -DWORK_DIR=... -DGENERATOR=... [-DMAKE_PROGRAM=...]
-#       -DC_COMPILER=... -DCXX_COMPILER=... -DISA_FLAG=<flag selecting an ISA>
-#       -P check_native_default.cmake
+#       -DC_COMPILER=... [-DC_COMPILER_ARG1=...] -DCXX_COMPILER=... [-DCXX_COMPILER_ARG1=...]
+#       [-DISA_FLAG=<flag selecting the baseline ISA>] -P check_native_default.cmake
+
+# A launcher such as "ccache gcc" keeps the compiler itself in ARG1; pass the
+# pair through CC/CXX, which CMake splits again. Plain compilers go through
+# -DCMAKE_<LANG>_COMPILER so that paths with spaces stay intact.
+set(_env_args --unset=CFLAGS --unset=CXXFLAGS)
+set(_compiler_args "")
+foreach (_lang C CXX)
+    string(STRIP "${${_lang}_COMPILER_ARG1}" _arg1)
+    if (_arg1)
+        set(_env_name CC)
+        if (_lang STREQUAL "CXX")
+            set(_env_name CXX)
+        endif()
+        list(APPEND _env_args "${_env_name}=${${_lang}_COMPILER} ${_arg1}")
+    else()
+        list(APPEND _compiler_args "-DCMAKE_${_lang}_COMPILER=${${_lang}_COMPILER}")
+    endif()
+endforeach()
 
 set(_common_args
     -G "${GENERATOR}"
-    "-DCMAKE_C_COMPILER=${C_COMPILER}"
-    "-DCMAKE_CXX_COMPILER=${CXX_COMPILER}"
+    ${_compiler_args}
     -DCMAKE_BUILD_TYPE=Release
     -DPFFFT_BUILD_TESTS=OFF
     -DPFFFT_BUILD_BENCHMARKS=OFF
@@ -24,7 +41,9 @@ function(configure_case name source_dir out_log)
     set(_bin "${WORK_DIR}/${name}")
     file(REMOVE_RECURSE "${_bin}")
     execute_process(
-        COMMAND "${CMAKE_COMMAND}" -S "${source_dir}" -B "${_bin}" ${_common_args} ${ARGN}
+        # build flags from the environment would select the baseline themselves
+        COMMAND "${CMAKE_COMMAND}" -E env ${_env_args}
+                "${CMAKE_COMMAND}" -S "${source_dir}" -B "${_bin}" ${_common_args} ${ARGN}
         RESULT_VARIABLE _result
         OUTPUT_VARIABLE _output
         ERROR_VARIABLE _output)
@@ -55,7 +74,7 @@ configure_case(toplevel "${PFFFT_SOURCE_DIR}" _log)
 foreach (_lang C CXX)
     read_arch(toplevel ${_lang} _value)
     if ("${_value}" STREQUAL "none")
-        if (NOT "${_log}" MATCHES "TARGET_${_lang}_ARCH defaults to 'none': (compiler rejects -march=native|build host has no AVX)")
+        if (NOT "${_log}" MATCHES "TARGET_${_lang}_ARCH defaults to 'none': (compiler rejects -march=native|build host has no AVX|no MSVC host tuning for )")
             message(FATAL_ERROR "toplevel: TARGET_${_lang}_ARCH is 'none' without a reason\n${_log}")
         endif()
     elseif (NOT "${_value}" MATCHES "^(native|AVX|AVX2|AVX512)$")
@@ -63,11 +82,17 @@ foreach (_lang C CXX)
     endif()
 endforeach()
 
-# an ISA chosen in the compiler flags wins
-configure_case(user_flags "${PFFFT_SOURCE_DIR}" _log
-    "-DCMAKE_C_FLAGS=${ISA_FLAG}" "-DCMAKE_CXX_FLAGS=${ISA_FLAG}")
-expect_arch(user_flags C "none")
-expect_arch(user_flags CXX "none")
+# an ISA chosen in the compiler flags wins, also in a single configuration
+if (ISA_FLAG)
+    configure_case(user_flags "${PFFFT_SOURCE_DIR}" _log
+        "-DCMAKE_C_FLAGS=${ISA_FLAG}" "-DCMAKE_CXX_FLAGS=${ISA_FLAG}")
+    expect_arch(user_flags C "none")
+    expect_arch(user_flags CXX "none")
+    configure_case(debug_flags "${PFFFT_SOURCE_DIR}" _log
+        "-DCMAKE_C_FLAGS_DEBUG=${ISA_FLAG}" "-DCMAKE_CXX_FLAGS_DEBUG=${ISA_FLAG}")
+    expect_arch(debug_flags C "none")
+    expect_arch(debug_flags CXX "none")
+endif()
 
 # dependencies keep the compiler's baseline ISA
 set(_wrapper "${WORK_DIR}/wrapper_src")

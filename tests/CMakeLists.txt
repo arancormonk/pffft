@@ -304,12 +304,20 @@ endif()
 # an ISA and dependency builds keep the baseline. Visual Studio configures are
 # too slow to repeat here; CI checks the MSVC default separately.
 if(PFFFT_IS_TOPLEVEL AND NOT CMAKE_CROSSCOMPILING AND NOT CMAKE_GENERATOR MATCHES "Visual Studio")
+  # a valid flag that selects the baseline ISA; empty skips that case
+  set(_pffft_isa_flag "")
   if(CMAKE_C_COMPILER_ID MATCHES "MSVC" OR CMAKE_C_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
-    set(_pffft_isa_flag "/arch:AVX")
-  elseif(PFFFT_TARGET_IS_X86)
+    if(PFFFT_TARGET_IS_X86)
+      set(_pffft_isa_flag "/arch:AVX")
+    endif()
+  elseif(PFFFT_TARGET_IS_X86 AND CMAKE_SIZEOF_VOID_P EQUAL 8)
     set(_pffft_isa_flag "-march=x86-64")
-  else()
-    set(_pffft_isa_flag "-mcpu=generic")
+  elseif(PFFFT_TARGET_IS_X86)
+    set(_pffft_isa_flag "-march=pentium4")
+  elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64|arm64|ARM64)$")
+    set(_pffft_isa_flag "-march=armv8-a")
+  elseif(PFFFT_TARGET_IS_ARMV7)
+    set(_pffft_isa_flag "-march=armv7-a")
   endif()
   add_test(NAME test_native_default
     COMMAND "${CMAKE_COMMAND}"
@@ -318,7 +326,9 @@ if(PFFFT_IS_TOPLEVEL AND NOT CMAKE_CROSSCOMPILING AND NOT CMAKE_GENERATOR MATCHE
       "-DGENERATOR=${CMAKE_GENERATOR}"
       "-DMAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}"
       "-DC_COMPILER=${CMAKE_C_COMPILER}"
+      "-DC_COMPILER_ARG1=${CMAKE_C_COMPILER_ARG1}"
       "-DCXX_COMPILER=${CMAKE_CXX_COMPILER}"
+      "-DCXX_COMPILER_ARG1=${CMAKE_CXX_COMPILER_ARG1}"
       "-DISA_FLAG=${_pffft_isa_flag}"
       -P "${CMAKE_CURRENT_SOURCE_DIR}/check_native_default.cmake")
 endif()

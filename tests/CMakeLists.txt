@@ -311,9 +311,9 @@ if(PFFFT_IS_TOPLEVEL AND NOT CMAKE_CROSSCOMPILING AND NOT CMAKE_GENERATOR MATCHE
       set(_pffft_isa_flag "/arch:AVX")
     endif()
   elseif(PFFFT_TARGET_IS_X86 AND CMAKE_SIZEOF_VOID_P EQUAL 8)
+    # 32-bit x86 builds may come from a multilib compiler whose default mode
+    # (without the parent's -m32) rejects a 32-bit CPU, so they skip the case
     set(_pffft_isa_flag "-march=x86-64")
-  elseif(PFFFT_TARGET_IS_X86)
-    set(_pffft_isa_flag "-march=pentium4")
   elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64|arm64|ARM64)$")
     set(_pffft_isa_flag "-march=armv8-a")
   elseif(PFFFT_TARGET_IS_ARMV7)

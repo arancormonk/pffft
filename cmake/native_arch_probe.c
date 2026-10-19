@@ -38,8 +38,9 @@ static const char* host_arch(void) {
         return "none";
     }
     cpuid(1, 0, l1);
-    /* OSXSAVE (27) and AVX (28) */
-    if ((l1[2] & (1u << 27)) == 0 || (l1[2] & (1u << 28)) == 0) {
+    /* /arch:AVX also lets the compiler use SSE3 (0), SSSE3 (9), SSE4.1 (19),
+     * SSE4.2 (20) and POPCNT (23); AVX needs OSXSAVE (27) and AVX (28) */
+    if ((l1[2] & 0x18980201u) != 0x18980201u) {
         return "none";
     }
     xcr = xcr0();

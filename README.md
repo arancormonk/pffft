@@ -245,12 +245,14 @@ an odd multiple of pi per lane step, including `rate=0.125` for eight lanes.
 
 ### x86: enable FMA
 
-On x86 the fused multiply-add paths are **opt-in**, and the default build does
-not get them. `VMADD`/`VMSUB` -- used by the complex multiply at the heart of
+On x86 the fused multiply-add paths need an architecture with FMA3. A
+host-tuned default build on an FMA-capable machine gets them; baseline-ISA
+builds (`TARGET_C_ARCH=none`, the `release` preset, packages) do not.
+`VMADD`/`VMSUB` -- used by the complex multiply at the heart of
 `pffft_zconvolve*()` and of every radix codelet -- lower to a real FMA
 instruction only when the compiler guarantees FMA3:
 
-| compiler | how to enable |
+| compiler | how to request it explicitly |
 | --- | --- |
 | gcc / clang | `-DTARGET_C_ARCH=haswell` (or a later `-march` value) |
 | MSVC | `-DTARGET_C_ARCH=AVX2` |

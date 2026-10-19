@@ -5,6 +5,7 @@
     {
       "name": "release",
       "displayName": "Release with the compiler's baseline ISA",
+      "description": "Portable build for packages; runs on any CPU the compiler targets by default.",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build_${presetName}",
       "cacheVariables": {

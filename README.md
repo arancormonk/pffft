@@ -195,11 +195,25 @@ of pffft.
 
 ### Choose a Release configuration
 
+A plain top-level configure is tuned for the build host: `TARGET_C_ARCH` and
+`TARGET_CXX_ARCH` default to `native` (`-march=native`) with GCC and Clang. MSVC
+and clang-cl have no `/arch:native`, so configure probes the build host's CPU and
+picks the highest of `AVX512`, `AVX2` and `AVX` it can run. Such a build requires a
+CPU compatible with the build host; there is no runtime ISA dispatch.
+
+The default stays at the compiler's baseline ISA (`none`) when host tuning would
+be wrong: when pffft is built as a dependency (`add_subdirectory`,
+`FetchContent`), when cross compiling (Android, iOS and Emscripten included),
+when `CMAKE_OSX_ARCHITECTURES` names several or a non-host architecture, when
+`CMAKE_C_FLAGS`/`CMAKE_CXX_FLAGS` already select an ISA (`-march=`, `-mcpu=`,
+`/arch:`, as distribution build flags usually do), or when the compiler rejects
+`-march=native`. CMake prints which default it chose and why.
+
 With CMake 3.21 or newer and Ninja, the repository provides these presets:
 
 | Preset | Intended use |
 | --- | --- |
-| `release` | Compiler baseline ISA; no additional architecture flags |
+| `release` | Packages: compiler baseline ISA, no additional architecture flags |
 | `release-native` | GCC/Clang build for the current host, including its available AVX/FMA features |
 | `release-haswell` | GCC/Clang x86 package explicitly requiring the Haswell instruction set |
 | `release-native-unfused` | Native build with explicit FMA and compiler contraction disabled |
@@ -210,13 +224,13 @@ cmake --build --preset release-native --parallel
 ctest --preset release-native
 ```
 
-Use `release` for baseline packages, or distribute a separately labelled
-`release-haswell` package to compatible x86 machines. Native builds require a
-CPU compatible with the build host; there is no runtime ISA dispatch. On MSVC,
-use the existing `-DTARGET_C_ARCH=AVX2 -DTARGET_CXX_ARCH=AVX2` options instead of
-the GCC/Clang architecture presets. Older CMake versions can use the equivalent
-`-DCMAKE_BUILD_TYPE=Release -DTARGET_C_ARCH=native -DTARGET_CXX_ARCH=native`
-options directly.
+Build binaries meant for other machines with the `release` preset, or pass
+`-DTARGET_C_ARCH=none -DTARGET_CXX_ARCH=none`; alternatively distribute a
+separately labelled `release-haswell` package to compatible x86 machines. On
+MSVC, select a level explicitly with `-DTARGET_C_ARCH=AVX2 -DTARGET_CXX_ARCH=AVX2`
+(or `SSE2`, `AVX`, `AVX512`). The archives uploaded by this repository's CI use
+the baseline ISA, except the MSVC builds labelled `build_sse2`, `build_avx` and
+`build_avx2`.
 
 On a Ryzen 5950X, selecting the native backend made a 1024-point double real
 forward FFT 2.08 times as fast as the baseline SSE2 build. Float stays four-wide;
@@ -250,9 +264,10 @@ operations per iteration instead of 12**.
 cmake -DTARGET_C_ARCH=haswell -DTARGET_CXX_ARCH=haswell ..
 ```
 
-This is not the default on purpose: FMA3 requires an Intel Haswell (2013) or
-AMD Piledriver CPU, so enabling it unconditionally would break older hardware.
-`cmake` prints a reminder when the selected x86 architecture has no FMA.
+Host-tuned builds get FMA when the build host has it. The baseline ISA used for
+packages does not on purpose: FMA3 requires an Intel Haswell (2013) or AMD
+Piledriver CPU, so requiring it would break older hardware. `cmake` prints a
+reminder when the selected x86 architecture has no FMA.
 
 Each FMA rounds once where a separate multiply and add round twice, so final
 transform results can differ. Fewer instructions do not guarantee a speedup

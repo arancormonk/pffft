@@ -11,7 +11,7 @@
 # A launcher such as "ccache gcc" keeps the compiler itself in ARG1; pass the
 # pair through CC/CXX, which CMake splits again. Plain compilers go through
 # -DCMAKE_<LANG>_COMPILER so that paths with spaces stay intact.
-set(_env_args --unset=CFLAGS --unset=CXXFLAGS)
+set(_env_args --unset=CFLAGS --unset=CXXFLAGS --unset=CMAKE_TOOLCHAIN_FILE)
 set(_compiler_args "")
 foreach (_lang C CXX)
     string(STRIP "${${_lang}_COMPILER_ARG1}" _arg1)
@@ -40,10 +40,13 @@ endif()
 function(configure_case name source_dir out_log)
     set(_bin "${WORK_DIR}/${name}")
     file(REMOVE_RECURSE "${_bin}")
+    file(MAKE_DIRECTORY "${_bin}")
     execute_process(
-        # build flags from the environment would select the baseline themselves
+        # build flags or a toolchain from the environment would select the
+        # baseline themselves; -S/-B needs CMake 3.13
         COMMAND "${CMAKE_COMMAND}" -E env ${_env_args}
-                "${CMAKE_COMMAND}" -S "${source_dir}" -B "${_bin}" ${_common_args} ${ARGN}
+                "${CMAKE_COMMAND}" ${_common_args} ${ARGN} "${source_dir}"
+        WORKING_DIRECTORY "${_bin}"
         RESULT_VARIABLE _result
         OUTPUT_VARIABLE _output
         ERROR_VARIABLE _output)
@@ -83,6 +86,7 @@ foreach (_lang C CXX)
 endforeach()
 
 # an ISA chosen in the compiler flags wins, also in a single configuration
+# or after a tab
 if (ISA_FLAG)
     configure_case(user_flags "${PFFFT_SOURCE_DIR}" _log
         "-DCMAKE_C_FLAGS=${ISA_FLAG}" "-DCMAKE_CXX_FLAGS=${ISA_FLAG}")
@@ -92,6 +96,10 @@ if (ISA_FLAG)
         "-DCMAKE_C_FLAGS_DEBUG=${ISA_FLAG}" "-DCMAKE_CXX_FLAGS_DEBUG=${ISA_FLAG}")
     expect_arch(debug_flags C "none")
     expect_arch(debug_flags CXX "none")
+    configure_case(tab_flags "${PFFFT_SOURCE_DIR}" _log
+        "-DCMAKE_C_FLAGS=-O2\t${ISA_FLAG}" "-DCMAKE_CXX_FLAGS=-O2\t${ISA_FLAG}")
+    expect_arch(tab_flags C "none")
+    expect_arch(tab_flags CXX "none")
 endif()
 
 # dependencies keep the compiler's baseline ISA

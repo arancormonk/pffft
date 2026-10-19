@@ -100,7 +100,9 @@ static void check_rate_changes() {
     const float rate = rates[j];
     const float u = state.u_cos[0], v = state.v_sin[0];
     shift_recursive_osc_update_rate(rate, &conf, &state);
-    assert(state.u_cos[0] == u && state.v_sin[0] == v);
+    /* Updating the rate must preserve the current phase bit for bit. */
+    assert(!std::memcmp(&state.u_cos[0], &u, sizeof(u)));
+    assert(!std::memcmp(&state.v_sin[0], &v, sizeof(v)));
     gen_recursive_osc_c(output.data(), n, &conf, &state);
     if (have_sse_shift_mixer_impl()) {
       shift_recursive_osc_sse_update_rate(rate, &sse_conf, &sse_state);

@@ -1,0 +1,17 @@
+llvm-mca: LLVM version 23.1.3
+cases: 56 (kinds, L1-resident inferred-table sizes, 8 modes)
+calibration (znver3 vs measured): max deviation 18.9%, median 4.8%: FAIL
+control (znver1): median corrected speedup 1.423x: FAIL
+gate znver2         : corrected min 1.722x median 2.247x: PASS
+gate znver4         : corrected min 1.350x median 1.823x: PASS
+gate znver5         : corrected min 1.350x median 1.823x: PASS
+gate haswell        : corrected min 1.763x median 2.169x: PASS
+gate broadwell      : corrected min 1.770x median 2.282x: PASS
+gate skylake        : corrected min 1.574x median 1.988x: PASS
+gate cannonlake     : corrected min 1.574x median 1.988x: PASS
+gate icelake-client : corrected min 1.639x median 2.030x: PASS
+gate tigerlake      : corrected min 1.639x median 2.030x: PASS
+gate rocketlake     : corrected min 1.639x median 2.030x: PASS
+gate alderlake      : corrected min 1.509x median 1.991x: PASS
+gate raptorlake     : corrected min 1.509x median 1.991x: PASS
+dropped instructions (not parsed by llvm-mca): 0

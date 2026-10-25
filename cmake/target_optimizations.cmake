@@ -196,6 +196,29 @@ endif()
 
 ######################################################
 
+# Clang (18 at least) can reject the feature set -march=native detects on CPUs
+# with AVX10.1 ("invalid feature combination: ... +avx10.1-256; will be
+# promoted to avx10.1-512"), which is an error with warnings as errors. The
+# promotion is what the CPU supports anyway, so silence the warning for
+# host-tuned builds.
+function(pffft_native_feature_warning lang target arch)
+    if (NOT "${arch}" STREQUAL "native" OR NOT CMAKE_${lang}_COMPILER_ID MATCHES "Clang")
+        return()
+    endif()
+    if (lang STREQUAL "C")
+        include(CheckCCompilerFlag)
+        check_c_compiler_flag(-Winvalid-feature-combination PFFFT_C_HAS_WFEATURE_COMBINATION)
+        set(_have ${PFFFT_C_HAS_WFEATURE_COMBINATION})
+    else()
+        include(CheckCXXCompilerFlag)
+        check_cxx_compiler_flag(-Winvalid-feature-combination PFFFT_CXX_HAS_WFEATURE_COMBINATION)
+        set(_have ${PFFFT_CXX_HAS_WFEATURE_COMBINATION})
+    endif()
+    if (_have)
+        target_compile_options(${target} PRIVATE "-Wno-invalid-feature-combination")
+    endif()
+endfunction()
+
 function(target_set_c_arch_flags target)
     # Emscripten WASM SIMD
     if (EMSCRIPTEN)
@@ -226,6 +249,7 @@ function(target_set_c_arch_flags target)
             endif()
         elseif ( (CMAKE_C_COMPILER_ID STREQUAL "GNU") OR (CMAKE_C_COMPILER_ID STREQUAL "Clang") OR (CMAKE_C_COMPILER_ID STREQUAL "AppleClang") )
             target_compile_options(${target} PRIVATE "-march=${TARGET_C_ARCH}")
+            pffft_native_feature_warning(C ${target} "${TARGET_C_ARCH}")
             message(STATUS "C ARCH for target ${target} set: ${TARGET_C_ARCH}")
         else()
             message(WARNING "unsupported C compiler '${CMAKE_C_COMPILER_ID}' for target_set_c_arch_flags(), see https://cmake.org/cmake/help/latest/variable/CMAKE_LANG_COMPILER_ID.html")
@@ -278,6 +302,7 @@ function(target_set_cxx_arch_flags target)
             endif()
         elseif ( (CMAKE_CXX_COMPILER_ID STREQUAL "GNU") OR (CMAKE_CXX_COMPILER_ID STREQUAL "Clang") OR (CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang") )
             target_compile_options(${target} PRIVATE "-march=${TARGET_CXX_ARCH}")
+            pffft_native_feature_warning(CXX ${target} "${TARGET_CXX_ARCH}")
             message(STATUS "C++ ARCH for target ${target} set: ${TARGET_CXX_ARCH}")
         else()
             message(WARNING "unsupported C++ compiler '${CMAKE_CXX_COMPILER_ID}' for target_set_cxx_arch_flags(), see https://cmake.org/cmake/help/latest/variable/CMAKE_LANG_COMPILER_ID.html")

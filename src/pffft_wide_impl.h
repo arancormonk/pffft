@@ -37,19 +37,20 @@
     the first pair holds F(0) + i*F(N/2) as in the 4-lane layout, and the
     Z_m lanes hold X[L/2 + L*m]. Every bin 0..N/2 appears exactly once.
 
-  The public API promises only 16-byte aligned buffers. The vector type is
-  therefore declared with 16-byte alignment, so every load and store
-  compiles to an unaligned AVX move; on 32-byte aligned data that costs
-  nothing.
+  The public API promises only 16-byte aligned buffers. All vector memory
+  accesses therefore use VLD/VST, explicit unaligned AVX loads and stores;
+  on 32-byte aligned data that costs nothing. With GCC and Clang the vector
+  type is also declared 16-byte aligned.
 
-  Requires GCC or Clang on x86-64; pffft.c includes this file only then.
-  Every function between the target pragmas below is compiled for AVX2
-  (+FMA), even ones that use no vector code: a compiler may still emit
-  VEX instructions there (e.g. vzeroupper, or vzeroall with
-  -fzero-call-used-regs). They are named pffft_w8_* or w8_*, which
+  Requires x86-64 with GCC, Clang or MSVC; pffft.c includes this file only
+  then. With GCC and Clang every function between the target pragmas below
+  is compiled for AVX2 (+FMA), even ones that use no vector code: a compiler
+  may still emit VEX instructions there (e.g. vzeroupper, or vzeroall with
+  -fzero-call-used-regs). MSVC compiles them for the TU's target and
+  VEX-encodes the AVX intrinsics. They are named pffft_w8_* or w8_*, which
   tests/check_isa_baseline.py exempts, and may only run after
-  pffft_wide_cpu_level() reported support. Code that runs before that check,
-  such as pffft_wide_supports(), is defined above the pragmas.
+  pffft_wide_cpu_class() found the CPU able to. Code that runs before that
+  check, such as pffft_wide_supports() (pffft_wide_select.h), is outside.
 */
 
 #ifndef PFFFT_WIDE_IMPL_H
@@ -59,27 +60,18 @@
 
 #define W8_SIMD_SZ 8
 
-/* whether this backend handles N: a multiple of 64 (complex) or 128
-   (real) with N/8 = 2^a 3^b 5^c, at most PFFFT_MAX_N. Baseline ISA: runs
-   before the CPU check. */
-static int pffft_wide_supports(int N, pffft_transform_t transform) {
-  int m;
-  if (N <= 0 || N > PFFFT_MAX_N) return 0;
-  if (transform == PFFFT_REAL) {
-    if (N % (2*W8_SIMD_SZ*W8_SIMD_SZ)) return 0;
-  } else if (transform == PFFFT_COMPLEX) {
-    if (N % (W8_SIMD_SZ*W8_SIMD_SZ)) return 0;
-  } else {
-    return 0;
-  }
-  m = N / W8_SIMD_SZ;
-  while (m % 2 == 0) m /= 2;
-  while (m % 3 == 0) m /= 3;
-  while (m % 5 == 0) m /= 5;
-  return m == 1;
-}
+/* The functions pffft.c calls: external when the backend is its own
+   translation unit (MSVC: pffft_wide_tu.c, see pffft_wide_api.h), else static. */
+#if defined(PFFFT_WIDE_SEPARATE)
+#  include "pffft_wide_api.h"
+#  define W8_ENTRY(return_type) NEVER_INLINE(return_type)
+#else
+#  define W8_ENTRY(return_type) static NEVER_INLINE(return_type)
+#endif
 
-#if defined(__clang__)
+#if defined(_MSC_VER) && !defined(__clang__)
+   /* compiled with /arch:AVX2 (pffft_wide_tu.c, or the whole library) */
+#elif defined(__clang__)
 #  if defined(PFFFT_DISABLE_FMA)
 #    pragma clang attribute push (__attribute__((target("avx2"))), apply_to = function)
 #  else
@@ -94,7 +86,15 @@ static int pffft_wide_supports(int N, pffft_transform_t transform) {
 #  endif
 #endif
 
+#if defined(_MSC_VER) && !defined(__clang__)
+typedef __m256 pffft_v8sf;
+/* the callers in pffft.c may be compiled with legacy SSE encodings: clear
+   the upper halves of the ymm registers before returning to them */
+#  define W8_ZEROUPPER() _mm256_zeroupper()
+#else
 typedef __m256 pffft_v8sf __attribute__((aligned(16)));
+#  define W8_ZEROUPPER() ((void)0)
+#endif
 
 /* the pass codelets and everything below use these names */
 #define v4sf pffft_v8sf
@@ -123,6 +123,11 @@ typedef __m256 pffft_v8sf __attribute__((aligned(16)));
 #define SVMUL(f,v) VMUL(LD_PS1(f),v)
 #define SVMADD(f,v,c) VMADD(LD_PS1(f),v,c)
 #define SVMSUB(f,v,c) VMSUB(LD_PS1(f),v,c)
+#undef VLD
+#undef VST
+/* p[i]: the API promises 16-byte aligned buffers only */
+#define VLD(p,i) _mm256_loadu_ps((const float *)((p) + (i)))
+#define VST(p,i,v) _mm256_storeu_ps((float *)((p) + (i)), (v))
 
 #define passf2_ps        pffft_w8_passf2_ps
 #define passf3_ps        pffft_w8_passf3_ps
@@ -177,11 +182,17 @@ typedef __m256 pffft_v8sf __attribute__((aligned(16)));
     __m256 re__ = _mm256_shuffle_ps(in1, in2, _MM_SHUFFLE(2,0,2,0));    \
     out2 = _mm256_shuffle_ps(in1, in2, _MM_SHUFFLE(3,1,3,1));           \
     out1 = re__; }
+/* MAC (one of the (UN)INTERLEAVE2 macros) with its outputs stored in p[i1], p[i2] */
+#define W8_STORE2(MAC, in1, in2, p, i1, i2) {                          \
+    v4sf o1__, o2__; MAC(in1, in2, o1__, o2__);                         \
+    VST(p, i1, o1__); VST(p, i2, o2__); }
 #define W8_SIGMA(l) ((l) == 2 ? 4 : (l) == 3 ? 5 : (l) == 4 ? 2 : (l) == 5 ? 3 : (l))
 
 #define PF_FUSED_LAYOUT 1
 #define PF_UNINTERLEAVE2 W8_TD_UNINTERLEAVE2
 #define PF_INTERLEAVE2 W8_TD_INTERLEAVE2
+#define PF_UNINTERLEAVE2_ST(in1, in2, p, i1, i2) W8_STORE2(W8_TD_UNINTERLEAVE2, in1, in2, p, i1, i2)
+#define PF_INTERLEAVE2_ST(in1, in2, p, i1, i2) W8_STORE2(W8_TD_INTERLEAVE2, in1, in2, p, i1, i2)
 #include "pffft_passes_impl.h"
 #undef PF_FUSED_LAYOUT
 #undef PF_UNINTERLEAVE2
@@ -272,18 +283,18 @@ static ALWAYS_INLINE(void) w8_cplx_finalize_impl(int Ncvec, const v4sf *in, v4sf
   assert(in != out);
   for (b = 0; b < nb; ++b, in += 16, e += 14) {
     v4sf tr[8], ti[8], xr[8], xi[8];
-    for (j = 0; j < 8; ++j) { tr[j] = in[2*j]; ti[j] = in[2*j+1]; }
+    for (j = 0; j < 8; ++j) { tr[j] = VLD(in, 2*j); ti[j] = VLD(in, 2*j+1); }
     w8_transpose8(tr);
     w8_transpose8(ti);
     for (j = 0; j < 8; ++j) { xr[j] = tr[W8_SIGMA(j)]; xi[j] = ti[W8_SIGMA(j)]; }
-    for (j = 1; j < 8; ++j) VCPLXMUL(xr[j], xi[j], e[2*j-2], e[2*j-1]);
+    for (j = 1; j < 8; ++j) VCPLXMUL(xr[j], xi[j], VLD(e, 2*j-2), VLD(e, 2*j-1));
     w8_dft8(xr, xi, -1.f);
     for (j = 0; j < 8; ++j) {
       v4sf *o = out + 2*(b + nb*j);
       if (ordered) {
-        W8_INTERLEAVE2(xr[j], xi[j], o[0], o[1]);
+        W8_STORE2(W8_INTERLEAVE2, xr[j], xi[j], o, 0, 1);
       } else {
-        o[0] = xr[j]; o[1] = xi[j];
+        VST(o, 0, xr[j]); VST(o, 1, xi[j]);
       }
     }
   }
@@ -298,17 +309,17 @@ static ALWAYS_INLINE(void) w8_cplx_preprocess_impl(int Ncvec, const v4sf *in, v4
     for (j = 0; j < 8; ++j) {
       const v4sf *i = in + 2*(b + nb*j);
       if (ordered) {
-        W8_UNINTERLEAVE2(i[0], i[1], xr[j], xi[j]);
+        W8_UNINTERLEAVE2(VLD(i, 0), VLD(i, 1), xr[j], xi[j]);
       } else {
-        xr[j] = i[0]; xi[j] = i[1];
+        xr[j] = VLD(i, 0); xi[j] = VLD(i, 1);
       }
     }
     w8_dft8(xr, xi, +1.f);
-    for (j = 1; j < 8; ++j) VCPLXMULCONJ(xr[j], xi[j], e[2*j-2], e[2*j-1]);
+    for (j = 1; j < 8; ++j) VCPLXMULCONJ(xr[j], xi[j], VLD(e, 2*j-2), VLD(e, 2*j-1));
     for (j = 0; j < 8; ++j) { tr[j] = xr[W8_SIGMA(j)]; ti[j] = xi[W8_SIGMA(j)]; }
     w8_transpose8(tr);
     w8_transpose8(ti);
-    for (j = 0; j < 8; ++j) { out[2*j] = tr[j]; out[2*j+1] = ti[j]; }
+    for (j = 0; j < 8; ++j) { VST(out, 2*j, tr[j]); VST(out, 2*j+1, ti[j]); }
   }
 }
 
@@ -389,12 +400,12 @@ static ALWAYS_INLINE(void) w8_real_finalize_block(const v4sf *in, int b, const v
   v4sf xr[8], xi[8];
   int t;
   const v4sf *p = in + 16*b + 1;   /* pair t >= 1 at p[2t-2], p[2t-1] */
-  if (b) { xr[0] = p[-2]; xi[0] = p[-1]; }
-  else   { xr[0] = in[0]; xi[0] = VZERO(); }
-  for (t = 1; t < 8; ++t) { xr[t] = p[2*t-2]; xi[t] = p[2*t-1]; }
+  if (b) { xr[0] = VLD(p, -2); xi[0] = VLD(p, -1); }
+  else   { xr[0] = VLD(in, 0); xi[0] = VZERO(); }
+  for (t = 1; t < 8; ++t) { xr[t] = VLD(p, 2*t-2); xi[t] = VLD(p, 2*t-1); }
   w8_transpose8(xr);
   w8_transpose8(xi);
-  for (t = 1; t < 8; ++t) VCPLXMUL(xr[t], xi[t], e[2*t-2], e[2*t-1]);
+  for (t = 1; t < 8; ++t) VCPLXMUL(xr[t], xi[t], VLD(e, 2*t-2), VLD(e, 2*t-1));
   w8_dft8(xr, xi, -1.f);
   for (t = 0; t < 4; ++t) {
     y[2*t] = xr[t]; y[2*t+1] = xi[t];
@@ -413,12 +424,12 @@ static ALWAYS_INLINE(void) w8_real_preprocess_block(const v4sf *y, int b, const 
     xr[7-t] = y[8+2*t]; xi[7-t] = VSUB(VZERO(), y[9+2*t]);
   }
   w8_dft8(xr, xi, +1.f);
-  for (t = 1; t < 8; ++t) VCPLXMULCONJ(xr[t], xi[t], e[2*t-2], e[2*t-1]);
+  for (t = 1; t < 8; ++t) VCPLXMULCONJ(xr[t], xi[t], VLD(e, 2*t-2), VLD(e, 2*t-1));
   w8_transpose8(xr);
   w8_transpose8(xi);
-  if (b) { out[16*b-1] = xr[0]; out[16*b] = xi[0]; }
-  else   { out[0] = xr[0]; }   /* f0i does not exist: the imaginary part is 0 */
-  for (t = 1; t < 8; ++t) { out[16*b+2*t-1] = xr[t]; out[16*b+2*t] = xi[t]; }
+  if (b) { VST(out, 16*b-1, xr[0]); VST(out, 16*b, xi[0]); }
+  else   { VST(out, 0, xr[0]); }   /* f0i does not exist: the imaginary part is 0 */
+  for (t = 1; t < 8; ++t) { VST(out, 16*b+2*t-1, xr[t]); VST(out, 16*b+2*t, xi[t]); }
 }
 
 /* Ordered real layout: bin j at floats 2j, 2j+1 (bin 0 holds F(0), F(N/2)).
@@ -443,14 +454,14 @@ static ALWAYS_INLINE(void) w8_real_store_ordered(const v4sf *y, float *out, int 
   int m;
   for (m = 0; m < 4; ++m) {
     v4sf *o = (v4sf*)(out + 2*(8*b + L*m));
-    W8_INTERLEAVE2(y[2*m], y[2*m+1], o[0], o[1]);
+    W8_STORE2(W8_INTERLEAVE2, y[2*m], y[2*m+1], o, 0, 1);
   }
   for (m = 0; m < 4; ++m) {
     float *c = out + 2*(L*(m+1) - 8*(b+1));   /* chunk C(b) */
     v4sf r = _mm256_permutevar8x32_ps(y[8+2*m], rev), i = _mm256_permutevar8x32_ps(y[9+2*m], rev);
     v4sf o0, o1;
     W8_INTERLEAVE2(r, i, o0, o1);
-    ((v4sf*)c)[0] = o0; ((v4sf*)c)[1] = o1;
+    VST((v4sf*)c, 0, o0); VST((v4sf*)c, 1, o1);
     if (b) w8_store_pair(c + 16, o0);          /* Z^b lane 0: first bin of C(b-1) */
   }
 }
@@ -470,12 +481,12 @@ static ALWAYS_INLINE(void) w8_real_load_ordered(const float *in, v4sf *y, int L,
   int m;
   for (m = 0; m < 4; ++m) {
     const v4sf *i = (const v4sf*)(in + 2*(8*b + L*m));
-    W8_UNINTERLEAVE2(i[0], i[1], y[2*m], y[2*m+1]);
+    W8_UNINTERLEAVE2(VLD(i, 0), VLD(i, 1), y[2*m], y[2*m+1]);
   }
   for (m = 0; m < 4; ++m) {
     const float *c = in + 2*(L*(m+1) - 8*(b+1));                 /* chunk C(b) */
     const float *z0 = b ? c + 16 : in + 2*(L/2 + L*m);           /* lane 0 */
-    v4sf c0 = ((const v4sf*)c)[0], c1 = ((const v4sf*)c)[1];
+    v4sf c0 = VLD((const v4sf*)c, 0), c1 = VLD((const v4sf*)c, 1);
     v4sf re = _mm256_shuffle_ps(c0, c1, _MM_SHUFFLE(2,0,2,0));
     v4sf im = _mm256_shuffle_ps(c0, c1, _MM_SHUFFLE(3,1,3,1));
     y[8+2*m] = W8_SET_LANE0(_mm256_permutevar8x32_ps(re, idx), _mm256_broadcast_ss(z0));
@@ -489,7 +500,7 @@ static ALWAYS_INLINE(void) w8_real_finalize_impl(int Ncvec, const v4sf *in, v4sf
   v4sf y[16];
   float sr[4], si[4];
   assert(in != out);
-  w8_real_subnyquist_fwd(in[2*Ncvec-1], sr, si);
+  w8_real_subnyquist_fwd(VLD(in, 2*Ncvec-1), sr, si);
   for (b = 0; b < dk; ++b) {
     w8_real_finalize_block(in, b, e + 14*b, y);
     if (b == 0) {
@@ -504,9 +515,10 @@ static ALWAYS_INLINE(void) w8_real_finalize_impl(int Ncvec, const v4sf *in, v4sf
     if (ordered) {
       w8_real_store_ordered(y, (float*)out, L, b);
     } else {
-      for (m = 0; m < 16; ++m) out[16*b+m] = y[m];
+      for (m = 0; m < 16; ++m) VST(out, 16*b+m, y[m]);
     }
   }
+  W8_ZEROUPPER();
   if (ordered) w8_real_store_ordered_finish((float*)out, L, sr, si);
 }
 
@@ -519,7 +531,7 @@ static ALWAYS_INLINE(void) w8_real_preprocess_impl(int Ncvec, const v4sf *in, v4
     if (ordered) {
       w8_real_load_ordered((const float*)in, y, L, b);
     } else {
-      for (m = 0; m < 16; ++m) y[m] = in[16*b+m];
+      for (m = 0; m < 16; ++m) y[m] = VLD(in, 16*b+m);
     }
     if (b == 0) {
       /* lane 0: unpack F(0), F(N/2), keep X[L/2 + L*m] for the Nyquist
@@ -536,7 +548,7 @@ static ALWAYS_INLINE(void) w8_real_preprocess_impl(int Ncvec, const v4sf *in, v4
     }
     w8_real_preprocess_block(y, b, e + 14*b, out);
   }
-  out[2*Ncvec-1] = w8_real_subnyquist_bwd(zr, zi);
+  VST(out, 2*Ncvec-1, w8_real_subnyquist_bwd(zr, zi));
 }
 
 static NEVER_INLINE(void) w8_real_finalize(int Ncvec, const v4sf *in, v4sf *out, const v4sf *e) {
@@ -555,7 +567,7 @@ static NEVER_INLINE(void) w8_real_preprocess_ordered(int Ncvec, const v4sf *in, 
 /* ---------------------------------------------------------------------- */
 /* reordering and transform drivers (same buffer logic as the 4-lane code) */
 
-static NEVER_INLINE(void) pffft_w8_zreorder(const PFFFT_Setup *setup, const float *in, float *out,
+W8_ENTRY(void) pffft_w8_zreorder(const PFFFT_Setup *setup, const float *in, float *out,
                                             pffft_direction_t direction) {
   int k, m, Ncvec = setup->Ncvec;
   const v4sf *vin = (const v4sf*)in;
@@ -571,25 +583,27 @@ static NEVER_INLINE(void) pffft_w8_zreorder(const PFFFT_Setup *setup, const floa
         si[m] = in[(9+2*m)*W8_SIMD_SZ];
       }
       for (k = 0; k < dk; ++k) {
-        for (m = 0; m < 16; ++m) y[m] = vin[16*k+m];
+        for (m = 0; m < 16; ++m) y[m] = VLD(vin, 16*k+m);
         w8_real_store_ordered(y, out, L, k);
       }
+      W8_ZEROUPPER();
       w8_real_store_ordered_finish(out, L, sr, si);
     } else {
       for (k = 0; k < dk; ++k) {
         w8_real_load_ordered(in, y, L, k);
-        for (m = 0; m < 16; ++m) vout[16*k+m] = y[m];
+        for (m = 0; m < 16; ++m) VST(vout, 16*k+m, y[m]);
       }
     }
   } else if (direction == PFFFT_FORWARD) {
     for (k = 0; k < Ncvec; ++k) {
-      W8_INTERLEAVE2(vin[2*k], vin[2*k+1], vout[2*k], vout[2*k+1]);
+      W8_STORE2(W8_INTERLEAVE2, VLD(vin, 2*k), VLD(vin, 2*k+1), vout, 2*k, 2*k+1);
     }
   } else {
     for (k = 0; k < Ncvec; ++k) {
-      W8_UNINTERLEAVE2(vin[2*k], vin[2*k+1], vout[2*k], vout[2*k+1]);
+      W8_STORE2(W8_UNINTERLEAVE2, VLD(vin, 2*k), VLD(vin, 2*k+1), vout, 2*k, 2*k+1);
     }
   }
+  W8_ZEROUPPER();
 }
 
 static NEVER_INLINE(void) pffft_w8_transform_internal(const PFFFT_Setup *setup, const float *finput,
@@ -648,8 +662,8 @@ static NEVER_INLINE(void) pffft_w8_transform_internal(const PFFFT_Setup *setup, 
     /* extra copy required -- this situation should only happen when finput == foutput */
     assert(finput==foutput);
     for (k=0; k < Ncvec; ++k) {
-      v4sf a = buff[ib][2*k], b = buff[ib][2*k+1];
-      voutput[2*k] = a; voutput[2*k+1] = b;
+      v4sf a = VLD(buff[ib], 2*k), b = VLD(buff[ib], 2*k+1);
+      VST(voutput, 2*k, a); VST(voutput, 2*k+1, b);
     }
     ib = !ib;
   }
@@ -715,16 +729,17 @@ static NEVER_INLINE(void) pffft_w8_transform_complex_ordered(const PFFFT_Setup *
   }
   if (buff[ib] != voutput) {
     assert(input == output);
-    for (k=0; k < 2*Ncvec; ++k) voutput[k] = buff[ib][k];
+    for (k=0; k < 2*Ncvec; ++k) VST(voutput, k, VLD(buff[ib], k));
   }
 }
 
-static NEVER_INLINE(void) pffft_w8_transform(const PFFFT_Setup *setup, const float *input,
+W8_ENTRY(void) pffft_w8_transform(const PFFFT_Setup *setup, const float *input,
                                              float *output, float *work, pffft_direction_t direction) {
   pffft_w8_transform_internal(setup, input, output, (v4sf*)work, direction, 0);
+  W8_ZEROUPPER();
 }
 
-static NEVER_INLINE(void) pffft_w8_transform_ordered(const PFFFT_Setup *setup, const float *input,
+W8_ENTRY(void) pffft_w8_transform_ordered(const PFFFT_Setup *setup, const float *input,
                                                      float *output, float *work, pffft_direction_t direction) {
   if (setup->transform == PFFFT_COMPLEX) {
     pffft_w8_transform_complex_ordered(setup, input, output, (v4sf*)work, direction);
@@ -733,13 +748,14 @@ static NEVER_INLINE(void) pffft_w8_transform_ordered(const PFFFT_Setup *setup, c
   } else {
     pffft_w8_transform_real_ordered(setup, input, output, (v4sf*)work, direction);
   }
+  W8_ZEROUPPER();
 }
 
 /* ---------------------------------------------------------------------- */
 /* spectral operations: as in the 4-lane code, with the real transforms'
    F(0), F(N/2) in lane 0 of the first two vectors, i.e. floats 0 and 8 */
 
-static NEVER_INLINE(void) pffft_w8_zconvolve_accumulate(const PFFFT_Setup *s, const float *a,
+W8_ENTRY(void) pffft_w8_zconvolve_accumulate(const PFFFT_Setup *s, const float *a,
                                                         const float *b, float *ab, float scaling) {
   int i, Ncvec = s->Ncvec;
   const v4sf *va = (const v4sf*)a;
@@ -752,24 +768,25 @@ static NEVER_INLINE(void) pffft_w8_zconvolve_accumulate(const PFFFT_Setup *s, co
   assert(W8_ALIGNED16(a) && W8_ALIGNED16(b) && W8_ALIGNED16(ab));
   for (i=0; i < Ncvec; i += 2) {
     v4sf ar, ai, br, bi;
-    ar = va[2*i+0]; ai = va[2*i+1];
-    br = vb[2*i+0]; bi = vb[2*i+1];
+    ar = VLD(va, 2*i+0); ai = VLD(va, 2*i+1);
+    br = VLD(vb, 2*i+0); bi = VLD(vb, 2*i+1);
     VCPLXMUL(ar, ai, br, bi);
-    vab[2*i+0] = VMADD(ar, vscal, vab[2*i+0]);
-    vab[2*i+1] = VMADD(ai, vscal, vab[2*i+1]);
-    ar = va[2*i+2]; ai = va[2*i+3];
-    br = vb[2*i+2]; bi = vb[2*i+3];
+    VST(vab, 2*i+0, VMADD(ar, vscal, VLD(vab, 2*i+0)));
+    VST(vab, 2*i+1, VMADD(ai, vscal, VLD(vab, 2*i+1)));
+    ar = VLD(va, 2*i+2); ai = VLD(va, 2*i+3);
+    br = VLD(vb, 2*i+2); bi = VLD(vb, 2*i+3);
     VCPLXMUL(ar, ai, br, bi);
-    vab[2*i+2] = VMADD(ar, vscal, vab[2*i+2]);
-    vab[2*i+3] = VMADD(ai, vscal, vab[2*i+3]);
+    VST(vab, 2*i+2, VMADD(ar, vscal, VLD(vab, 2*i+2)));
+    VST(vab, 2*i+3, VMADD(ai, vscal, VLD(vab, 2*i+3)));
   }
+  W8_ZEROUPPER();
   if (s->transform == PFFFT_REAL) {
     ab[0] = abr0 + ar0*br0*scaling;
     ab[W8_SIMD_SZ] = abi0 + ai0*bi0*scaling;
   }
 }
 
-static NEVER_INLINE(void) pffft_w8_zconvolve_scale(const PFFFT_Setup *s, const float *a,
+W8_ENTRY(void) pffft_w8_zconvolve_scale(const PFFFT_Setup *s, const float *a,
                                                    const float *b, float *ab, float scaling) {
   int k, NcvecMulTwo = 2*s->Ncvec;
   const v4sf *va = (const v4sf*)a;
@@ -781,24 +798,25 @@ static NEVER_INLINE(void) pffft_w8_zconvolve_scale(const PFFFT_Setup *s, const f
   assert(W8_ALIGNED16(a) && W8_ALIGNED16(b) && W8_ALIGNED16(ab));
   for (k=0; k < NcvecMulTwo; k += 4) {
     v4sf var, vai, vbr, vbi;
-    var = va[k+0]; vai = va[k+1];
-    vbr = vb[k+0]; vbi = vb[k+1];
+    var = VLD(va, k+0); vai = VLD(va, k+1);
+    vbr = VLD(vb, k+0); vbi = VLD(vb, k+1);
     VCPLXMUL(var, vai, vbr, vbi);
-    vab[k+0] = VMUL(var, vscal);
-    vab[k+1] = VMUL(vai, vscal);
-    var = va[k+2]; vai = va[k+3];
-    vbr = vb[k+2]; vbi = vb[k+3];
+    VST(vab, k+0, VMUL(var, vscal));
+    VST(vab, k+1, VMUL(vai, vscal));
+    var = VLD(va, k+2); vai = VLD(va, k+3);
+    vbr = VLD(vb, k+2); vbi = VLD(vb, k+3);
     VCPLXMUL(var, vai, vbr, vbi);
-    vab[k+2] = VMUL(var, vscal);
-    vab[k+3] = VMUL(vai, vscal);
+    VST(vab, k+2, VMUL(var, vscal));
+    VST(vab, k+3, VMUL(vai, vscal));
   }
+  W8_ZEROUPPER();
   if (s->transform == PFFFT_REAL) {
     ab[0] = sar*sbr*scaling;
     ab[W8_SIMD_SZ] = sai*sbi*scaling;
   }
 }
 
-static NEVER_INLINE(void) pffft_w8_zconvolve(const PFFFT_Setup *s, const float *a,
+W8_ENTRY(void) pffft_w8_zconvolve(const PFFFT_Setup *s, const float *a,
                                              const float *b, float *ab) {
   int k, NcvecMulTwo = 2*s->Ncvec;
   const v4sf *va = (const v4sf*)a;
@@ -809,24 +827,25 @@ static NEVER_INLINE(void) pffft_w8_zconvolve(const PFFFT_Setup *s, const float *
   assert(W8_ALIGNED16(a) && W8_ALIGNED16(b) && W8_ALIGNED16(ab));
   for (k=0; k < NcvecMulTwo; k += 4) {
     v4sf var, vai, vbr, vbi;
-    var = va[k+0]; vai = va[k+1];
-    vbr = vb[k+0]; vbi = vb[k+1];
+    var = VLD(va, k+0); vai = VLD(va, k+1);
+    vbr = VLD(vb, k+0); vbi = VLD(vb, k+1);
     VCPLXMUL(var, vai, vbr, vbi);
-    vab[k+0] = var;
-    vab[k+1] = vai;
-    var = va[k+2]; vai = va[k+3];
-    vbr = vb[k+2]; vbi = vb[k+3];
+    VST(vab, k+0, var);
+    VST(vab, k+1, vai);
+    var = VLD(va, k+2); vai = VLD(va, k+3);
+    vbr = VLD(vb, k+2); vbi = VLD(vb, k+3);
     VCPLXMUL(var, vai, vbr, vbi);
-    vab[k+2] = var;
-    vab[k+3] = vai;
+    VST(vab, k+2, var);
+    VST(vab, k+3, vai);
   }
+  W8_ZEROUPPER();
   if (s->transform == PFFFT_REAL) {
     ab[0] = sar*sbr;
     ab[W8_SIMD_SZ] = sai*sbi;
   }
 }
 
-static NEVER_INLINE(int) pffft_w8_zconvert_zp(const PFFFT_Setup *s, const float *in, float *out,
+W8_ENTRY(int) pffft_w8_zconvert_zp(const PFFFT_Setup *s, const float *in, float *out,
                                               float scaling) {
   int j, nv = s->Ncvec * 2;
   const v4sf *vin = (const v4sf*)in;
@@ -835,22 +854,24 @@ static NEVER_INLINE(int) pffft_w8_zconvert_zp(const PFFFT_Setup *s, const float 
   v4sf vs = LD_PS1(nscaling);
   if (s->transform != PFFFT_REAL) return -1;
   assert(W8_ALIGNED16(in) && W8_ALIGNED16(out));
-  vout[0] = VMUL(vin[0], vs);
   {
-    /* latch the scaled Nyquist coefficient before zeroing (in may be out) */
+    /* latch the scaled Nyquist coefficient before zeroing (in may be out);
+       it is stored after the vector code, which does not touch float 8 */
     const float nyquist = in[W8_SIMD_SZ] * nscaling;
     const v4sf vz = VZERO();
-    vout[1] = vz;
-    out[W8_SIMD_SZ] = nyquist;
+    VST(vout, 0, VMUL(VLD(vin, 0), vs));
+    VST(vout, 1, vz);
     for (j = 2; j < nv; j += 2) {
-      vout[j] = VMUL(vin[j], vs);
-      vout[j+1] = vz;
+      VST(vout, j, VMUL(VLD(vin, j), vs));
+      VST(vout, j+1, vz);
     }
+    W8_ZEROUPPER();
+    out[W8_SIMD_SZ] = nyquist;
   }
   return 0;
 }
 
-static NEVER_INLINE(int) pffft_w8_zconvolve_zp(const PFFFT_Setup *s, const float *x,
+W8_ENTRY(int) pffft_w8_zconvolve_zp(const PFFFT_Setup *s, const float *x,
                                                const float *hzp, float *ab) {
   int j, np = s->Ncvec;
   const v4sf *vx = (const v4sf*)x;
@@ -860,17 +881,20 @@ static NEVER_INLINE(int) pffft_w8_zconvolve_zp(const PFFFT_Setup *s, const float
   assert(W8_ALIGNED16(x) && W8_ALIGNED16(hzp) && W8_ALIGNED16(ab));
   {
     /* first pair: lane 0 of the imaginary vector is the Nyquist term,
-       which multiplies the filter's Nyquist term, not its DC term */
-    const v4sf x0 = vx[0], x1 = vx[1], h0 = vh[0];
+       which multiplies the filter's Nyquist term, not its DC term. It is
+       read before and stored after the vector code, which does not touch
+       float 8 again (ab may be x or hzp). */
     const float nyquist = x[W8_SIMD_SZ] * hzp[W8_SIMD_SZ];
-    vab[0] = VMUL(x0, h0);
-    vab[1] = VMUL(x1, h0);
+    const v4sf x0 = VLD(vx, 0), x1 = VLD(vx, 1), h0 = VLD(vh, 0);
+    VST(vab, 0, VMUL(x0, h0));
+    VST(vab, 1, VMUL(x1, h0));
+    for (j = 1; j < np; ++j) {
+      v4sf hr = VLD(vh, 2*j);
+      VST(vab, 2*j, VMUL(VLD(vx, 2*j), hr));
+      VST(vab, 2*j+1, VMUL(VLD(vx, 2*j+1), hr));
+    }
+    W8_ZEROUPPER();
     ab[W8_SIMD_SZ] = nyquist;
-  }
-  for (j = 1; j < np; ++j) {
-    v4sf hr = vh[2*j];
-    vab[2*j] = VMUL(vx[2*j], hr);
-    vab[2*j+1] = VMUL(vx[2*j+1], hr);
   }
   return 0;
 }
@@ -879,10 +903,12 @@ static NEVER_INLINE(int) pffft_w8_zconvolve_zp(const PFFFT_Setup *s, const float
 /* setup                                                                  */
 
 /* requires pffft_wide_supports(N, transform); NULL only when an allocation fails */
-static NEVER_INLINE(PFFFT_Setup *) pffft_w8_new_setup(int N, pffft_transform_t transform) {
+W8_ENTRY(PFFFT_Setup *) pffft_w8_new_setup(int N, pffft_transform_t transform) {
   PFFFT_Setup *s;
   int k, m;
-  assert(pffft_wide_supports(N, transform));
+#if !defined(PFFFT_WIDE_SEPARATE)
+  assert(pffft_wide_supports(N, transform));   /* checked by the caller */
+#endif
   s = (PFFFT_Setup*)malloc(sizeof(PFFFT_Setup));
   if (!s) return NULL;
   s->N = N;
@@ -951,7 +977,11 @@ static NEVER_INLINE(PFFFT_Setup *) pffft_w8_new_setup(int N, pffft_transform_t t
 #undef passf4_il_butterfly
 #undef v4sf
 
-#if defined(__clang__)
+#undef W8_ZEROUPPER
+#undef W8_ENTRY
+
+#if defined(_MSC_VER) && !defined(__clang__)
+#elif defined(__clang__)
 #  pragma clang attribute pop
 #else
 #  pragma GCC pop_options

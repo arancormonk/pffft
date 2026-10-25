@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 project(examples)
 
-if ( CMAKE_C_COMPILER_ID MATCHES "MSVC" )
+if (MSVC)
   # using Visual Studio C++
   message(STATUS "INFO: detected MSVC: will not link math lib m")
   set(MATHLIB "")
@@ -61,3 +61,4 @@ if (PFFFT_USE_TYPE_FLOAT)
   target_link_libraries(example_c_real_flt_fwd PFFFT ${MATHLIB})
 endif()
 
+pffft_copy_runtime_dlls()

@@ -72,6 +72,13 @@ typedef float vsfscalar;
 
 #include "pf_scalar_float.h"
 
+#ifndef VLD
+/* vector load and store of p[i] in the shared pass codelets; the 8-lane
+   AVX2 backend redefines them as explicit unaligned accesses */
+#define VLD(p,i) ((p)[i])
+#define VST(p,i,v) ((p)[i] = (v))
+#endif
+
 /* shortcuts for complex multiplcations */
 #define VCPLXMUL(ar,ai,br,bi) { v4sf tmp; tmp=VMUL(ar,bi); ar=VMSUB(ai,bi,VMUL(ar,br)); ai=VMADD(ai,br,tmp); }
 #define VCPLXMULCONJ(ar,ai,br,bi) { v4sf tmp; tmp=VMUL(ai,bi); ai=VMSUB(ar,bi,VMUL(ai,br)); ar=VMADD(ar,br,tmp); }

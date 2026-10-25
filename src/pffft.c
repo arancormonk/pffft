@@ -100,19 +100,69 @@
 
 /*
   On x86-64 the 4-lane SSE implementation can be complemented by the 8-lane
-  AVX2 backend of pffft_wide_impl.h, chosen per setup at runtime. It needs
-  GCC or Clang function target pragmas. Not on Windows: GCC there cannot
-  realign the stack for spilled 256-bit vectors, and MSVC has no per-function
-  target selection.
+  AVX2 backend of pffft_wide_impl.h, chosen per setup at runtime. GCC and
+  Clang compile it with function target pragmas. MSVC, which has no
+  per-function targets, compiles it with /arch:AVX2 as its own translation
+  unit, pffft_wide_tu.c (PFFFT_WIDE_TU defined for both files), or as part
+  of a library built for AVX2 throughout; otherwise it is left out (MSVC
+  generates markedly slower AVX2 code without /arch:AVX2). The minimum
+  compiler versions on Windows are the oldest ones tested there.
 */
-#if !defined(PFFFT_DISABLE_WIDE) && defined(PFFFT_SSE_FLOAT_BACKEND) && defined(__x86_64__) \
-    && !defined(_WIN32) && !defined(__CYGWIN__) \
-    && ((defined(__clang__) && __clang_major__ >= 10) \
-        || (!defined(__clang__) && defined(__GNUC__) && __GNUC__ >= 5))
+#if defined(PFFFT_WIDE_TU) && defined(_MSC_VER) && !defined(__clang__)
+#  define PFFFT_WIDE_SEPARATE 1  /* the backend is in pffft_wide_tu.c */
+#endif
+#if defined(__clang__) && (defined(_WIN32) || defined(__CYGWIN__))
+#  define PFFFT_WIDE_COMPILER (__clang_major__ >= 19)    /* clang-cl 19.1 in CI */
+#elif defined(__clang__)
+#  define PFFFT_WIDE_COMPILER (__clang_major__ >= 10)
+#elif defined(__GNUC__) && (defined(_WIN32) || defined(__CYGWIN__))
+/* MinGW-w64 GCC 13 and 15 in CI. Not unoptimized: GCC cannot align 32-byte
+   stack slots on Windows (GCC bug 54412), which -O0 spills of 256-bit values
+   need; GCC 16 stops there with an internal compiler error */
+#  if defined(__OPTIMIZE__)
+#    define PFFFT_WIDE_COMPILER (__GNUC__ >= 13)
+#  else
+#    define PFFFT_WIDE_COMPILER 0
+#  endif
+#elif defined(__GNUC__)
+#  define PFFFT_WIDE_COMPILER (__GNUC__ >= 5)
+#elif defined(_MSC_VER) && (defined(PFFFT_WIDE_SEPARATE) || defined(__AVX2__))
+#  define PFFFT_WIDE_COMPILER (_MSC_VER >= 1944)         /* Visual Studio 2022 17.14 in CI */
+#else
+#  define PFFFT_WIDE_COMPILER 0
+#endif
+/* _M_ARM64EC: the MSVC ARM64EC target also defines _M_X64 */
+#if !defined(PFFFT_DISABLE_WIDE) && defined(PFFFT_SSE_FLOAT_BACKEND) && PFFFT_WIDE_COMPILER \
+    && (defined(__x86_64__) || defined(_M_X64)) && !defined(_M_ARM64EC)
 #  define PFFFT_WIDE 1
 #else
 #  define PFFFT_WIDE 0
 #endif
+
+#if defined(PFFFT_WIDE_TU_PART)
+/*
+  pffft_wide_tu.c: only the 8-lane backend (and nothing that runs before the
+  CPU check), compiled with /arch:AVX2. pffft.c's own translation unit has
+  everything else.
+*/
+#if PFFFT_WIDE
+#ifndef M_SQRT1_2
+#define M_SQRT1_2 0.707106781186547524400844362104849039  /* 1/sqrt(2) */
+#endif
+/* MSVC's <math.h> defines cosl() and sinl() as inline functions. Copies
+   compiled here with /arch:AVX2 could be the ones the linker keeps for
+   pffft.c too (it merges identical inline functions), so this file calls
+   the out-of-line cos() and sin(): long double is double on MSVC. */
+#define cosl(x) cos(x)
+#define sinl(x) sin(x)
+#include "pffft_setup.h"
+struct PFFFT_Setup {
+  PFFFT_SETUP_FIELDS(v4sf, float)
+};
+#include "pffft_wide_impl.h"
+#endif /* PFFFT_WIDE */
+
+#else  /* PFFFT_WIDE_TU_PART */
 
 /* have code comparable with this definition */
 #define SETUP_STRUCT               PFFFT_Setup
@@ -180,22 +230,44 @@ int pffft_setup_simd_size(const PFFFT_Setup *setup) {
 
 #if PFFFT_WIDE
 
-#include "pffft_wide_impl.h"
-#include "pffft_wide_sizes.h"
-#include "pffft_cpu_x86.h"
-#include <cpuid.h>
+#include "pffft_wide_select.h"
+#if defined(PFFFT_WIDE_SEPARATE)
+#  include "pffft_wide_api.h"
+#else
+#  include "pffft_wide_impl.h"
+#endif
+/* <intrin.h> for MSVC and clang-cl, whose <cpuid.h> __cpuid macro clashes with it */
+#if defined(_MSC_VER)
+#  include <intrin.h>
+#else
+#  include <cpuid.h>
+#endif
 
 static void pffft_x86_cpuid(void *ctx, unsigned leaf, unsigned subleaf, unsigned *r) {
   (void)ctx;
+#if defined(_MSC_VER)
+  {
+    int v[4];
+    __cpuidex(v, (int)leaf, (int)subleaf);
+    r[0] = (unsigned)v[0]; r[1] = (unsigned)v[1]; r[2] = (unsigned)v[2]; r[3] = (unsigned)v[3];
+  }
+#else
   __cpuid_count(leaf, subleaf, r[0], r[1], r[2], r[3]);
+#endif
 }
 
 static unsigned long long pffft_x86_xgetbv(void *ctx, unsigned index) {
-  unsigned lo, hi;
   (void)ctx;
-  /* xgetbv, spelled out for assemblers that do not know it */
-  __asm__ __volatile__(".byte 0x0f, 0x01, 0xd0" : "=a"(lo), "=d"(hi) : "c"(index));
-  return ((unsigned long long)hi << 32) | lo;
+#if defined(_MSC_VER) && !defined(__clang__)
+  return _xgetbv(index);
+#else
+  {
+    unsigned lo, hi;
+    /* xgetbv, spelled out for assemblers that do not know it */
+    __asm__ __volatile__(".byte 0x0f, 0x01, 0xd0" : "=a"(lo), "=d"(hi) : "c"(index));
+    return ((unsigned long long)hi << 32) | lo;
+  }
+#endif
 }
 
 #if defined(PFFFT_DISABLE_FMA)
@@ -204,44 +276,44 @@ static unsigned long long pffft_x86_xgetbv(void *ctx, unsigned index) {
 #  define PFFFT_W8_NEED_FMA 1
 #endif
 
-/* 0: cannot run the 8-lane backend, 1: can, 2: can and is measured faster */
-static int pffft_wide_cpu_level(void) {
+/* -1 if the CPU cannot run the 8-lane backend, else its PFFFT_X86_WIDE_*
+   class with the build options applied; *l2 receives the L2 size the
+   inferred class needs (0 otherwise or when unknown) */
+static int pffft_wide_cpu_class(unsigned long long *l2) {
   pffft_x86_cpu_ops ops;
   pffft_x86_cpu_id id;
+  int cls;
   ops.cpuid = pffft_x86_cpuid;
   ops.xgetbv = pffft_x86_xgetbv;
   ops.ctx = NULL;
-  if (!pffft_x86_probe_wide(&ops, PFFFT_W8_NEED_FMA, &id)) return 0;
+  *l2 = 0;
+  if (!pffft_x86_probe_wide(&ops, PFFFT_W8_NEED_FMA, &id)) return -1;
 #if defined(PFFFT_WIDE_UNKNOWN_CPUS)
-  return 2;
+  (void)id;
+  cls = PFFFT_X86_WIDE_ZEN3;   /* its table for every AVX2 CPU */
 #else
-  return pffft_x86_wide_measured(&id) ? 2 : 1;
+  cls = pffft_x86_wide_class(&id);
+#  if !defined(PFFFT_WIDE_INFERRED)
+  /* not measured: 4 lanes unless the build opts in */
+  if (cls == PFFFT_X86_WIDE_INFERRED) cls = PFFFT_X86_WIDE_OFF;
+#  endif
+  if (cls == PFFFT_X86_WIDE_INFERRED) *l2 = pffft_x86_l2_bytes(&ops, &id);
 #endif
-}
-
-/* Whether the 8-lane backend was measured faster at N in every mode (by at
-   least 10%, in two independent sweeps) on the CPUs of
-   pffft_x86_wide_measured(): pffft_wide_sizes.h, generated from the sweeps
-   by benchmarks/perf_analysis/wide_size_table.py. */
-static int pffft_wide_size_enabled(int N, pffft_transform_t transform) {
-  const int *sizes = transform == PFFFT_REAL ? pffft_wide_real_sizes : pffft_wide_complex_sizes;
-  int lo = 0, hi = transform == PFFFT_REAL ? PFFFT_WIDE_REAL_COUNT : PFFFT_WIDE_COMPLEX_COUNT;
-  while (lo < hi) {
-    const int mid = lo + (hi - lo) / 2;
-    if (sizes[mid] == N) return 1;
-    if (sizes[mid] < N) lo = mid + 1; else hi = mid;
-  }
-  return 0;
+  return cls;
 }
 
 PFFFT_Setup *pffft_internal_new_setup(int N, pffft_transform_t transform, int backend) {
   if (backend != PFFFT_BACKEND_NATIVE) {
-    const int supported = pffft_wide_supports(N, transform);
-    const int level = supported ? pffft_wide_cpu_level() : 0;
+    unsigned long long l2 = 0;
+    const int cls = pffft_wide_supports(N, transform) ? pffft_wide_cpu_class(&l2) : -1;
     if (backend == PFFFT_BACKEND_W8)
-      return level ? pffft_w8_new_setup(N, transform) : NULL;
+      return cls >= 0 ? pffft_w8_new_setup(N, transform) : NULL;
     /* an allocation failure is reported, not retried with the other backend */
-    if (level == 2 && pffft_wide_size_enabled(N, transform))
+#if defined(PFFFT_WIDE_ALL_SIZES)
+    /* benchmarking: every supported size on every capable CPU */
+    if (cls >= 0) return pffft_w8_new_setup(N, transform);
+#endif
+    if (cls >= 0 && pffft_wide_default(N, transform, cls, l2))
       return pffft_w8_new_setup(N, transform);
   }
   return pffft_native_new_setup(N, transform);
@@ -311,3 +383,5 @@ PFFFT_Setup *pffft_new_setup(int N, pffft_transform_t transform) {
 void pffft_zconvolve_no_accu(const PFFFT_Setup *setup, const float *dft_a, const float *dft_b, float *dft_ab, float scaling) {
   pffft_zconvolve_scale(setup, dft_a, dft_b, dft_ab, scaling);
 }
+
+#endif /* PFFFT_WIDE_TU_PART */

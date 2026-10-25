@@ -75,8 +75,7 @@
   #define M_SQRT1_2 0.707106781186547524400844362104849039  /* 1/sqrt(2) */
 #endif
 
-/* largest accepted N: larger values overflow int in the setup and passes */
-#define PFFFT_MAX_N (1<<26)
+#include "pffft_setup.h"  /* PFFFT_MAX_N, the setup structure */
 
 
 int FUNC_SIMD_SIZE(void) { return SIMD_SZ; }
@@ -142,21 +141,8 @@ const char * FUNC_SIMD_ARCH(void) { return VARCH; }
 #undef PF_INTERLEAVE2
 
 
-#ifndef PFFFT_SETUP_KIND_NATIVE
-#define PFFFT_SETUP_KIND_NATIVE 0  /* this file's SIMD_SZ-lane implementation */
-#define PFFFT_SETUP_KIND_W8     1  /* 8-lane AVX2 float backend, pffft_wide_impl.h */
-#endif
-
 struct SETUP_STRUCT {
-  int     N;
-  int     Ncvec;  /* nb of complex simd vectors (N/4 if PFFFT_COMPLEX, N/8 if PFFFT_REAL) */
-  /* hold the decomposition into small integers of N */
-  int ifac[IFAC_MAX_SIZE]; /* N, number of factors, factors (admitted values: 2, 3, 4, 5 or 8) */
-  pffft_transform_t transform;
-  int kind;       /* PFFFT_SETUP_KIND_*: which backend created the setup */
-  v4sf *data;     /* allocated room for twiddle coefs */
-  float *e;       /* points into 'data', N/4*3 elements */
-  float *twiddle; /* points into 'data', N/4 elements */
+  PFFFT_SETUP_FIELDS(v4sf, float)
 };
 
 SETUP_STRUCT *FUNC_NEW_SETUP(int N, pffft_transform_t transform) {

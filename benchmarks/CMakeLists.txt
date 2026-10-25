@@ -140,19 +140,19 @@ if (PFFFT_USE_TYPE_FLOAT)
 
   ############################################################################
 
-  add_library(pf_conv_arch_none pf_conv.cpp pf_conv.h ${PFFFT_SOURCE_DIR}/include/pffft/pf_cplx.h)
+  add_library(pf_conv_arch_none STATIC pf_conv.cpp pf_conv.h ${PFFFT_SOURCE_DIR}/include/pffft/pf_cplx.h)
   target_include_directories(pf_conv_arch_none PRIVATE ${PFFFT_SOURCE_DIR}/include)
   target_compile_definitions(pf_conv_arch_none PRIVATE CONV_ARCH_POST=none MIPP_NO_INTRINSICS=1)
   set_property(TARGET pf_conv_arch_none PROPERTY CXX_STANDARD 11)
   set_property(TARGET pf_conv_arch_none PROPERTY CXX_STANDARD_REQUIRED ON)
   target_activate_cxx_compiler_warnings(pf_conv_arch_none)
-  add_library(pf_conv_dispatcher  pf_conv_dispatcher.cpp pf_conv_dispatcher.h pf_conv.h ${PFFFT_SOURCE_DIR}/include/pffft/pf_cplx.h)
+  add_library(pf_conv_dispatcher STATIC pf_conv_dispatcher.cpp pf_conv_dispatcher.h pf_conv.h ${PFFFT_SOURCE_DIR}/include/pffft/pf_cplx.h)
   target_include_directories(pf_conv_dispatcher PRIVATE ${PFFFT_SOURCE_DIR}/include)
   set_property(TARGET pf_conv_dispatcher PROPERTY CXX_STANDARD 11)
   set_property(TARGET pf_conv_dispatcher PROPERTY CXX_STANDARD_REQUIRED ON)
   target_activate_cxx_compiler_warnings(pf_conv_dispatcher)
 
-  add_library(pf_conv_arch_dflt pf_conv.cpp pf_conv.h ${PFFFT_SOURCE_DIR}/include/pffft/pf_cplx.h)
+  add_library(pf_conv_arch_dflt STATIC pf_conv.cpp pf_conv.h ${PFFFT_SOURCE_DIR}/include/pffft/pf_cplx.h)
   target_include_directories(pf_conv_arch_dflt PRIVATE ${PFFFT_SOURCE_DIR}/include)
   target_compile_definitions(pf_conv_arch_dflt PRIVATE CONV_ARCH_POST=dflt)
   set_property(TARGET pf_conv_arch_dflt PROPERTY CXX_STANDARD 11)
@@ -216,7 +216,7 @@ if (PFFFT_USE_TYPE_FLOAT)
   endif()
 
   foreach (arch_opt ${PF_CONV_ARCHES})
-      add_library(pf_conv_arch_${arch_opt} pf_conv.cpp pf_conv.h ${PFFFT_SOURCE_DIR}/include/pffft/pf_cplx.h)
+      add_library(pf_conv_arch_${arch_opt} STATIC pf_conv.cpp pf_conv.h ${PFFFT_SOURCE_DIR}/include/pffft/pf_cplx.h)
       target_include_directories(pf_conv_arch_${arch_opt} PRIVATE ${PFFFT_SOURCE_DIR}/include)
       set_property(TARGET pf_conv_arch_${arch_opt} PROPERTY CXX_STANDARD 11)
       set_property(TARGET pf_conv_arch_${arch_opt} PROPERTY CXX_STANDARD_REQUIRED ON)
@@ -272,3 +272,5 @@ if (PFFFT_USE_TYPE_FLOAT)
   target_link_libraries( bench_pf_conv_float  pf_conv_dispatcher PFDSP $<$<CXX_COMPILER_ID:GNU>:stdc++> )
 
 endif()
+
+pffft_copy_runtime_dlls()

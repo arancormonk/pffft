@@ -1,0 +1,156 @@
+name: probe windows wide
+
+# Throwaway probe for the 8-lane backend on Windows toolchains: builds,
+# tests and disassembly for inspection. Runs only on probe/* branches.
+
+on:
+  push:
+    branches:
+      - 'probe/**'
+
+permissions:
+  contents: read
+
+jobs:
+  msvc:
+    runs-on: windows-2022
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: msvc-release
+            cc: cl
+            args: -DCMAKE_BUILD_TYPE=Release -DTARGET_C_ARCH=none -DTARGET_CXX_ARCH=none
+          - name: msvc-debug
+            cc: cl
+            args: -DCMAKE_BUILD_TYPE=Debug -DTARGET_C_ARCH=none -DTARGET_CXX_ARCH=none
+          - name: msvc-ltcg
+            cc: cl
+            args: -DCMAKE_BUILD_TYPE=Release -DTARGET_C_ARCH=none -DTARGET_CXX_ARCH=none -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON
+          - name: msvc-dll
+            cc: cl
+            args: -DCMAKE_BUILD_TYPE=Release -DTARGET_C_ARCH=none -DTARGET_CXX_ARCH=none -DBUILD_SHARED_LIBS=ON
+          - name: msvc-avx2
+            cc: cl
+            args: -DCMAKE_BUILD_TYPE=Release -DTARGET_C_ARCH=AVX2 -DTARGET_CXX_ARCH=AVX2
+          - name: clangcl-release
+            cc: clang-cl
+            args: -DCMAKE_BUILD_TYPE=Release -DTARGET_C_ARCH=none -DTARGET_CXX_ARCH=none
+    name: ${{ matrix.name }}
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+    - uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756
+      with:
+        arch: x64
+    - uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2.33.0
+      id: msys2
+      with:
+        msystem: MINGW64
+        install: mingw-w64-x86_64-binutils
+    - name: GNU objdump on PATH (ISA audit)
+      shell: bash
+      run: echo "${{ steps.msys2.outputs.msys2-location }}\mingw64\bin" >> "$GITHUB_PATH"
+    - name: toolchain versions
+      shell: bash
+      run: |
+        mkdir -p out
+        { cl -Bv 2>&1 || true; clang-cl --version 2>&1 || true; clang --version 2>&1 | head -1 || true; objdump --version | head -1 || true; } | tee out/versions.txt
+        wmic cpu get name 2>/dev/null | tee -a out/versions.txt || true
+    - name: configure
+      shell: bash
+      run: |
+        cmake -S . -B build -G Ninja -DCMAKE_C_COMPILER=${{ matrix.cc }} -DCMAKE_CXX_COMPILER=${{ matrix.cc }} \
+          -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF \
+          ${{ matrix.args }} 2>&1 | tee out/configure.txt
+    - name: build
+      shell: bash
+      run: cmake --build build --parallel 2>&1 | tee out/build.txt
+    - name: test
+      shell: bash
+      run: ctest --test-dir build --output-on-failure -j 4 2>&1 | tee out/ctest.txt
+    - name: wide backend ran
+      shell: bash
+      run: |
+        ./build/tests/test_pffft_wide 2>&1 | tail -8 | tee out/wide.txt
+        grep -q "8-lane backend available: testing it" out/wide.txt
+    - name: disassembly
+      if: always()
+      shell: bash
+      run: |
+        mkdir -p out/obj out/image
+        find build -path '*PFFFT.dir*' -name '*.obj' -exec cp {} out/obj/ \;
+        cp build/tests/test_pffft_wide.exe build/tests/test_pffft_wide.map out/image/ 2>/dev/null || true
+        cp build/pffft.dll build/pffft.map out/image/ 2>/dev/null || true
+        for o in $(find build -name 'pffft.c.obj' -o -name 'pffft.dll' -o -name 'pffft.lib' | grep -v CMakeTmp); do
+          n=$(echo "$o" | tr '/\\' '__')
+          dumpbin /nologo /disasm /symbols "$o" > "out/dumpbin-$n.txt" 2>&1 || true
+          llvm-objdump -d -r --no-show-raw-insn -w "$o" > "out/objdump-$n.txt" 2>&1 || true
+        done
+        ls -la out
+    - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      if: always()
+      with:
+        name: probe-${{ matrix.name }}
+        path: out
+
+  mingw:
+    runs-on: windows-2022
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+    - uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2.33.0
+      with:
+        msystem: MINGW64
+        install: gcc cmake make python
+    - name: build and test
+      run: |
+        mkdir -p out
+        gcc --version | head -1 | tee out/versions.txt
+        CC=gcc cmake -DMINGW=ON -DCMAKE_BUILD_TYPE=Release -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DTARGET_CXX_ARCH=none -DTARGET_C_ARCH=none -S . -B build 2>&1 | tee out/configure.txt
+        cmake --build build 2>&1 | tee out/build.txt
+        ctest --test-dir build --output-on-failure -j 4 2>&1 | tee out/ctest.txt
+        ./build/tests/test_pffft_wide 2>&1 | tail -8 | tee out/wide.txt
+        grep -q "8-lane backend available: testing it" out/wide.txt
+        objdump -d -r --no-show-raw-insn -w build/libpffft.a > out/objdump-libpffft.txt
+    - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      if: always()
+      with:
+        name: probe-mingw
+        path: out
+
+  msvc-bench:
+    # benchmark drivers for the MSVC builds, run on the Zen 3 host under wine
+    runs-on: windows-2022
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+    - uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756
+      with:
+        arch: x64
+    - name: build
+      shell: bash
+      run: |
+        for v in wide:ON:none native4:OFF:none avx2-wide:ON:AVX2 avx2-native4:OFF:AVX2; do
+          name=${v%%:*}; rest=${v#*:}; dispatch=${rest%%:*}; arch=${rest#*:}
+          cmake -S . -B b_$name -G Ninja -DCMAKE_C_COMPILER=cl -DCMAKE_CXX_COMPILER=cl -DCMAKE_BUILD_TYPE=Release \
+            -DTARGET_C_ARCH=$arch -DTARGET_CXX_ARCH=$arch -DPFFFT_ENABLE_WIDE_DISPATCH=$dispatch \
+            -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded \
+            -DPFFFT_BUILD_TESTS=OFF -DPFFFT_BUILD_BENCHMARKS=OFF -DPFFFT_BUILD_EXAMPLES=OFF
+          cmake --build b_$name --target PFFFT PFFASTCONV
+          mkdir -p out/$name
+          cl -nologo -O2 -EHsc -MT -DNDEBUG -DPFFFT_STATIC_DEFINE -DPFFASTCONV_STATIC_DEFINE -Iinclude \
+            benchmarks/perf_analysis/bench_hotloops.cpp b_$name/pffft.lib b_$name/pffastconv.lib \
+            -Fe:out/$name/hotloops_float.exe
+        done
+        ls -la out/*
+    - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: probe-msvc-bench
+        path: out

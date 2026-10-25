@@ -250,7 +250,7 @@ jobs:
       run: cd "$GITHUB_WORKSPACE" && bash ./cross_build_mingw64.sh no-simd -DCMAKE_CROSSCOMPILING_EMULATOR=wine -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_SIMD=OFF -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF
     - name: build_w64_simd_full
       working-directory: ${{ github.workspace }}/..
-      run: X="$(pwd)" && cd "$GITHUB_WORKSPACE" && bash ./cross_build_mingw64.sh simd_full -DCMAKE_CROSSCOMPILING_EMULATOR=wine -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DTARGET_CXX_ARCH=none -DTARGET_C_ARCH=none -DMIPP_INCLUDE_DIRS="$X"/include/mipp
+      run: X="$(pwd)" && cd "$GITHUB_WORKSPACE" && bash ./cross_build_mingw64.sh simd_full -DCMAKE_CROSSCOMPILING_EMULATOR=wine -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DTARGET_CXX_ARCH=none -DTARGET_C_ARCH=none -DPFFFT_TEST_REQUIRE_WIDE=ON -DMIPP_INCLUDE_DIRS="$X"/include/mipp
 
     - name: test_w32_w64 (wine)
       run: |
@@ -303,6 +303,14 @@ jobs:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         persist-credentials: false
+    - uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2.33.0
+      id: msys2
+      with:
+        msystem: MINGW64
+        install: mingw-w64-x86_64-binutils
+    - name: GNU objdump on PATH (ISA audit)
+      shell: bash
+      run: echo "${{ steps.msys2.outputs.msys2-location }}\mingw64\bin" >> "$GITHUB_PATH"
 
     - name: Configure CMake No-SIMD
       shell: bash
@@ -321,7 +329,7 @@ jobs:
     - name: Configure CMake SSE2
       shell: bash
       working-directory: ${{ github.workspace }}/..
-      run: cmake -S "$GITHUB_WORKSPACE" -B build_sse2 -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DENABLE_PFDSP=ON -DTARGET_CXX_ARCH=SSE2 -DTARGET_C_ARCH=SSE2 -DMIPP_INCLUDE_DIRS="$(pwd)"/include/mipp
+      run: cmake -S "$GITHUB_WORKSPACE" -B build_sse2 -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DENABLE_PFDSP=ON -DTARGET_CXX_ARCH=SSE2 -DTARGET_C_ARCH=SSE2 -DPFFFT_TEST_REQUIRE_WIDE=ON -DMIPP_INCLUDE_DIRS="$(pwd)"/include/mipp
     - name: Build SSE2
       shell: bash
       working-directory: ${{ github.workspace }}/..
@@ -337,7 +345,7 @@ jobs:
       # access regardless of the host operating system
       shell: bash
       working-directory: ${{ github.workspace }}/..
-      run: cmake -S "$GITHUB_WORKSPACE" -B build_avx -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DENABLE_PFDSP=ON -DTARGET_CXX_ARCH=AVX -DTARGET_C_ARCH=AVX -DMIPP_INCLUDE_DIRS="$(pwd)"/include/mipp
+      run: cmake -S "$GITHUB_WORKSPACE" -B build_avx -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DENABLE_PFDSP=ON -DTARGET_CXX_ARCH=AVX -DTARGET_C_ARCH=AVX -DPFFFT_TEST_REQUIRE_WIDE=ON -DMIPP_INCLUDE_DIRS="$(pwd)"/include/mipp
     - name: Build AVX
       working-directory: ${{ github.workspace }}/..
       shell: bash
@@ -353,7 +361,7 @@ jobs:
       # access regardless of the host operating system
       shell: bash
       working-directory: ${{ github.workspace }}/..
-      run: cmake -S "$GITHUB_WORKSPACE" -B build_avx2 -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DENABLE_PFDSP=ON -DTARGET_CXX_ARCH=AVX2 -DTARGET_C_ARCH=AVX2 -DMIPP_INCLUDE_DIRS="$(pwd)"/include/mipp
+      run: cmake -S "$GITHUB_WORKSPACE" -B build_avx2 -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DENABLE_PFDSP=ON -DTARGET_CXX_ARCH=AVX2 -DTARGET_C_ARCH=AVX2 -DPFFFT_TEST_REQUIRE_WIDE=ON -DMIPP_INCLUDE_DIRS="$(pwd)"/include/mipp
     - name: Build AVX2
       working-directory: ${{ github.workspace }}/..
       shell: bash
@@ -370,7 +378,7 @@ jobs:
       shell: bash
       working-directory: ${{ github.workspace }}/..
       run: |
-        cmake -S "$GITHUB_WORKSPACE" -B build_host -G "Visual Studio 17 2022" -A x64 -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DPFFFT_BUILD_BENCHMARKS=OFF -DPFFFT_BUILD_EXAMPLES=OFF | tee configure_host.log
+        cmake -S "$GITHUB_WORKSPACE" -B build_host -G "Visual Studio 17 2022" -A x64 -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DPFFFT_BUILD_BENCHMARKS=OFF -DPFFFT_BUILD_EXAMPLES=OFF -DPFFFT_TEST_REQUIRE_WIDE=ON | tee configure_host.log
         grep -E "TARGET_C_ARCH defaults to 'AVX(2|512)?'" configure_host.log
         grep -E "TARGET_CXX_ARCH defaults to 'AVX(2|512)?'" configure_host.log
     - name: Build host default
@@ -390,6 +398,154 @@ jobs:
       with:
         name: pffft_windows-msvc-amd64
         path: pffft_windows-msvc-amd64.tar.gz
+
+
+  build_win_msvc_wide:
+    # the 8-lane backend on Windows: MSVC (separate /arch:AVX2 translation
+    # unit) in Debug, LTCG and DLL builds, a DLL without the backend, and
+    # clang-cl, also with ThinLTO; the ISA audit on each; Intel SDE runs of
+    # the baseline tests on chips without AVX2 and with other chips' CPUIDs
+    # (tests/run_sde_checks.sh)
+    runs-on: windows-2022
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: msvc-release
+            cc: cl
+            args: -DCMAKE_BUILD_TYPE=Release
+            sde: true
+          - name: msvc-debug
+            cc: cl
+            args: -DCMAKE_BUILD_TYPE=Debug
+          - name: msvc-ltcg
+            # the configuration's own property (INTERPROCEDURAL_OPTIMIZATION_RELEASE)
+            cc: cl
+            args: -DCMAKE_BUILD_TYPE=Release -DCMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE=ON
+            sde: true
+          - name: msvc-vs-debug
+            # multi-configuration generator: the configuration is chosen at build time
+            cc: cl
+            gen: Visual Studio 17 2022
+            config: Debug
+          - name: msvc-dll
+            cc: cl
+            args: -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON
+            sde: true
+          - name: msvc-dll-nowide
+            # no 8-lane backend: the DLL's map and audit without it
+            cc: cl
+            args: -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON -DPFFFT_ENABLE_WIDE_DISPATCH=OFF -DPFFFT_TEST_REQUIRE_WIDE=OFF
+          - name: clangcl-release
+            cc: clang-cl
+            args: -DCMAKE_BUILD_TYPE=Release
+            sde: true
+          - name: clangcl-lto
+            # ThinLTO: the objects hold bitcode, only the linked image has code
+            cc: clang-cl
+            # (lld-link and llvm-lib: the configure step passes their full paths)
+            args: -DCMAKE_BUILD_TYPE=Release -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON
+            llvm_tools: true
+            sde: true
+    name: build_win_msvc_wide (${{ matrix.name }})
+    env:
+      SDE_KIT: sde-external-10.13.1-2026-07-28-win.tar.xz
+      # Intel's published SHA-256 of the kit (intel.com download 684897); the
+      # file is fetched from the setup-sde action's repository at a pinned commit
+      SDE_SHA256: 74e626ede09b0baa5011fc9e51b58627ea92c3fc0bae5fd7db34b490f335f651
+      SDE_URL: https://media.githubusercontent.com/media/petarpetrovt/setup-sde/6d2773bc0ef3005fd52e0ae0bb91782321793aec/binaries/sde-external-10.13.1-2026-07-28-win.tar.xz
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+    - uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756
+      with:
+        arch: x64
+    - uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2.33.0
+      id: msys2
+      with:
+        msystem: MINGW64
+        install: mingw-w64-x86_64-binutils
+    - name: GNU objdump on PATH (ISA audit)
+      shell: bash
+      run: echo "${{ steps.msys2.outputs.msys2-location }}\\mingw64\\bin" >> "$GITHUB_PATH"
+    - name: toolchain
+      shell: bash
+      run: |
+        cl -Bv 2>&1 | head -4 || true
+        ${{ matrix.cc }} --version 2>&1 | head -1 || true
+        objdump --version | head -1
+    - name: configure
+      shell: bash
+      run: |
+        if [ -n "${{ matrix.gen }}" ]; then gen=(-G "${{ matrix.gen }}" -A x64); else
+          gen=(-G Ninja -DCMAKE_C_COMPILER=${{ matrix.cc }} -DCMAKE_CXX_COMPILER=${{ matrix.cc }}); fi
+        if [ "${{ matrix.llvm_tools }}" = true ]; then
+          # LTO bitcode needs LLVM's linker and librarian; CMake takes full paths
+          gen+=(-DCMAKE_LINKER="$(cygpath -m "$(command -v lld-link)")" -DCMAKE_AR="$(cygpath -m "$(command -v llvm-lib)")")
+        fi
+        cmake -S . -B build "${gen[@]}" \
+          -DTARGET_C_ARCH=none -DTARGET_CXX_ARCH=none -DPFFFT_TEST_REQUIRE_WIDE=ON \
+          -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF ${{ matrix.args }}
+    - name: build
+      shell: bash
+      run: cmake --build build --parallel --config "${{ matrix.config || 'Release' }}"
+    - name: test
+      shell: bash
+      run: ctest --test-dir build -C "${{ matrix.config || 'Release' }}" --output-on-failure -j 4
+    - name: objects for diagnosis
+      if: failure()
+      shell: bash
+      # the library's objects, the maps, and the linked test with its object
+      run: mkdir -p diag && find build \( -path '*PFFFT.dir*' -name '*.obj' -o -name '*.map' -o -name 'test_pffft_wide*.obj' -o -name 'test_pffft_wide.exe' -o -name 'pffft.dll' \) -exec cp {} diag/ \;
+    - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      if: failure()
+      with:
+        name: diag-${{ matrix.name }}
+        path: diag
+    - name: SDE
+      if: ${{ matrix.sde }}
+      shell: bash
+      run: |
+        curl -sfL -o "$SDE_KIT" "$SDE_URL"
+        echo "$SDE_SHA256  $SDE_KIT" | sha256sum -c -
+        mkdir sde && tar xf "$SDE_KIT" -C sde
+        sde=$(find sde -name sde.exe | head -1)
+        mkdir neg
+        cl -nologo -O2 -arch:AVX2 tests/sde/avx2_unguarded.c -Fe:neg/avx2_unguarded.exe -Fo:neg/
+        cl -nologo -O2 -arch:AVX2 -LD -DAVX2_UNGUARDED_LIB tests/sde/avx2_unguarded.c -Fe:neg/avx2_unguarded_dll.dll -Fo:neg/
+        cl -nologo -O2 -DAVX2_UNGUARDED_CALLER tests/sde/avx2_unguarded.c neg/avx2_unguarded_dll.lib -Fe:neg/avx2_unguarded_caller.exe -Fo:neg/
+        # GNU inline assembly: clang-cl, not cl
+        clang-cl -nologo -O2 tests/sde/avx_sse_transition.c -Fe:neg/avx_sse_transition.exe -Fo:neg/
+        AST_NEGATIVE=neg/avx_sse_transition.exe bash tests/run_sde_checks.sh "$sde" build neg/avx2_unguarded.exe neg/avx2_unguarded_caller.exe neg/avx2_unguarded_dll.dll
+
+
+  sde_linux:
+    # Linux baseline build under Intel SDE (tests/run_sde_checks.sh)
+    runs-on: ubuntu-24.04
+    env:
+      SDE_KIT: sde-external-10.13.1-2026-07-28-lin.tar.xz
+      # Intel's published SHA-256 (intel.com download 684897)
+      SDE_SHA256: 94e97d623fec54385686e1e7ba65ebc9941748c05ee451423948334892bf2b50
+      SDE_URL: https://media.githubusercontent.com/media/petarpetrovt/setup-sde/6d2773bc0ef3005fd52e0ae0bb91782321793aec/binaries/sde-external-10.13.1-2026-07-28-lin.tar.xz
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+    - name: build
+      run: |
+        cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DTARGET_C_ARCH=none -DTARGET_CXX_ARCH=none \
+          -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF \
+          -DPFFFT_BUILD_BENCHMARKS=OFF -DPFFFT_BUILD_EXAMPLES=OFF
+        cmake --build build --parallel 4 --target test_pffft_wide test_pffft_accuracy_float
+        gcc -O2 -mavx2 tests/sde/avx2_unguarded.c -o build/avx2_unguarded
+        gcc -O2 tests/sde/avx_sse_transition.c -o build/avx_sse_transition
+    - name: SDE
+      run: |
+        curl -sfL -o "$SDE_KIT" "$SDE_URL"
+        echo "$SDE_SHA256  $SDE_KIT" | sha256sum -c -
+        mkdir sde && tar xf "$SDE_KIT" -C sde
+        AST_NEGATIVE=build/avx_sse_transition bash tests/run_sde_checks.sh "$(find "$PWD/sde" -name sde64 | head -1)" build build/avx2_unguarded
 
 
   build_win_msvc_arm64:
@@ -430,11 +586,18 @@ jobs:
         msystem: MINGW64
         install: gcc cmake make
     - name: Configure cmake
-      run: CC=gcc cmake -DMINGW=ON -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DTARGET_CXX_ARCH=none -DTARGET_C_ARCH=none -S . -B build_mgw64
+      run: CC=gcc cmake -DMINGW=ON -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DTARGET_CXX_ARCH=none -DTARGET_C_ARCH=none -DPFFFT_TEST_REQUIRE_WIDE=ON -S . -B build_mgw64
     - name: Build
       run: cmake --build build_mgw64
     - name: Test
       run: ctest --test-dir build_mgw64 --output-on-failure -j 4
+    - name: Debug build
+      # -O0: GCC leaves the 8-lane code out on Windows (it cannot align
+      # 32-byte stack slots there), the 4-lane code must build and pass
+      run: |
+        CC=gcc cmake -DMINGW=ON -DCMAKE_BUILD_TYPE=Debug -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DTARGET_CXX_ARCH=none -DTARGET_C_ARCH=none -DPFFFT_BUILD_BENCHMARKS=OFF -S . -B build_mgw64_dbg
+        cmake --build build_mgw64_dbg
+        ctest --test-dir build_mgw64_dbg --output-on-failure -j 4
 
     - name: compress
       run: tar zcvf pffft_windows-mingw-amd64.tar.gz --exclude=CMakeFiles --exclude=*.cmake --exclude=Makefile --exclude=CMakeCache.txt  build_mgw64

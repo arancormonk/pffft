@@ -283,6 +283,10 @@ cmake -DPFFFT_USE_BENCH_FFTW=ON ..
 
 - Windows MSVC: `TARGET_C_ARCH`/`TARGET_CXX_ARCH` take `/arch` levels (`SSE2`, `AVX`, `AVX2`, `AVX512`);
   the top-level default is the build host's level, probed at configure time
+- Windows MSVC x64: the 8-lane AVX2 float backend is `src/pffft_wide_tu.c`, compiled with `/arch:AVX2;/GL-`
+  with `PFFFT_WIDE_TU` defined (CMake does it); nothing in that file may run before the CPU check
+- x86-64 baseline builds run `check_isa_baseline` (needs GNU objdump; on Windows e.g. MSYS2
+  `mingw-w64-x86_64-binutils` on PATH) and `check_isa_baseline_selftest`
 - Windows MinGW: Cross-compilation scripts available
 - macOS: Works with native toolchain; Accelerate framework optional
 - Linux: Works with GCC or Clang; standard `libm` linked by default

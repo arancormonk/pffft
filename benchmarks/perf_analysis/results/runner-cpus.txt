@@ -1,0 +1,109 @@
+== sweep-1
+CPU(s):                                  4
+Model name:                              AMD EPYC 9V74 80-Core Processor
+CPU family:                              25
+Model:                                   17
+Stepping:                                1
+Hypervisor vendor:                       Microsoft
+L2 cache:                                2 MiB (2 instances)
+L3 cache:                                32 MiB (1 instance)
+== sweep-3
+CPU(s):                                  4
+Model name:                              AMD EPYC 9V74 80-Core Processor
+CPU family:                              25
+Model:                                   17
+Stepping:                                1
+Hypervisor vendor:                       Microsoft
+L2 cache:                                2 MiB (2 instances)
+L3 cache:                                32 MiB (1 instance)
+== sweep-2
+CPU(s):                                  4
+Model name:                              AMD EPYC 7763 64-Core Processor
+CPU family:                              25
+Model:                                   1
+Stepping:                                1
+Hypervisor vendor:                       Microsoft
+L2 cache:                                1 MiB (2 instances)
+L3 cache:                                32 MiB (1 instance)
+== sweep-5
+CPU(s):                                  4
+Model name:                              AMD EPYC 7763 64-Core Processor
+CPU family:                              25
+Model:                                   1
+Stepping:                                1
+Hypervisor vendor:                       Microsoft
+L2 cache:                                1 MiB (2 instances)
+L3 cache:                                32 MiB (1 instance)
+== sweep-6
+CPU(s):                                  4
+Model name:                              AMD EPYC 7763 64-Core Processor
+CPU family:                              25
+Model:                                   1
+Stepping:                                1
+Hypervisor vendor:                       Microsoft
+L2 cache:                                1 MiB (2 instances)
+L3 cache:                                32 MiB (1 instance)
+== sweep-4
+CPU(s):                                  4
+Model name:                              AMD EPYC 9V45 96-Core Processor
+CPU family:                              26
+Model:                                   2
+Stepping:                                1
+Hypervisor vendor:                       Microsoft
+L2 cache:                                2 MiB (2 instances)
+L3 cache:                                32 MiB (1 instance)
+== second batch (held out: not used for the tables)
+== batch2 sweep-1
+CPU(s):                                  4
+Model name:                              AMD EPYC 7763 64-Core Processor
+CPU family:                              25
+Model:                                   1
+Stepping:                                1
+Hypervisor vendor:                       Microsoft
+L2 cache:                                1 MiB (2 instances)
+L3 cache:                                32 MiB (1 instance)
+== batch2 sweep-2
+CPU(s):                                  4
+Model name:                              AMD EPYC 7763 64-Core Processor
+CPU family:                              25
+Model:                                   1
+Stepping:                                1
+Hypervisor vendor:                       Microsoft
+L2 cache:                                1 MiB (2 instances)
+L3 cache:                                32 MiB (1 instance)
+== batch2 sweep-3
+CPU(s):                                  4
+Model name:                              INTEL(R) XEON(R) PLATINUM 8573C
+CPU family:                              6
+Model:                                   207
+Stepping:                                2
+Hypervisor vendor:                       Microsoft
+L2 cache:                                4 MiB (2 instances)
+L3 cache:                                260 MiB (1 instance)
+== batch2 sweep-4
+CPU(s):                                  4
+Model name:                              AMD EPYC 7763 64-Core Processor
+CPU family:                              25
+Model:                                   1
+Stepping:                                1
+Hypervisor vendor:                       Microsoft
+L2 cache:                                1 MiB (2 instances)
+L3 cache:                                32 MiB (1 instance)
+== batch2 sweep-5
+CPU(s):                                  4
+Model name:                              AMD EPYC 9V74 80-Core Processor
+CPU family:                              25
+Model:                                   17
+Stepping:                                1
+Hypervisor vendor:                       Microsoft
+L2 cache:                                2 MiB (2 instances)
+L3 cache:                                32 MiB (1 instance)
+== batch2 sweep-6
+CPU(s):                                  4
+Model name:                              AMD EPYC 7763 64-Core Processor
+CPU family:                              25
+Model:                                   1
+Stepping:                                1
+Hypervisor vendor:                       Microsoft
+L2 cache:                                1 MiB (2 instances)
+L3 cache:                                32 MiB (1 instance)

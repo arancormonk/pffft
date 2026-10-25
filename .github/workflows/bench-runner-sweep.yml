@@ -1,0 +1,68 @@
+name: bench runner sweep
+
+# Size-table sweeps (benchmarks/perf_analysis/README.md, "Size table") on
+# GitHub-hosted runners, which are virtual machines on varying AMD and Intel
+# CPUs. Each job records the CPU it got; wide_size_table.py combines sweeps
+# of the same CPU model. Runs only on bench/* branches.
+
+on:
+  push:
+    branches:
+      - 'bench/**'
+
+permissions:
+  contents: read
+
+jobs:
+  sweep:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix:
+        job: [1, 2, 3, 4, 5, 6]
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+    - name: CPU
+      run: |
+        mkdir -p out
+        { lscpu; for f in vendor_id "cpu family" model "model name" stepping; do
+            grep -m1 "^$f\s*:" /proc/cpuinfo; done; } | tee out/cpu.txt
+    - name: build
+      run: |
+        # host-tuned like the Zen 3 sweeps; 'wide' uses the 8-lane backend at every size it supports
+        for v in native4:-DPFFFT_ENABLE_WIDE_DISPATCH=OFF wide:-DPFFFT_WIDE_ALL_SIZES=ON; do
+          cmake -S . -B "b_${v%%:*}" -DCMAKE_BUILD_TYPE=Release "${v#*:}" \
+            -DPFFFT_BUILD_TESTS=OFF -DPFFFT_BUILD_BENCHMARKS=OFF -DPFFFT_BUILD_EXAMPLES=OFF
+          cmake --build "b_${v%%:*}" --parallel 4 --target PFFFT PFFASTCONV
+        done
+    - name: sweep
+      run: |
+        sizes() {   # the sizes the 8-lane backend supports, up to 2^20
+          python3 -c "
+        import sys
+        step = 64 if sys.argv[1] == 'complex' else 128
+        def ok(n):
+            m = n // 8
+            for p in (2, 3, 5):
+                while m % p == 0: m //= p
+            return m == 1
+        print(' '.join(str(n) for n in range(step, (1 << 20) + 1, step) if ok(n)))" "$1"
+        }
+        ops="forward backward ordered-forward ordered-backward inplace-forward inplace-backward inplace-ordered-forward inplace-ordered-backward pipeline reorder zconv"
+        for kind in complex real; do
+          python3 benchmarks/perf_analysis/run_matrix.py --precisions float --interleave --repeats 3 \
+            --seconds 0.05 --cpu 1 --max-busy-cpus 2.5 --kinds $kind --sizes $(sizes $kind) --ops $ops \
+            --build native4=b_native4 --build wide=b_wide --output out/sweep-$kind.csv \
+            $( [ $kind = real ] && echo --no-compile )
+        done
+        cat out/sweep-complex.csv > out/sweep.csv
+        tail -n +2 out/sweep-real.csv >> out/sweep.csv
+        gzip -9 out/sweep.csv
+    - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      if: always()
+      with:
+        name: sweep-${{ matrix.job }}
+        path: out

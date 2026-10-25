@@ -577,10 +577,12 @@ N not divisible by 64 (complex) or 128 (real) keep the 4-lane code:
 Which sizes use the 8-lane code on a measured CPU is decided per transform
 type and N by [wide_size_table.py](wide_size_table.py), which writes
 [pffft_wide_sizes.h](../../src/pffft_wide_sizes.h). A size is enabled only
-if, in each of two independent sweeps, all eight transform modes and the
+if, in each sweep of the CPU's group, all eight transform modes and the
 FFT-multiply-IFFT pipeline were at least 1.10x as fast in the median with
 non-overlapping interquartile ranges, and `pffft_zreorder` and
-`pffft_zconvolve` were at least 0.97x. The sweeps
+`pffft_zconvolve` were at least 0.97x. For Zen 3 these are the two sweeps on
+the Ryzen 9 5950X described here and seven on EPYC 7763 runner VMs
+([below](#measuring-another-cpu)). The two desktop sweeps
 ([1](results/wide-sweep1.csv.gz), [2](results/wide-sweep2.csv.gz), 26532
 samples each) cover all 201 complex and 167 real sizes from 64 to 2^20 that
 the 8-lane code supports, all eleven operations, 3 samples per case and
@@ -590,19 +592,33 @@ the host-load limit was raised to 4 busy CPUs (sweep 1 started at 2.5) to
 make progress on a shared host; the IQR condition guards against the extra
 noise. Per-size verdicts: [wide-size-table.txt](results/wide-size-table.txt).
 
-Enabled: 192 complex and 152 real sizes. There, the slowest of the nine
-gated modes per size was 1.19x (complex, N = 64) to 1.61x, and 1.12x (real,
-N = 128, in-place) to 1.61x; over all modes and sizes the median speedup
-was 1.48x (complex) and 1.41x (real). Spectral multiplication is up to 2x
-faster at small N and about equal once it is memory bound (0.97-1.28x from
-N = 16384); real `pffft_zreorder` is 0.97x (N = 128) to 2x.
+Enabled on Zen 3 desktop parts (`pffft_wide_zen3_desktop_*`, from these two
+sweeps): 192 complex and 152 real sizes, where the gated modes measured
+1.19-1.91x (complex, median 1.48x) and 1.12-1.97x (real, median 1.41x), and
+no case of the eleven operations was below 0.97x. The Zen 3 server part
+(EPYC 7763, seven runner sweeps, [below](#measuring-another-cpu)) passes
+fewer: 143 and 115 sizes (`pffft_wide_zen3_server_*`), gated modes 1.10-1.94x
+and 1.10-2.02x (medians 1.48x and 1.42x). Of the desktop sizes it fails 55
+complex (N = 64, and all others from N = 62208, with working sets beyond its
+512 KB L2 per core) and 47 real ones (N = 128, where real `pffft_zreorder`
+measured 0.82x in its first three sweeps, and the rest from N = 80000); there
+the 8-lane code was mostly still faster, but one mode fell under 1.10x or the
+interquartile ranges overlapped, or reordering or spectral multiplication
+fell under 0.97x (down to 0.78x: complex `pffft_zconvolve` at N = 288000).
+So each model uses its own table, and the Zen 3 models that were not measured
+(the Cezanne and Rembrandt APUs) the 137 complex and 105 real sizes that pass
+in all nine sweeps (`pffft_wide_zen3_*`, exactly the sizes of both tables).
+Spectral multiplication is up to 2x faster at small N and about equal once
+it is memory bound.
 
-Not enabled: real N = 256 (in-place backward 1.10x in both sweeps, just
-under the threshold), and 9 complex and 14 real sizes from 20480 to 663552
-where `pffft_zconvolve` measured 0.95-0.97x in at least one sweep, although
-the transforms there were 1.23-1.65x as fast. The kernel is the 4-lane loop
-on 256-bit vectors and memory bound at these sizes; the conservative rule
-keeps the 4-lane code rather than trade a few percent in one operation.
+Not enabled in the desktop sweeps (and so not on Zen 3 desktop parts and the
+unmeasured Zen 3 models; the server table enables some of them): real
+N = 256 (in-place backward 1.10x in both sweeps, just under the threshold),
+and 9 complex and 14 real sizes from 20480 to 663552 where `pffft_zconvolve`
+measured 0.95-0.97x in at least one sweep, although the transforms there
+were 1.23-1.65x as fast. The kernel is the 4-lane loop on 256-bit vectors
+and memory bound at these sizes; the conservative rule keeps the 4-lane
+code rather than trade a few percent in one operation.
 
 The fused layout passes remove one sweep over the data from the 4-lane
 complex transforms (real transforms have no such pass and are unchanged,
@@ -620,10 +636,42 @@ measured 0.91-0.95x in the runner-built drivers but equal in a separately
 linked binary of the same code, where disabling the fusion was slower:
 code-layout sensitivity at a 5 ns scale, not a cost of the fusion.
 
-Against the controlled FFTW builds (bench_pffft, MFlops): complex unordered
-PFFFT now matches FFTW AVX2 at N = 512..2048 (91465 vs 90781 at 1024) and is
-ahead from N = 8192; ordered complex output is still 15-35% behind FFTW AVX2
-at N = 64..4096; real transforms are 1.2-1.8x as fast as FFTW AVX2.
+Against other libraries see [Other FFT libraries](#other-fft-libraries).
+
+### Other FFT libraries
+
+`bench_pffft_float` (MFlops; median of three runs, run-to-run spread mostly
+under 10%) of the final code as packages build it (`TARGET_C_ARCH=none`, the
+8-lane code at the sizes of the Zen 3 desktop table at run time) on the
+5950X, CPU 14, against FFTW 3.3.10 built with `--enable-sse2 --enable-avx
+--enable-avx2` (float, `FFTW_MEASURE` and `FFTW_ESTIMATE` plans) and the
+bundled Green, Kiss and Pocket FFTs (same baseline flags);
+[tables](results/library-comparison.txt). Ratios of PFFFT's unordered
+transform (PFFFT-U; ordered output costs up to 16% more) to the others:
+
+| | FFTW MEASURE | FFTW ESTIMATE | Pocket | Green | Kiss |
+| --- | --- | --- | --- | --- | --- |
+| complex, N = 2^k | 0.70-0.91x at 32..128 and 4096; 0.97-1.15x at 256..2048; 1.19-1.56x at 16 and 8192..262144 | 1.19-4.89x | 2.3-5.0x | 3.8-9.3x | 4.0-18x |
+| real, N = 2^k | 0.92x at 256; 1.28-1.79x at every other N from 32 to 262144 | 1.47-3.17x | 2.0-6.9x | 3.0-11.7x | 3.4-18x |
+| complex, other N | 0.54-0.79x (96..384, 640, 768, 2400, 9216); 1.04-1.30x (480, 800) | 1.11-3.16x | 3.6-4.8x | 6.8-9.3x | 11-18x |
+| real, other N | 0.62-0.74x (160, 192, 9216); 0.99-1.41x (96, 384..2400) | 1.15-3.51x | 2.8-6.1x | 5.2-9.7x | 8.0-18x |
+
+So FFTW with measured plans remains faster for short and for most
+non-power-of-two complex transforms, where its generated codelets and
+planner choose better radix sequences than PFFFT's fixed FFTPACK passes (a
+host-tuned PFFFT build with AVX2 and FMA throughout is within 0.05x of these
+ratios for complex transforms: the gap is not the instruction set); PFFFT
+leads for real transforms and large power-of-two complex ones, and is
+faster than FFTW with estimated plans everywhere. With the table of the
+unmeasured Zen 3 models (the sizes of both measured ones) complex
+N = 65536 and 262144 and real N = 262144 measured 0.96-0.97x instead of
+1.46-1.56x, complex N = 64 0.60x instead of 0.74x. Small sizes depend on
+code layout: between two builds that differ only in the generated size
+tables, real N = 96 and complex N = 16, which use the 4-lane code in both,
+measured 22300 and 30100 MFlops and 25600 and 22300 MFlops, reproducibly;
+take single small-size ratios as uncertain by that much. Not compared: FFTW
+with AVX-512 (Zen 3 has none), Intel MKL, Apple vDSP, double precision,
+other CPUs.
 
 ### In-place unordered complex transforms
 
@@ -678,6 +726,139 @@ backward time from 75 to 91 ns
 ([control](results/inplace-parity-align-control-v1.csv.gz)). On Zen 3,
 float N = 128 uses the 8-lane code anyway.
 
+### CPU classes
+
+`pffft_x86_wide_class()` (src/pffft_cpu_x86.h) sorts AVX2 CPUs by CPUID
+vendor, family and model into explicit lists, with family/model ranges from
+LLVM's `Host.cpp` (cross-checked with AMD's family/model table and Linux
+`intel-family.h`): *measured*, each with its own size table (Zen 3 desktop
+and server models and the unmeasured Zen 3 APUs: the tables above; Zen 4:
+see below), *inferred* (full-width 256-bit FP datapaths,
+no AVX frequency licences: Zen 2, Zen 3 Badami, Zen 5, Intel client big
+cores Haswell..Rocket Lake and P-core-only Alder/Raptor Lake-S) and *off*
+(everything else, including 128-bit datapaths, hybrids, Intel servers,
+unknown models and future families). By default only the measured class uses
+the 8-lane code; the inferred class is opt-in (`PFFFT_WIDE_INFERRED`) and
+then uses a stricter table (every gated mode at least 1.25x in every
+measured sweep, Zen 3 and Zen 4: 81 complex, 67 real sizes) and only sizes
+whose working set (input, output, work and twiddles: 32N bytes complex, 16N
+real) fits in L2, read from CPUID leaf 4 (Intel) or 8000_001Dh/8000_0006h
+(AMD). Unit tests cover every range boundary and hole; Intel SDE runs in CI
+check the classes against the CPUIDs of 22 emulated Intel chips
+(`tests/run_sde_checks.sh`).
+
+The inferred class was meant to be backed by a static throughput model
+([mca_predict.py](mca_predict.py)): predicted cycles per call = sum over the
+basic blocks of (executions per call, counted with valgrind's callgrind on
+the shipping baseline GCC build) x (llvm-mca 23.1.3 steady-state cycles of
+the block on the CPU's scheduling model), for the 56 L1-resident cases of
+the inferred table, all eight modes. Its rule was fixed before the data:
+calibration within 15% of the speedups measured on Zen 3 in every case, a
+Zen 1 control (256-bit operations split) at most 1.05x after correction for
+the model's bias, and then every inferred model at least 1.10x. Result
+([summary](results/mca-crosscheck.txt), [cases](results/mca-crosscheck.csv.gz)):
+calibration deviation median 4.8% but up to 18.9% (fail), Zen 1 predicted
+1.42x (fail: the model cannot tell the datapath widths apart; the gain it
+predicts comes from fewer instructions, loads and stores per element). The
+other models predict 1.35-1.77x at their worst case, but under the rule
+that is no evidence, so the inferred class stays off by default.
+
+### Measuring another CPU
+
+A CPU model joins the measured class with two sweeps like the ones above on
+it: a `native4` build (`-DPFFFT_ENABLE_WIDE_DISPATCH=OFF`) and a `wide` build
+(`-DPFFFT_WIDE_ALL_SIZES=ON`: the 8-lane code at every size it supports),
+`run_matrix.py --interleave --repeats 3` over all supported sizes and the
+eleven operations, then `wide_size_table.py` and a per-model entry in
+`pffft_x86_wide_class()`. The workflow
+[bench-runner-sweep.yml](../../.github/workflows/bench-runner-sweep.yml)
+runs such sweeps on GitHub-hosted runners (virtual machines whose CPU varies
+between AMD and Intel models) and records the CPU of each.
+
+Two batches of six such sweeps (host-tuned GCC builds, 4 vCPUs, host-load
+gate inside the VM; [CPUs](results/runner-cpus.txt)) landed on four CPUs.
+Each figure below is the ratio of the medians (`native4` time / `wide`
+time) of one case (transform type, N, operation) in one sweep, over all
+eleven operations and every sweep of the CPU:
+
+| CPU | sweeps | passes the rule in its own sweeps (complex / real sizes) | at the sizes it now uses |
+| --- | ---: | ---: | --- |
+| Zen 4, EPYC 9V74 (19h model 11h) | 3 ([1](results/runner-zen4-epyc9v74-1.csv.gz), [2](results/runner-zen4-epyc9v74-2.csv.gz), [3](results/runner-zen4-epyc9v74-3.csv.gz)) | 186 / 163 | Zen 4 table: median 1.38x, lowest 0.97x |
+| Zen 3, EPYC 7763 (19h model 01h) | 7 ([1](results/runner-zen3-epyc7763-1.csv.gz), [2](results/runner-zen3-epyc7763-2.csv.gz), [3](results/runner-zen3-epyc7763-3.csv.gz), [4](results/runner-zen3-epyc7763-4.csv.gz), [5](results/runner-zen3-epyc7763-5.csv.gz), [6](results/runner-zen3-epyc7763-6.csv.gz), [7](results/runner-zen3-epyc7763-7.csv.gz)) | 143 / 115 | Zen 3 server table: median 1.44x, lowest 0.97x |
+| Zen 5, EPYC 9V45 (1Ah model 02h) | 1 ([1](results/runner-zen5-epyc9v45-1.csv.gz)) | (one sweep) | none by default; opted in, the inferred table within its 1 MB L2: median 1.53x, lowest 1.07x |
+| Intel Xeon Platinum 8573C | 1 ([1](results/runner-intel-xeon8573c-1.csv.gz)) | (one sweep) | none (Intel server parts are off) |
+
+Zen 4 is therefore a measured class with its own table from its three
+sweeps (`pffft_wide_zen4_*` in `pffft_wide_sizes.h`). The Zen 3 server part
+does not confirm the desktop table: at its sizes real `pffft_zreorder` at
+N = 128 measured 0.82x in the first three sweeps and complex
+`pffft_zconvolve` at N = 288000 0.78x in one. So the server model has its
+own table from its seven sweeps, the desktop model keeps its own, the
+unmeasured Zen 3 models use the sizes of all nine Zen 3 sweeps (a size must
+pass in each), and the inferred table comes from every sweep of every
+measured group (1.25x). The second batch was
+first held out; checked against the tables of the first, it found
+enabled sizes that fail the rule (Zen 3: real `pffft_zconvolve` 0.96x at
+N = 240000; Zen 4: complex `pffft_zconvolve` 0.93x at N = 24000, with
+disjoint interquartile ranges), so under the rule it is part of the tables
+now, which removed 1 complex and 8 real sizes from the Zen 3 server table
+(144 / 123 from the first three sweeps) and 3 complex and 1 real from the
+Zen 4 table. Zen 5 stays inferred: one sweep is not enough for a
+table, and at the sizes of the measured tables it has cases below 1.0x
+(Zen 3 table: 21, down to 0.90x; Zen 4 table: 32, down to 0.88x, mostly
+large-N pipeline and spectral multiplication), so those tables would be
+wrong for it; the inferred table within its L2, which this sweep did not
+take part in, is never slower there. On the Xeon the measured tables would
+be wrong too (real `pffft_zreorder` 0.81-0.83x at N = 384..1024), which
+supports keeping Intel server parts off. These are virtual machines on
+shared hosts: evidence for the tested models, an extrapolation for other
+models of the same microarchitecture. More sweeps are not run in the hope
+of landing on other CPUs: the runners' CPU cannot be chosen. The tables are
+generated with
+`wide_size_table.py --output src/pffft_wide_sizes.h --group zen3 DESKTOP... SERVER... --group zen3_desktop DESKTOP... --group zen3_server SERVER... --group zen4 ...`.
+
+### Windows
+
+GCC and Clang build the 8-lane code with target pragmas on Windows as
+elsewhere (MinGW-w64 GCC 13 and 15, clang-cl 19 in CI). The pragmas are not
+what makes it safe: every vector load and store is an explicit unaligned
+`VLD`/`VST` (the 4-lane, scalar, NEON, Altivec and WASM objects were shown
+unchanged by comparing disassembly with relocations and the referenced
+constant data before and after), and `check_isa_baseline.py` proves the
+alignment of every remaining aligned access (stack slots tracked modulo 32,
+RIP-relative constants by section alignment and relocation) on ELF and
+PE/COFF objects alike.
+
+MSVC was first built with the 8-lane code inside `pffft.c` and its AVX2
+intrinsics compiled without `/arch` (same translation unit). That works
+(all tests, ISA and SSE/AVX transition audit clean in optimized builds), but
+the generated code is slower. Interleaved measurement on the Zen 3 host
+(CPU 14, MSVC 19.44 binaries under wine, 5 samples per case and build,
+host-load gate; [samples](results/windows-gate.csv.gz),
+[table](results/windows-gate.txt)), speedup over the 4-lane code of the same
+compiler at the 144 table-size cases (9 sizes, all 9 gated modes):
+
+| Build | complex min / median | real min / median |
+| --- | ---: | ---: |
+| GCC baseline | 1.30 / 1.65x | 1.17 / 1.71x |
+| MSVC, same translation unit, no `/arch` | 1.23 / 1.42x | 1.12 / 1.31x |
+| MSVC, whole library with `/arch:AVX2` (experiment) | 1.28 / 1.59x | 1.25 / 1.55x |
+
+The agreed criterion for the same-translation-unit approach was a speedup
+within 10% of GCC's in every case; it was within 10% in 26 of 144 (median
+0.84 of GCC's), while the whole-library `/arch:AVX2` experiment was within
+10% in 111 of 144. MSVC therefore builds the 8-lane code as its own
+translation unit, `pffft_wide_tu.c`, with `/arch:AVX2`, and `pffft.c` for the
+baseline. Measured the same way as that build ([samples](results/windows-gate-tu.csv.gz),
+[table](results/windows-gate-tu.txt), 4-lane code of the baseline MSVC build
+as the reference): complex 1.28 / 1.59x, real 1.25 / 1.56x (min / median),
+within 10% of GCC's speedup in 114 of 144 cases (median 0.96), never below
+1.25x. Rules for that file: it holds nothing that
+runs before the CPU check (the audit rejects any non-8-lane function with
+AVX code in it, which caught MSVC Debug emitting `cosl`/`sinl` copies that
+the linker could have shared with `pffft.c`); it is compiled without `/GL`;
+and the CPU check also requires the rest of x86-64-v3.
+
 ### Tried and rejected
 
 | Candidate | Result |
@@ -697,9 +878,29 @@ float N = 128 uses the 8-lane code anyway.
   CPUID/XGETBV, setup selection, every operation with input, output and work
   at 16 mod 32 bytes against aligned results and guard regions, and
   concurrent setup creation.
-- `check_isa_baseline.py` (a ctest in baseline x86-64 Linux builds): no VEX or
-  EVEX instruction outside the 8-lane functions, checked for GCC and Clang
-  with and without LTO.
+- `check_isa_baseline.py` (a ctest in baseline x86-64 Linux and Windows
+  builds, GNU objdump on ELF and PE/COFF): outside the 8-lane functions only
+  x86-64 baseline instructions (VEX, EVEX and XOP told by their encoding, so
+  VEX-encoded BMI is caught, and SSE3..SSE4.2, POPCNT, LZCNT, MOVBE and
+  others by mnemonic); inside them only what the CPU check checks; every
+  instruction that needs an aligned operand provably aligned; and no
+  legacy-SSE instruction, call out of or return from the 8-lane code while
+  the upper ymm halves may be dirty (data flow through calls between 8-lane
+  functions; indirect jumps only as jump tables shown local through ELF or
+  COFF relocations). COFF objects are read from their own section, symbol
+  and relocation tables, since GNU objdump mislabels MSVC's same-named
+  COMDAT sections; linked MSVC images (also under LTCG) through the linker
+  map. 28 assembly fixtures are its negative and positive controls.
+  It also found that the previous version passed vacuously with
+  llvm-objdump (which CMake picks for Clang builds); it now requires GNU
+  objdump and fails on output without instructions.
+- Intel SDE 10.13.1 in CI (Linux and MSVC/clang-cl builds, static and DLL):
+  the tests pass on emulated Nehalem and Sandy Bridge without executing an
+  instruction those chips lack, and an unguarded AVX2 instruction in an
+  executable and in a DLL is reported; on emulated Haswell, SDE's AVX/SSE
+  transition checker counts no transition while test_pffft_wide runs the
+  8-lane code (0 in 17.5 billion instructions for the GCC baseline build;
+  1000 of 1000 in its negative control).
 - `tests/run_emulated_cpu_tests.sh` (CI job `x86_cpu_fallback`): static
   baseline binaries pass under QEMU emulating Nehalem and SandyBridge without
   selecting the backend (QEMU raises SIGILL for AVX2 there), and use and pass
@@ -707,11 +908,18 @@ float N = 128 uses the 8-lane code anyway.
 
 ### Limitations
 
-- Measured on one CPU model; other AVX2 CPUs keep the 4-lane code unless
-  built with `PFFFT_WIDE_UNKNOWN_CPUS=ON`. Adding a CPU class to
-  `pffft_x86_wide_measured()` needs the same sweep on that CPU.
-- Not built on Windows (MSVC lacks per-function target selection, MinGW GCC
-  cannot realign the stack for 256-bit spills, clang-cl is untested).
+- Measured on Zen 3 (a desktop part, confirmed on a server part in VMs) and
+  Zen 4 (server part, in VMs only); other AVX2 CPUs keep the 4-lane code
+  unless built with `PFFFT_WIDE_INFERRED=ON` (see CPU classes) or
+  `PFFFT_WIDE_UNKNOWN_CPUS=ON`. The Zen 4 table comes from GitHub-hosted
+  virtual machines, whose neighbours and clocks are not controlled.
+- With MSVC, projects that do not use this CMake build must add
+  `pffft_wide_tu.c` (compiled with `/arch:AVX2`) and define `PFFFT_WIDE_TU`;
+  otherwise MSVC builds keep the 4-lane code. The MSVC measurement ran under
+  wine on Zen 3, not on Windows.
+- SSE/AVX transitions are checked statically (skipped for unoptimized builds)
+  and with SDE's emulated transition checker; no Intel hardware was available
+  to measure their cost.
 - Double precision stays on its existing 4-lane AVX code; AVX-512 is not used.
 - Buffers at 16 mod 32 bytes are correct but lose part of the gain
   (prototype: 1.15-1.67x instead of 1.4-1.9x).

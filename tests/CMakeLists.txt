@@ -65,7 +65,23 @@ if (PFFFT_USE_TYPE_FLOAT)
     target_compile_definitions( test_pffft_wide PRIVATE PFFFT_TEST_THREADS )
     target_link_libraries( test_pffft_wide Threads::Threads )
   endif()
+  # the default selection test needs the library's CPU policy options
+  foreach(_pffft_opt PFFFT_WIDE_UNKNOWN_CPUS PFFFT_WIDE_INFERRED PFFFT_WIDE_ALL_SIZES)
+    if (${_pffft_opt})
+      target_compile_definitions( test_pffft_wide PRIVATE ${_pffft_opt}=1 )
+    endif()
+  endforeach()
+  if (PFFFT_WIDE_TU_BUILD)
+    target_compile_definitions( test_pffft_wide PRIVATE PFFFT_WIDE_TU=1 )
+  endif()
+  if (MSVC)
+    # a map file for check_isa_baseline's audit of the linked code
+    set_property(TARGET test_pffft_wide APPEND_STRING PROPERTY LINK_FLAGS " /MAP")
+  endif()
   add_test(NAME test_pffft_wide COMMAND test_pffft_wide)
+  if (PFFFT_TEST_REQUIRE_WIDE)
+    set_tests_properties(test_pffft_wide PROPERTIES ENVIRONMENT "PFFFT_TEST_REQUIRE_WIDE=1")
+  endif()
   find_package(Python3 COMPONENTS Interpreter)
   if (Python3_Interpreter_FOUND AND NOT Python3_VERSION VERSION_LESS 3.8)
     # negative controls of the generator of src/pffft_wide_sizes.h
@@ -73,29 +89,115 @@ if (PFFFT_USE_TYPE_FLOAT)
     add_test(NAME wide_size_table_selftest
              COMMAND ${Python3_EXECUTABLE} ${PFFFT_SOURCE_DIR}/benchmarks/perf_analysis/wide_size_table.py --self-test)
   endif()
-  # A baseline x86-64 build must keep every AVX instruction inside the
-  # 8-lane backend, which only runs on CPUs that support it.
-  if (CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64)$"
-      AND TARGET_C_ARCH STREQUAL "none" AND CMAKE_OBJDUMP)
-    if (Python3_Interpreter_FOUND AND NOT Python3_VERSION VERSION_LESS 3.7)
-      # (subprocess.run(capture_output=) needs Python 3.7)
-      # Check the library itself (static archive or shared object), not an
-      # executable, which may contain the C library's own AVX variants
-      # (selected at run time) when linked statically. A static archive
-      # built with LTO holds no machine code, so the final executable is
-      # checked instead; a shared library always holds the code.
+  # A baseline x86-64 build must keep every instruction beyond SSE2 inside
+  # the 8-lane backend, which only runs on CPUs that support it, and that
+  # backend must not fault on 16-byte aligned data or mix SSE with dirty
+  # AVX state (tests/check_isa_baseline.py). Needs GNU objdump (ELF or
+  # PE/COFF); MSVC builds find one on PATH (e.g. MSYS2 binutils).
+  if (CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64)$" AND (CMAKE_SYSTEM_NAME STREQUAL "Linux" OR WIN32)
+      AND TARGET_C_ARCH MATCHES "^(none|SSE2)$" AND NOT CMAKE_SIZEOF_VOID_P EQUAL 4
+      AND Python3_Interpreter_FOUND AND NOT Python3_VERSION VERSION_LESS 3.7)
+    # (subprocess.run(capture_output=) needs Python 3.7)
+    # GNU objdump: the toolchain's (a cross toolchain's own), else from PATH
+    set(_pffft_objdump_default "")
+    if (WIN32)
+      set(_pffft_od_names x86_64-w64-mingw32-objdump objdump)
+    else()
+      set(_pffft_od_names objdump x86_64-w64-mingw32-objdump)
+    endif()
+    foreach(_pffft_od ${CMAKE_OBJDUMP} ${_pffft_od_names})
+      unset(_pffft_od_path CACHE)
+      find_program(_pffft_od_path NAMES ${_pffft_od})
+      if (_pffft_od_path AND NOT _pffft_objdump_default)
+        execute_process(COMMAND ${_pffft_od_path} --version OUTPUT_VARIABLE _pffft_od_ver ERROR_QUIET)
+        if (_pffft_od_ver MATCHES "^GNU objdump")
+          set(_pffft_objdump_default ${_pffft_od_path})
+        endif()
+      endif()
+    endforeach()
+    unset(_pffft_od_path CACHE)
+    set(PFFFT_ISA_AUDIT_OBJDUMP "${_pffft_objdump_default}" CACHE FILEPATH "GNU objdump for check_isa_baseline")
+    set(_pffft_isa_args --objdump ${PFFFT_ISA_AUDIT_OBJDUMP})
+    if (CMAKE_C_FLAGS MATCHES "PFFFT_DISABLE_FMA" OR PFFFT_DISABLE_FMA)
+      list(APPEND _pffft_isa_args --no-fma)
+    endif()
+    # the SSE/AVX transition rule is about speed; MSVC /Od compiles scalar
+    # code with legacy SSE encodings (a generator expression: Visual Studio
+    # picks the configuration at build time)
+    list(APPEND _pffft_isa_args $<$<CONFIG:Debug>:--no-transitions>)
+    if (PFFFT_WIDE_TU_BUILD)
+      list(APPEND _pffft_isa_args --wide-tu)
+    endif()
+    if (PFFFT_ISA_AUDIT_OBJDUMP)
+      # Check the library code itself, not an executable, which may contain
+      # the C library's own AVX variants (selected at run time) when linked
+      # statically. A static archive built with LTO holds no machine code,
+      # so the final executable is checked instead; a shared library always
+      # holds the code. MSVC and clang-cl: the objects (MSVC /GL and LLVM
+      # bitcode ones hold no machine code and are skipped; all of them may
+      # be, the linked image is audited below).
       string(TOUPPER "${CMAKE_BUILD_TYPE}" _pffft_cfg)
       get_target_property(_pffft_type PFFFT TYPE)
       get_target_property(_pffft_ipo PFFFT INTERPROCEDURAL_OPTIMIZATION)
       get_target_property(_pffft_ipo_cfg PFFFT INTERPROCEDURAL_OPTIMIZATION_${_pffft_cfg})
-      if (NOT _pffft_type STREQUAL "SHARED_LIBRARY" AND (_pffft_ipo OR _pffft_ipo_cfg))
-        set(_pffft_isa_file $<TARGET_FILE:test_pffft_wide>)
+      if (MSVC)
+        set(_pffft_isa_files $<TARGET_OBJECTS:PFFFT> --skip-empty --all-il-ok)
+      elseif (NOT _pffft_type STREQUAL "SHARED_LIBRARY" AND (_pffft_ipo OR _pffft_ipo_cfg))
+        set(_pffft_isa_files $<TARGET_FILE:test_pffft_wide>)
       else()
-        set(_pffft_isa_file $<TARGET_FILE:PFFFT>)
+        set(_pffft_isa_files $<TARGET_FILE:PFFFT>)
       endif()
       add_test(NAME check_isa_baseline
                COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/check_isa_baseline.py
-                       --objdump ${CMAKE_OBJDUMP} ${_pffft_isa_file})
+                       ${_pffft_isa_args} ${_pffft_isa_files})
+      # MSVC's linker (or lld-link): the linked code too, by its map file
+      # (the image has no symbols), which also covers link-time code
+      # generation. Every object of the image except the C runtime's, since
+      # then pffft's code may be inlined into the test's. Required: the
+      # 8-lane entry points of MSVC's separate translation unit (compiled
+      # without /GL) and, unless an object of the library holds no machine
+      # code (link-time code generation may inline them into the test), the
+      # public functions; a DLL exports them. Where the 8-lane backend must
+      # be built, some 8-lane function.
+      if (MSVC)
+        # objects without a library (also link-time generated ones) or pffft's
+        set(_pffft_map_objects "^(pffft:)?[^:<]+$")
+        set(_pffft_required "")
+        set(_pffft_public pffft_new_setup,pffft_transform)
+        if (PFFFT_WIDE_TU_BUILD)
+          set(_pffft_required pffft_w8_new_setup,pffft_w8_transform)
+        endif()
+        if (_pffft_type STREQUAL "SHARED_LIBRARY")
+          set(_pffft_image $<TARGET_FILE:PFFFT> --map $<TARGET_FILE_DIR:PFFFT>/pffft.map)
+          set(_pffft_required "${_pffft_required},${_pffft_public}")
+          set(_pffft_public "")
+        else()
+          set(_pffft_image $<TARGET_FILE:test_pffft_wide>
+              --map $<TARGET_FILE_DIR:test_pffft_wide>/test_pffft_wide.map)
+        endif()
+        add_test(NAME check_isa_baseline_image
+                 COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/check_isa_baseline.py
+                         ${_pffft_isa_args} --map-objects ${_pffft_map_objects}
+                         --require "${_pffft_required}" --require-unless-ltcg "${_pffft_public}"
+                         --ltcg-objects "$<TARGET_OBJECTS:PFFFT>"
+                         $<$<BOOL:${PFFFT_TEST_REQUIRE_WIDE}>:--require-wide> ${_pffft_image})
+      endif()
+      # negative and positive controls: assembly fixtures in tests/isa_audit
+      if (MSVC)
+        # COFF fixtures, also linked into DLLs and audited by their maps
+        find_program(PFFFT_ISA_AUDIT_CLANG NAMES clang)
+        set(_pffft_isa_cc ${PFFFT_ISA_AUDIT_CLANG} --cc-arg --target=x86_64-pc-windows-msvc
+            --linker ${CMAKE_LINKER})
+      else()
+        set(_pffft_isa_cc ${CMAKE_C_COMPILER})
+      endif()
+      if (NOT MSVC OR PFFFT_ISA_AUDIT_CLANG)
+        add_test(NAME check_isa_baseline_selftest
+                 COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/check_isa_baseline.py
+                         --self-test --objdump ${PFFFT_ISA_AUDIT_OBJDUMP} --cc ${_pffft_isa_cc})
+      endif()
+    else()
+      message(STATUS "check_isa_baseline: not run, no GNU objdump found")
     endif()
   endif()
 endif()
@@ -380,3 +482,5 @@ if(PFFFT_IS_TOPLEVEL AND NOT CMAKE_CROSSCOMPILING AND NOT CMAKE_GENERATOR MATCHE
       "-DISA_FLAG=${_pffft_isa_flag}"
       -P "${CMAKE_CURRENT_SOURCE_DIR}/check_native_default.cmake")
 endif()
+
+pffft_copy_runtime_dlls()

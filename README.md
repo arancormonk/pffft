@@ -286,18 +286,24 @@ PFDSP; also disable compiler contraction when unfused arithmetic is required.
 
 pffft splits an N-point transform into as many interleaved sub-sequences as a
 vector has lanes, runs the FFTPACK passes on all of them at once, and combines
-them across the lanes at the end. On x86-64, `pffft.c` also contains this
+them across the lanes at the end. On x86-64 the library also contains this
 algorithm with 8 lanes on AVX2 (`src/pffft_wide_impl.h`), compiled with GCC or
-Clang target attributes next to the 4-lane SSE code. `pffft_new_setup()`
-chooses it when
+Clang target attributes next to the 4-lane SSE code in `pffft.c`, and with
+MSVC as a translation unit of its own (see [MSVC](#msvc-and-the-8-lane-code)).
+`pffft_new_setup()` chooses it when
 
-* the build has it: GCC or Clang on x86-64, not Windows, SSE float backend,
+* the build has it: x86-64 with GCC 5 or later (on Windows MinGW-w64 GCC 13
+  or later, optimized builds only: GCC cannot align 32-byte stack slots
+  there at -O0), Clang 10 or later (on Windows, including clang-cl, 19 or later)
+  or MSVC from Visual Studio 2022 17.14, SSE float backend,
   `PFFFT_ENABLE_WIDE_DISPATCH` (default `ON`);
 * the CPU and OS support AVX2 and FMA (`PFFFT_DISABLE_FMA` drops the FMA
-  requirement), checked with CPUID/XGETBV on every call; the instructions only
-  run after that check, so baseline-ISA builds stay safe on older CPUs;
+  requirement), and every other extension the compiled 8-lane code may use,
+  checked with CPUID/XGETBV on every call; the instructions only run after
+  that check, so baseline-ISA builds stay safe on older CPUs;
 * the CPU model is one the 8-lane code was measured to be faster on (AMD Zen 3
-  so far), or the build sets `PFFFT_WIDE_UNKNOWN_CPUS=ON`;
+  and Zen 4 so far); a build can opt in to CPU models that were not measured, see
+  [CPUs that were not measured](#cpus-that-were-not-measured);
 * N is a multiple of 64 (complex) or 128 (real) with N/8 = 2^a 3^b 5^c, and
   is one of the sizes measured faster on that CPU (`src/pffft_wide_sizes.h`).
 
@@ -309,22 +315,78 @@ work with setups of the same N, transform and process, as `pffft.h` documents.
 Buffers still only need 16-byte alignment; 32-byte aligned buffers (as
 `pffft_aligned_malloc()` returns) are faster.
 
-Measured on a Ryzen 9 5950X (Zen 3) in two sweeps over all such sizes up to
-2^20, the 8-lane code is used at the 192 of 201 complex and 152 of 167 real
-sizes where every transform mode was at least 1.10x as fast in both sweeps
-and spectral multiplication and reordering kept at least 0.97x of their
-speed. There float transforms run 1.19-1.91x (complex) and 1.12-1.97x (real)
+Each measured CPU model has its own table of the sizes where, in every sweep
+over all such sizes up to 2^20, every transform mode was at least 1.10x as
+fast and spectral multiplication and reordering kept at least 0.97x of their
+speed: Zen 3 desktop parts (Vermeer, two sweeps on a Ryzen 9 5950X) at 192
+of 201 complex and 152 of 167 real sizes, Zen 3 server parts (Milan, seven
+sweeps on EPYC 7763 virtual machines of GitHub's runners) at 143 and 115,
+Zen 4 (EPYC 9V74, three runner sweeps) at 186 and 163; the Zen 3 APUs, not
+measured, use the 137 and 105 sizes that passed on both Zen 3 models. On the
+5950X float transforms then run 1.19-1.91x (complex) and 1.12-1.97x (real)
 as fast as with the 4-lane code, in every transform mode; for example a
 1024-point complex forward FFT takes 589 instead of 980 ns and a 1024-point
-real ordered forward FFT 334 instead of 471 ns. Unordered complex transforms
-then match FFTW 3.3.10's AVX2 build at N = 512..2048, and real transforms are
-1.2-1.8x as fast as it. Independently of the lane count, complex transforms
-now deinterleave their input in the first FFTPACK pass and interleave their
-output in the last one, which makes the 4-lane complex transforms (float and
-double) up to 18% faster, by a median of 6-7% out of place, and in place
-up to 18% at most sizes with an even pass count; see the
-[performance analysis](benchmarks/perf_analysis/README.md#8-lane-avx2-float-backend-and-fused-layout-passes)
+real ordered forward FFT 334 instead of 471 ns. Against FFTW 3.3.10's AVX2
+build with `FFTW_MEASURE` plans (a baseline pffft build on the 5950X), real
+transforms are 1.3-1.8x as fast at every power of two from 32 to 262144
+except 256 (0.92x), unordered complex transforms 0.97-1.15x at N = 256..2048
+and 1.3-1.6x from 8192, but FFTW stays ahead at N = 32..128, 4096 and most
+non-power-of-two complex sizes (0.54-0.91x); see the [performance
+analysis](benchmarks/perf_analysis/README.md#other-fft-libraries).
+Independently of the lane count, complex transforms now deinterleave their
+input in the first FFTPACK pass and interleave their output in the last one,
+which makes the 4-lane complex transforms (float and double) up to 18%
+faster, by a median of 6-7% out of place, and in place up to 18% at most
+sizes with an even pass count; see the [performance
+analysis](benchmarks/perf_analysis/README.md#8-lane-avx2-float-backend-and-fused-layout-passes)
 for the method, all results, the exceptions and the limitations.
+
+#### MSVC and the 8-lane code
+
+MSVC has no per-function target selection, and its AVX2 code is markedly
+slower without `/arch:AVX2` (a median 1.36x over the 4-lane code, against
+1.58x with the 8-lane code compiled for AVX2, in the measurement of the
+performance analysis). So with MSVC the 8-lane
+code is its own translation unit, `src/pffft_wide_tu.c`, compiled with
+`/arch:AVX2`; `pffft.c` stays a baseline build and only calls into it after
+the CPU check. The CMake build does this for MSVC x64. A project that builds
+pffft with its own build system and MSVC adds `src/pffft_wide_tu.c` to the
+sources, compiles that file with `/arch:AVX2` and defines `PFFFT_WIDE_TU` for
+the library's sources:
+
+```cmake
+target_sources(mylib PRIVATE pffft/src/pffft_wide_tu.c)
+set_source_files_properties(pffft/src/pffft_wide_tu.c PROPERTIES COMPILE_OPTIONS "/arch:AVX2;/GL-")
+target_compile_definitions(mylib PRIVATE PFFFT_WIDE_TU)
+```
+
+Without it, an MSVC build keeps the 4-lane code (unless the whole build
+targets AVX2). As `/arch:AVX2` may also emit BMI and related instructions,
+the CPU check then also requires BMI1, BMI2, LZCNT, MOVBE and F16C, which
+every AVX2 CPU in the tables has. GCC, Clang and clang-cl need nothing extra
+(`pffft_wide_tu.c` compiles to nothing there).
+
+#### CPUs that were not measured
+
+By default only measured CPU models use the 8-lane code. With
+`-DPFFFT_WIDE_INFERRED=ON` (or `PFFFT_WIDE_INFERRED` defined for `pffft.c`)
+it is also used on CPUs whose documented 256-bit floating-point datapaths are
+full width and that have no AVX frequency licences: AMD Zen 2, Zen 3 Badami
+and Zen 5, and Intel's client big cores from Haswell to Rocket Lake
+plus P-core-only Alder Lake-S and Raptor Lake-S parts, all by an explicit
+list of CPUID family/model ranges (`src/pffft_cpu_x86.h`). They use a
+stricter size table (every mode at least 1.25x in every measured sweep: 81
+complex, 67 real sizes), and only sizes whose buffers fit in the core's L2
+cache, as the cache leaves of CPUID report it. Everything else stays 4-lane: AVX2
+cores that split 256-bit operations (Zen, Zen+, Hygon, Excavator, Intel Atom
+cores), hybrid parts (a thread may run on their E-cores), Intel server
+parts (AVX frequency licences), unknown models and future families. This is
+an inference, not a measurement: a static throughput model (llvm-mca)
+failed its pre-registered calibration against the Zen 3 measurements and
+could not tell 128-bit and 256-bit datapaths apart, so it is off by default.
+`-DPFFFT_WIDE_UNKNOWN_CPUS=ON` uses the 8-lane code with the measured table
+on every AVX2 CPU. Measuring more CPUs moves them to the measured class, see
+the [performance analysis](benchmarks/perf_analysis/README.md#cpu-classes).
 
 ### ARMv7 (32-bit ARM): prefer clang over gcc
 
@@ -450,9 +512,10 @@ The main changes on top of the original include:
 
 The [arancormonk/pffft](https://github.com/arancormonk/pffft) fork of
 marton78/pffft, maintained by arancormonk, adds:
-* an 8-lane AVX2 implementation of the float transforms on x86-64 (GCC and
-  Clang outside Windows), selected per setup at runtime when the CPU supports
-  it; see [x86: 8-lane AVX2 float transforms](#x86-8-lane-avx2-float-transforms)
+* an 8-lane AVX2 implementation of the float transforms on x86-64 (GCC,
+  Clang and MSVC, including Windows), selected per setup at runtime on CPUs it
+  was measured faster on; see
+  [x86: 8-lane AVX2 float transforms](#x86-8-lane-avx2-float-transforms)
 * complex transforms that deinterleave and interleave inside their first and
   last FFTPACK passes, on every SIMD backend
 * fixes from an accuracy audit against independent long-double reference

@@ -36,7 +36,10 @@ NEON whenever it is enabled (always on AArch64; on 32-bit ARM with e.g.
 with `-msimd128`.
 
 PFFFT is a fork of [Julien Pommier's library on bitbucket](https://bitbucket.org/jpommier/pffft/)
-with some changes and additions.
+with some changes and additions. This repository,
+[arancormonk/pffft](https://github.com/arancormonk/pffft), is maintained by
+arancormonk as a fork of [marton78/pffft](https://github.com/marton78/pffft);
+see [History / Origin / Changes](#history--origin--changes) for what it adds.
 
 
 PFFASTCONV does fast convolution (FIR filtering), of single precision 
@@ -114,7 +117,7 @@ A simple C++ wrapper is available in `pffft.hpp`.
 ### Git:
 This archive's source can be downloaded with git (without the submodules):
 ```
-git clone https://github.com/marton78/pffft.git
+git clone https://github.com/arancormonk/pffft.git
 ```
 
 ### Only two files?:

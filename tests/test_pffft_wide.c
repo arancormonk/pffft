@@ -285,9 +285,9 @@ static void fill(float *x, int n, unsigned seed) {
   }
 }
 
-/* the eight transform modes, then the spectral operations */
-enum { OP_TRANSFORM = 0, NUM_TRANSFORM_OPS = 8,
-       OP_REORDER_FWD = NUM_TRANSFORM_OPS, OP_REORDER_BWD, OP_ZCONV, OP_ZCONV_SCALE,
+/* the eight transform modes (ops 0..7), then the spectral operations */
+#define NUM_TRANSFORM_OPS 8
+enum { OP_REORDER_FWD = NUM_TRANSFORM_OPS, OP_REORDER_BWD, OP_ZCONV, OP_ZCONV_SCALE,
        OP_ZCONV_ACC, OP_ZP, OP_ZCONV_ZP, NUM_OPS };
 #define OP_IS_BACKWARD(op) ((op) & 1)
 #define OP_IS_ORDERED(op) ((op) & 2)

@@ -132,6 +132,21 @@ jobs:
         name: pffft_ubuntu-amd64
         path: pffft_ubuntu-amd64.tar.gz
 
+  x86_cpu_fallback:
+    # A baseline x86-64 build must never run the 8-lane AVX2 backend on CPUs
+    # without AVX2/FMA, and must use it on CPUs with them: run the float
+    # tests under QEMU emulating Nehalem, SandyBridge and Haswell.
+    runs-on: ubuntu-24.04
+
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+    - name: install_qemu
+      run: sudo apt-get update && sudo apt-get install -y qemu-user binutils python3
+    - name: emulated_cpu_tests
+      run: tests/run_emulated_cpu_tests.sh build_emulated
+
   build_ubuntu-arm64:
     # native AArch64 with gcc: NEON float and double, and the sse2neon mixer
     runs-on: ubuntu-24.04-arm

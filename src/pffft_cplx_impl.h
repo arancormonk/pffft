@@ -57,13 +57,19 @@
 /* Intentionally included twice, with PFFFT_CPLX_ORDERED set to 0 and 1.
    Share the butterfly arithmetic while specializing only the input/output
    layout. Keeping the unordered body intact avoids compiler scheduling
-   regressions in a loop that was already vectorized. */
+   regressions in a loop that was already vectorized.
+
+   The unordered variants read each block of 8 vectors before writing the
+   same block, so they may run in place (in == out); the ordered ones
+   scatter their output and may not. */
 
 PFFFT_CPLX_SCOPE void PFFFT_CPLX_FINALIZE(int Ncvec, const v4sf *in, v4sf *out, const v4sf *e) {
   int k, dk = Ncvec/SIMD_SZ; /* number of 4x4 matrix blocks */
   v4sf r0, i0, r1, i1, r2, i2, r3, i3;
   v4sf sr0, dr0, sr1, dr1, si0, di0, si1, di1;
+#if PFFFT_CPLX_ORDERED
   assert(in != out);
+#endif
   for (k=0; k < dk; ++k) {
     r0 = in[8*k+0]; i0 = in[8*k+1];
     r1 = in[8*k+2]; i1 = in[8*k+3];
@@ -114,7 +120,9 @@ PFFFT_CPLX_SCOPE void PFFFT_CPLX_PREPROCESS(int Ncvec, const v4sf *in, v4sf *out
   int k, dk = Ncvec/SIMD_SZ; /* number of 4x4 matrix blocks */
   v4sf r0, i0, r1, i1, r2, i2, r3, i3;
   v4sf sr0, dr0, sr1, dr1, si0, di0, si1, di1;
+#if PFFFT_CPLX_ORDERED
   assert(in != out);
+#endif
   for (k=0; k < dk; ++k) {
 #if PFFFT_CPLX_ORDERED
     UNINTERLEAVE2(in[2*k], in[2*k+1], r0, i0);

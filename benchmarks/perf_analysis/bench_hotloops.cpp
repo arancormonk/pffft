@@ -29,6 +29,8 @@ typedef PFFFT_Setup setup_t;
 
 typedef std::chrono::steady_clock perf_clock;
 static volatile double checksum_sink;
+/* SIMD architecture, plus the lane count of the setup once one exists */
+static char backend_label[64];
 
 struct Buffer {
   scalar *data;
@@ -69,7 +71,7 @@ static void measure(const char *kind, const std::string &op, int n, int repeats,
     }
     checksum_sink = checksum;
     std::printf("%s,%s,%s,%s,%d,%d,%zu,%.9f,%.3f,%.9g\n", PRECISION,
-                PF(simd_arch)(), kind, op.c_str(), n, repeat, count,
+                backend_label, kind, op.c_str(), n, repeat, count,
                 duration, duration * 1e9 / count, checksum);
     std::fflush(stdout);
   }
@@ -112,6 +114,7 @@ int main(int argc, char **argv) {
         repeats < 1 || repeats > 100 || !(seconds > 0 && seconds <= 60))
       throw std::runtime_error("invalid arguments");
     const int count = complex ? 2 * n : n;
+    std::snprintf(backend_label, sizeof backend_label, "%s", PF(simd_arch)());
     Buffer input(count), spectrum(count), filter(count), product(count),
            output(count), work(count), ordered(count);
     fill(input.data, count);
@@ -149,6 +152,8 @@ int main(int argc, char **argv) {
 
     setup_t *setup = PF(new_setup)(n, complex ? PFFFT_COMPLEX : PFFFT_REAL);
     if (!setup) throw std::runtime_error("unsupported FFT size");
+    std::snprintf(backend_label, sizeof backend_label, "%s-x%d", PF(simd_arch)(),
+                  PF(setup_simd_size)(setup));
     PF(transform)(setup, input.data, spectrum.data, work.data, PFFFT_FORWARD);
     PF(transform)(setup, spectrum.data, output.data, work.data, PFFFT_BACKWARD);
     check_equal(output.data, input.data, count, 1.0 / n);

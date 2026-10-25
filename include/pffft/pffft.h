@@ -167,6 +167,15 @@ extern "C" {
      obvious, that the result for negative frequencies are not output,
      cause of symmetry.
 
+     The unordered ("most efficient") layout is internal to the
+     implementation that the setup uses, which pffft_new_setup() chooses
+     from the transform size and the CPU (see pffft_setup_simd_size()).
+     Unordered spectra are therefore only meaningful with setups of the
+     same N and transform type created by the same build of the library in
+     the same process; never store them or pass them between processes or
+     machines. The ordered layout (pffft_transform_ordered,
+     pffft_zreorder) does not depend on the implementation.
+
      input and output may alias.
   */
   PFFFT_EXPORT void pffft_transform(const PFFFT_Setup *setup, const float *input, float *output, float *work, pffft_direction_t direction);
@@ -284,6 +293,12 @@ extern "C" {
 
   /* return 4 or 1 wether support SSE/NEON/Altivec instructions was enabled when building pffft.c */
   PFFFT_EXPORT int pffft_simd_size(void);
+
+  /* number of SIMD lanes the implementation behind 'setup' uses: usually
+     pffft_simd_size(), or 8 when pffft_new_setup() selected the 8-lane AVX2
+     implementation on an x86-64 CPU that supports it (see pffft_transform()
+     for what that means for the unordered spectrum layout) */
+  PFFFT_EXPORT int pffft_setup_simd_size(const PFFFT_Setup *setup);
 
   /* return string identifier of used architecture (SSE/NEON/Altivec/..) */
   PFFFT_EXPORT const char * pffft_simd_arch(void);

@@ -202,7 +202,9 @@ A plain top-level configure is tuned for the build host: `TARGET_C_ARCH` and
 `TARGET_CXX_ARCH` default to `native` (`-march=native`) with GCC and Clang. MSVC
 and clang-cl have no `/arch:native`, so configure probes the build host's CPU and
 picks the highest of `AVX512`, `AVX2` and `AVX` it can run. Such a build requires a
-CPU compatible with the build host; there is no runtime ISA dispatch.
+CPU compatible with the build host. The only runtime ISA dispatch is the choice
+of the 8-lane AVX2 float implementation per setup, see
+[below](#x86-8-lane-avx2-float-transforms).
 
 The default stays at the compiler's baseline ISA (`none`) when host tuning would
 be wrong: when pffft is built as a dependency (`add_subdirectory`,
@@ -236,8 +238,9 @@ the baseline ISA, except the MSVC builds labelled `build_sse2`, `build_avx` and
 `build_avx2`.
 
 On a Ryzen 5950X, selecting the native backend made a 1024-point double real
-forward FFT 2.08 times as fast as the baseline SSE2 build. Float stays four-wide;
-the gain depends on precision, size and workload. See the
+forward FFT 2.08 times as fast as the baseline SSE2 build. The float transforms
+are built four-wide (SSE) but can use the 8-lane AVX2 implementation described
+below; the gain depends on precision, size and workload. See the
 [performance analysis](benchmarks/perf_analysis/README.md) for measurements.
 
 Ordered complex transforms fuse spectrum reordering into finalization and
@@ -278,6 +281,50 @@ Each FMA rounds once where a separate multiply and add round twice, so final
 transform results can differ. Fewer instructions do not guarantee a speedup
 for every size. `PFFFT_DISABLE_FMA` controls explicit FMA in both PFFFT and
 PFDSP; also disable compiler contraction when unfused arithmetic is required.
+
+### x86: 8-lane AVX2 float transforms
+
+pffft splits an N-point transform into as many interleaved sub-sequences as a
+vector has lanes, runs the FFTPACK passes on all of them at once, and combines
+them across the lanes at the end. On x86-64, `pffft.c` also contains this
+algorithm with 8 lanes on AVX2 (`src/pffft_wide_impl.h`), compiled with GCC or
+Clang target attributes next to the 4-lane SSE code. `pffft_new_setup()`
+chooses it when
+
+* the build has it: GCC or Clang on x86-64, not Windows, SSE float backend,
+  `PFFFT_ENABLE_WIDE_DISPATCH` (default `ON`);
+* the CPU and OS support AVX2 and FMA (`PFFFT_DISABLE_FMA` drops the FMA
+  requirement), checked with CPUID/XGETBV on every call; the instructions only
+  run after that check, so baseline-ISA builds stay safe on older CPUs;
+* the CPU model is one the 8-lane code was measured to be faster on (AMD Zen 3
+  so far), or the build sets `PFFFT_WIDE_UNKNOWN_CPUS=ON`;
+* N is a multiple of 64 (complex) or 128 (real) with N/8 = 2^a 3^b 5^c, and
+  is one of the sizes measured faster on that CPU (`src/pffft_wide_sizes.h`).
+
+Otherwise the setup uses the 4-lane code, so every size accepted before is still
+accepted. `pffft_setup_simd_size(setup)` reports the lane count a setup uses.
+Ordered output is identical in layout (and equal to rounding); the unordered
+("most efficient") layout differs between the two, so unordered spectra only
+work with setups of the same N, transform and process, as `pffft.h` documents.
+Buffers still only need 16-byte alignment; 32-byte aligned buffers (as
+`pffft_aligned_malloc()` returns) are faster.
+
+Measured on a Ryzen 9 5950X (Zen 3) in two sweeps over all such sizes up to
+2^20, the 8-lane code is used at the 192 of 201 complex and 152 of 167 real
+sizes where every transform mode was at least 1.10x as fast in both sweeps
+and spectral multiplication and reordering kept at least 0.97x of their
+speed. There float transforms run 1.19-1.91x (complex) and 1.12-1.97x (real)
+as fast as with the 4-lane code, in every transform mode; for example a
+1024-point complex forward FFT takes 589 instead of 980 ns and a 1024-point
+real ordered forward FFT 334 instead of 471 ns. Unordered complex transforms
+then match FFTW 3.3.10's AVX2 build at N = 512..2048, and real transforms are
+1.2-1.8x as fast as it. Independently of the lane count, complex transforms
+now deinterleave their input in the first FFTPACK pass and interleave their
+output in the last one, which makes the 4-lane complex transforms (float and
+double) up to 18% faster, by a median of 6-7% out of place, and in place
+up to 18% at most sizes with an even pass count; see the
+[performance analysis](benchmarks/perf_analysis/README.md#8-lane-avx2-float-backend-and-fused-layout-passes)
+for the method, all results, the exceptions and the limitations.
 
 ### ARMv7 (32-bit ARM): prefer clang over gcc
 
@@ -333,7 +380,7 @@ pffft can be included as a dependency in your CMake project via `FetchContent` o
 include(FetchContent)
 
 FetchContent_Declare(pffft
-    GIT_REPOSITORY https://github.com/marton78/pffft.git
+    GIT_REPOSITORY https://github.com/arancormonk/pffft.git
     GIT_TAG master
 )
 FetchContent_MakeAvailable(pffft)
@@ -381,6 +428,7 @@ Git history shows following first commits of the major contributors:
 * Gunj Joshi: April 1, 2025
 * Aleksey Vaneev: December 20, 2025
 * Sergi Granell (xerpi): February 26, 2026
+* arancormonk: October 12, 2026
 
 There are a few other contributors not listed here.
 
@@ -399,6 +447,23 @@ The main changes on top of the original include:
 * unscaled frequency-domain multiply `pffft_zconvolve()` and `pffft_zconvolve_scale()`
 * cmake support
 * ctest
+
+The [arancormonk/pffft](https://github.com/arancormonk/pffft) fork of
+marton78/pffft, maintained by arancormonk, adds:
+* an 8-lane AVX2 implementation of the float transforms on x86-64 (GCC and
+  Clang outside Windows), selected per setup at runtime when the CPU supports
+  it; see [x86: 8-lane AVX2 float transforms](#x86-8-lane-avx2-float-transforms)
+* complex transforms that deinterleave and interleave inside their first and
+  last FFTPACK passes, on every SIMD backend
+* fixes from an accuracy audit against independent long-double reference
+  DFTs, full-precision twiddle factors and constants, size limits and
+  recoverable setup allocation failures
+* the accuracy, allocation, C++ API, mixer and convolution-mode test suites
+* fused layout passes for ordered and in-place transforms and vectorized,
+  numerically stable PFDSP mixers
+* host-tuned top-level builds with portable CI archives, warnings as errors on
+  every platform, CI on Linux, Windows, macOS, ARM64, ARMv7, ppc64le and
+  WebAssembly, and CodeQL scanning
 
 The original repository has also continued to evolve independently, receiving
 portability fixes and warning cleanups from various contributors. Those changes
@@ -474,7 +539,7 @@ Sources for [Green-](https://github.com/hayguen/greenffts),
 and [Pocket-FFT](https://github.com/hayguen/pocketfft)
 can be downloaded directly with the sources of this repository - using git submodules:
 ```
-git clone --recursive https://github.com/marton78/pffft.git
+git clone --recursive https://github.com/arancormonk/pffft.git
 ```
 
 Important is `--recursive`, that does also fetch the submodules directly.

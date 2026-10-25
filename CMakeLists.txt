@@ -20,6 +20,8 @@ option(PFFFT_USE_TYPE_DOUBLE "activate 'double' precision float?" ON)
 
 # architecture/optimization options
 option(PFFFT_DISABLE_FMA "Disable explicit SIMD fused multiply-add (also use compiler contraction flags for reproducibility)" OFF)
+option(PFFFT_ENABLE_WIDE_DISPATCH "x86-64 GCC/Clang: add the 8-lane AVX2 float implementation, selected per setup at runtime" ON)
+option(PFFFT_WIDE_UNKNOWN_CPUS "use the 8-lane AVX2 implementation also on AVX2 CPUs it was not measured on" OFF)
 option(PFFFT_USE_SIMD        "use SIMD (SSE/AVX/NEON/ALTIVEC) CPU features? - " ON)
 option(PFFFT_USE_SCALAR_VECT "use 4-element vector scalar operations (if no other SIMD)" ON)
 option(PFFFT_USE_WASM_RELAXED_SIMD "use WebAssembly Relaxed SIMD for higher performance? requires a browser/runtime with Relaxed SIMD support" OFF)
@@ -175,13 +177,20 @@ endif()
 ######################################################
 
 add_library(PFFFT ${FLOAT_SOURCES} ${DOUBLE_SOURCES} src/pffft_common.c
-  src/pffft_priv_impl.h src/pffft_cplx_impl.h src/pffft_real_impl.h
+  src/pffft_priv_impl.h src/pffft_passes_impl.h src/pffft_cplx_impl.h src/pffft_real_impl.h
+  src/pffft_wide_impl.h src/pffft_wide_sizes.h src/pffft_cpu_x86.h src/pffft_internal.h
   include/pffft/pffft.hpp)
 add_library(PFFFT::PFFFT ALIAS PFFFT)
 set_target_properties(PFFFT PROPERTIES OUTPUT_NAME "pffft")
 target_compile_definitions(PFFFT PRIVATE _USE_MATH_DEFINES)
 if(PFFFT_DISABLE_FMA)
   target_compile_definitions(PFFFT PRIVATE PFFFT_DISABLE_FMA=1)
+endif()
+if(NOT PFFFT_ENABLE_WIDE_DISPATCH)
+  target_compile_definitions(PFFFT PRIVATE PFFFT_DISABLE_WIDE=1)
+endif()
+if(PFFFT_WIDE_UNKNOWN_CPUS)
+  target_compile_definitions(PFFFT PRIVATE PFFFT_WIDE_UNKNOWN_CPUS=1)
 endif()
 target_activate_c_compiler_warnings(PFFFT)
 if (PFFFT_USE_SCALAR_VECT)

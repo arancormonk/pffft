@@ -507,3 +507,211 @@ longer samples per build; its medians were 480.0 and 480.6 ns. Both sets of
 control samples are retained. These timings describe this host; ARM64 under
 QEMU passed the mixer tests and float/double FFT accuracy checks through
 N=1024, but provides correctness evidence only.
+
+## 8-lane AVX2 float backend and fused layout passes
+
+The earlier analysis listed blanket AVX widening of float FFTs as needing a
+layout and codelet redesign. That redesign is now implemented: an N-point
+transform is split into 8 interleaved sub-sequences instead of 4, the
+unchanged FFTPACK pass codelets run on `__m256` vectors, and new 8-lane
+finalize/preprocess steps combine the lanes (8x8 transposes and a radix-8
+butterfly; the real transform needs an 8-way real combination with its own
+DC/Nyquist and sub-Nyquist boundary terms). It lives in
+[pffft_wide_impl.h](../../src/pffft_wide_impl.h) and is selected per setup at
+runtime, see the top-level [README](../../README.md#x86-8-lane-avx2-float-transforms).
+Independently of the lane count, the complex transforms now deinterleave
+their input inside the first FFTPACK pass and interleave the result inside
+the last backward pass ([pffft_passes_impl.h](../../src/pffft_passes_impl.h)),
+for all 4-lane backends (SSE, AVX double, NEON, AltiVec/VSX, WASM, scalar
+vectors) as well.
+
+### Why the width, not the radix
+
+Controlled comparison: FFTW 3.3.10 built twice from the same tarball with the
+same flags, `--enable-sse2` versus `--enable-sse2 --enable-avx --enable-avx2`,
+both MEASURE, linked into the same `bench_pffft_float` (MFlops, average of a
+forward and a backward call). Enabling FFTW's AVX/AVX2/FMA backend made its
+complex float transforms 1.8-2.0x as fast at N = 64..4096, while at four
+lanes FFTW (large-radix generated codelets, planner) was within 3-16% of the
+original 4-lane PFFFT. A prototype that ran PFFFT's unchanged pass code on 8
+lanes reproduced most of that gain, so the width was the lever. Literature on
+the same short-vector formulation: Franchetti & Püschel, *Short Vector Code
+Generation for the DFT* (IPDPS 2003); McFarlin et al., *Automatic SIMD
+Vectorization of FFTs for the Larrabee and AVX Instruction Sets* (ICS 2011).
+
+### Measurement
+
+Ryzen 9 5950X (Zen 3), GCC 16.2.1, host-tuned Release builds, CPU 14, at most
+2.5 busy CPUs per accepted sample, `run_matrix.py --interleave`, 5 samples per
+case and build in randomized order (15 for the small-size confirmation).
+Three builds of this revision's sources: `orig` is master 77a7ecd, `native4`
+the final code with `PFFFT_ENABLE_WIDE_DISPATCH=OFF`, `wide` the final code.
+Raw samples: [float](results/wide-final-float.csv.gz) (8910 samples, 27
+sizes from 64 to 2^20, 11 operations), [double](results/wide-final-double.csv.gz),
+[small sizes](results/wide-small-sizes.csv.gz), [fused-pass A/B](results/wide-b1-ab.csv.gz).
+
+Median ns per call, `orig` → `wide`:
+
+| Transform | N | orig | 4-lane final | 8-lane | speedup |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| complex forward | 256 | 222.3 | 206.7 | 127.0 | 1.75x |
+| complex forward | 1024 | 1051.7 | 980.3 | 588.8 | 1.79x |
+| complex forward | 4096 | 5453.6 | 4950.5 | 3445.2 | 1.58x |
+| complex forward | 65536 | 127628.2 | 120331.9 | 89286.2 | 1.43x |
+| complex ordered forward | 1024 | 1109.0 | 1036.0 | 653.1 | 1.70x |
+| complex ordered backward | 1024 | 1112.1 | 1031.8 | 684.4 | 1.62x |
+| complex FFT-multiply-IFFT | 1024 | 2322.5 | 2184.6 | 1342.1 | 1.73x |
+| real forward | 256 | 108.0 | 108.7 | 82.5 | 1.31x |
+| real forward | 1024 | 428.3 | 432.4 | 280.3 | 1.53x |
+| real forward | 4096 | 2262.5 | 2303.1 | 1491.0 | 1.52x |
+| real ordered forward | 1024 | 469.9 | 470.7 | 333.9 | 1.41x |
+| real ordered backward | 1024 | 470.7 | 468.7 | 324.2 | 1.45x |
+| real FFT-multiply-IFFT | 1024 | 962.1 | 943.3 | 631.1 | 1.52x |
+| real FFT-multiply-IFFT | 65536 | 129513.0 | 128961.5 | 97206.0 | 1.33x |
+
+N not divisible by 64 (complex) or 128 (real) keep the 4-lane code:
+0.96-1.04x controls.
+
+### Size table
+
+Which sizes use the 8-lane code on a measured CPU is decided per transform
+type and N by [wide_size_table.py](wide_size_table.py), which writes
+[pffft_wide_sizes.h](../../src/pffft_wide_sizes.h). A size is enabled only
+if, in each of two independent sweeps, all eight transform modes and the
+FFT-multiply-IFFT pipeline were at least 1.10x as fast in the median with
+non-overlapping interquartile ranges, and `pffft_zreorder` and
+`pffft_zconvolve` were at least 0.97x. The sweeps
+([1](results/wide-sweep1.csv.gz), [2](results/wide-sweep2.csv.gz), 26532
+samples each) cover all 201 complex and 167 real sizes from 64 to 2^20 that
+the 8-lane code supports, all eleven operations, 3 samples per case and
+build in randomized interleaved order, with the `native4` and `wide` builds
+above. The other settings are those of the measurement above, except that
+the host-load limit was raised to 4 busy CPUs (sweep 1 started at 2.5) to
+make progress on a shared host; the IQR condition guards against the extra
+noise. Per-size verdicts: [wide-size-table.txt](results/wide-size-table.txt).
+
+Enabled: 192 complex and 152 real sizes. There, the slowest of the nine
+gated modes per size was 1.19x (complex, N = 64) to 1.61x, and 1.12x (real,
+N = 128, in-place) to 1.61x; over all modes and sizes the median speedup
+was 1.48x (complex) and 1.41x (real). Spectral multiplication is up to 2x
+faster at small N and about equal once it is memory bound (0.97-1.28x from
+N = 16384); real `pffft_zreorder` is 0.97x (N = 128) to 2x.
+
+Not enabled: real N = 256 (in-place backward 1.10x in both sweeps, just
+under the threshold), and 9 complex and 14 real sizes from 20480 to 663552
+where `pffft_zconvolve` measured 0.95-0.97x in at least one sweep, although
+the transforms there were 1.23-1.65x as fast. The kernel is the 4-lane loop
+on 256-bit vectors and memory bound at these sizes; the conservative rule
+keeps the 4-lane code rather than trade a few percent in one operation.
+
+The fused layout passes remove one sweep over the data from the 4-lane
+complex transforms (real transforms have no such pass and are unchanged,
+0.96-1.04x). Out of place, float complex transforms became 1.03-1.18x as
+fast at every measured N from 96 to 2^20 (N = 64: 0.97-1.15x), double
+1.00-1.15x from N = 128 with one exception, ordered backward at N = 1024
+(0.95x). In place, the gain depended on the parity of the pass count: at
+the sizes where the fused first pass would have had to write into its own
+input (float N = 384..1280, 6144..16384, 2^17..2^18; double N = 1024,
+16384) the transform fell back to the separate sweep and stayed at
+0.97-1.02x. For unordered transforms the in-place change below removes
+that fallback; ordered in-place transforms keep it, since their combined
+finalize-and-reorder step cannot run in place. At N = 64 double complex
+measured 0.91-0.95x in the runner-built drivers but equal in a separately
+linked binary of the same code, where disabling the fusion was slower:
+code-layout sensitivity at a 5 ns scale, not a cost of the fusion.
+
+Against the controlled FFTW builds (bench_pffft, MFlops): complex unordered
+PFFFT now matches FFTW AVX2 at N = 512..2048 (91465 vs 90781 at 1024) and is
+ahead from N = 8192; ordered complex output is still 15-35% behind FFTW AVX2
+at N = 64..4096; real transforms are 1.2-1.8x as fast as FFTW AVX2.
+
+### In-place unordered complex transforms
+
+With an even number of FFTPACK passes, an in-place unordered complex
+transform used to hit the parity at which the fused first (forward) or last
+(backward) pass would have had to write into its own input, and fell back
+to a separate deinterleave or interleave sweep. `pffft_transform()` now
+sends exactly these calls (4-lane, complex, input == output, even pass
+count) to a separate function: forward, the first pass reads the data and
+writes the scratch buffer and the unordered finalize ends in the data
+buffer, in place if the passes end there; backward, the unordered
+preprocess runs in place. Both work block by block, reading a block's
+vectors before writing them. Every other call runs the unchanged driver,
+whose machine code is identical to before (float: up to alignment padding;
+double: byte for byte); only the small entry function, into which the
+compiler inlines the driver, differs in register allocation.
+
+A/B against the same tree without the change (host-tuned 4-lane builds, 5
+interleaved samples per case, at most 2.5 busy CPUs;
+[samples](results/inplace-parity-ab.csv.gz)), unordered in place, at the
+sizes with an even pass count (N = 64, 384..1280, 6144..16384):
+
+- float: 1.01-1.13x (1.04-1.13x from N = 384); in place now takes 0.94-1.03x
+  the time of out of place (was 1.01-1.13x);
+- double: 1.05-1.18x at N = 64, 384..640 and 6144..16384; 0.91-1.04x at
+  768..1280.
+
+Timings at double N = 768..1280 depend on where the process's pages land:
+each process is stable, but processes differ by up to 37% in the new code
+(up to 16% before), also with address randomization disabled, so presumably
+physical placement. Over 30 processes per build
+([samples](results/inplace-parity-processes.csv.gz)) the mean ratio is
+0.99-1.01x at 768 and 1024 and 0.94x (forward) and 0.97x (backward) at
+1280, with the slowest decile at 0.88-0.89x; the change costs there. The
+same measurement at other even-pass sizes, including ones not in the A/B,
+gives double 1.05-1.08x (N = 384, 640, 960), 1.11-1.15x (1600, 4320, 8192)
+and float 1.06-1.09x (960..4320), so the change is kept for all sizes; no
+simple rule (buffer size, radix) separates the three slower double sizes.
+
+Paths the change does not alter measured 0.93-1.03x (float) and 0.91-1.23x
+(double); the deviations repeat within a build but not across builds. Float
+N = 96 and 128 forward, in and out of place, are 0.92-0.97x with
+non-overlapping interquartile ranges (15 samples,
+[confirmation](results/inplace-parity-confirm.csv.gz)), although their
+driver code is unchanged. We attribute this to code layout, an inference
+from the following: the first version of this change, which modified the
+shared driver, showed the same deficit in the backward direction at these
+sizes instead ([samples](results/inplace-parity-ab-v1.csv.gz),
+[confirmation](results/inplace-parity-confirm-v1.csv.gz)), and rebuilding
+the unchanged tree with `-falign-functions=64` alone moved its N = 96
+backward time from 75 to 91 ns
+([control](results/inplace-parity-align-control-v1.csv.gz)). On Zen 3,
+float N = 128 uses the 8-lane code anyway.
+
+### Tried and rejected
+
+| Candidate | Result |
+| --- | --- |
+| Radix-8 first pass replacing the radix-2 and one radix-4 pass (8-lane complex, N/8 = 2·4^k) | 0.80-1.19x, no consistent gain ([samples](results/wide-radix8-rejected.csv.gz)); consistent with the arm64 radix-8 result in 2ce8a89 |
+| 8x8 transpose with the 128-bit exchange done by `vinsertf128` loads | 0.96-1.04x: finalize is not bound by the shuffle ports alone |
+| Half-length complex FFT for real input on 8 lanes | not built: same pass work as the 8-way real combination plus two extra sweeps |
+| Split-radix / conjugate-pair, four-step / cache-oblivious, planner | not attempted: no measured speed gain in the literature at these sizes, PFFFT already leads FFTW at large N |
+
+### Correctness and portability evidence
+
+- `test_pffft_accuracy_float` runs every size on both backends against long
+  double reference DFTs (through N = 65536: 8-lane worst errors 0.11 eps*log2N
+  forward and backward), including bitwise ordered/unordered equivalence,
+  in-place and `work == NULL`.
+- `test_pffft_wide`: CPU detection truth table and probe order with fake
+  CPUID/XGETBV, setup selection, every operation with input, output and work
+  at 16 mod 32 bytes against aligned results and guard regions, and
+  concurrent setup creation.
+- `check_isa_baseline.py` (a ctest in baseline x86-64 Linux builds): no VEX or
+  EVEX instruction outside the 8-lane functions, checked for GCC and Clang
+  with and without LTO.
+- `tests/run_emulated_cpu_tests.sh` (CI job `x86_cpu_fallback`): static
+  baseline binaries pass under QEMU emulating Nehalem and SandyBridge without
+  selecting the backend (QEMU raises SIGILL for AVX2 there), and use and pass
+  it on Haswell.
+
+### Limitations
+
+- Measured on one CPU model; other AVX2 CPUs keep the 4-lane code unless
+  built with `PFFFT_WIDE_UNKNOWN_CPUS=ON`. Adding a CPU class to
+  `pffft_x86_wide_measured()` needs the same sweep on that CPU.
+- Not built on Windows (MSVC lacks per-function target selection, MinGW GCC
+  cannot realign the stack for 256-bit spills, clang-cl is untested).
+- Double precision stays on its existing 4-lane AVX code; AVX-512 is not used.
+- Buffers at 16 mod 32 bytes are correct but lose part of the gain
+  (prototype: 1.15-1.67x instead of 1.4-1.9x).

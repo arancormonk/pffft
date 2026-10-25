@@ -277,6 +277,10 @@ extern "C" {
   /* return 4 or 1 wether support AVX instructions was enabled when building pffft-double.c */
   PFFFT_EXPORT int pffftd_simd_size(void);
 
+  /* number of SIMD lanes the implementation behind 'setup' uses
+     (currently always pffftd_simd_size()) */
+  PFFFT_EXPORT int pffftd_setup_simd_size(const PFFFTD_Setup *setup);
+
   /* return string identifier of used architecture (AVX/..) */
   PFFFT_EXPORT const char * pffftd_simd_arch(void);
 

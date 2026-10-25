@@ -152,6 +152,11 @@
 
 #include "pffft_priv_impl.h"
 
+int pffftd_setup_simd_size(const PFFFTD_Setup *setup) {
+  (void)setup;
+  return SIMD_SZ;
+}
+
 
 
 /* deprecated synonym for pffftd_zconvolve_scale() -- kept for ABI compatibility */

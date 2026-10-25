@@ -56,12 +56,59 @@ endif()
 
 ######################################################
 
+if (PFFFT_USE_TYPE_FLOAT)
+  add_executable( test_pffft_wide  test_pffft_wide.c )
+  target_link_libraries( test_pffft_wide  PFFFT ${ASANLIB} ${MATHLIB} )
+  target_include_directories( test_pffft_wide PRIVATE ${PFFFT_SOURCE_DIR}/src )
+  find_package(Threads)
+  if (Threads_FOUND AND NOT WIN32 AND NOT EMSCRIPTEN)
+    target_compile_definitions( test_pffft_wide PRIVATE PFFFT_TEST_THREADS )
+    target_link_libraries( test_pffft_wide Threads::Threads )
+  endif()
+  add_test(NAME test_pffft_wide COMMAND test_pffft_wide)
+  find_package(Python3 COMPONENTS Interpreter)
+  if (Python3_Interpreter_FOUND AND NOT Python3_VERSION VERSION_LESS 3.8)
+    # negative controls of the generator of src/pffft_wide_sizes.h
+    # (statistics.quantiles needs Python 3.8)
+    add_test(NAME wide_size_table_selftest
+             COMMAND ${Python3_EXECUTABLE} ${PFFFT_SOURCE_DIR}/benchmarks/perf_analysis/wide_size_table.py --self-test)
+  endif()
+  # A baseline x86-64 build must keep every AVX instruction inside the
+  # 8-lane backend, which only runs on CPUs that support it.
+  if (CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64)$"
+      AND TARGET_C_ARCH STREQUAL "none" AND CMAKE_OBJDUMP)
+    if (Python3_Interpreter_FOUND AND NOT Python3_VERSION VERSION_LESS 3.7)
+      # (subprocess.run(capture_output=) needs Python 3.7)
+      # Check the library itself (static archive or shared object), not an
+      # executable, which may contain the C library's own AVX variants
+      # (selected at run time) when linked statically. A static archive
+      # built with LTO holds no machine code, so the final executable is
+      # checked instead; a shared library always holds the code.
+      string(TOUPPER "${CMAKE_BUILD_TYPE}" _pffft_cfg)
+      get_target_property(_pffft_type PFFFT TYPE)
+      get_target_property(_pffft_ipo PFFFT INTERPROCEDURAL_OPTIMIZATION)
+      get_target_property(_pffft_ipo_cfg PFFFT INTERPROCEDURAL_OPTIMIZATION_${_pffft_cfg})
+      if (NOT _pffft_type STREQUAL "SHARED_LIBRARY" AND (_pffft_ipo OR _pffft_ipo_cfg))
+        set(_pffft_isa_file $<TARGET_FILE:test_pffft_wide>)
+      else()
+        set(_pffft_isa_file $<TARGET_FILE:PFFFT>)
+      endif()
+      add_test(NAME check_isa_baseline
+               COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/check_isa_baseline.py
+                       --objdump ${CMAKE_OBJDUMP} ${_pffft_isa_file})
+    endif()
+  endif()
+endif()
+
+######################################################
+
 foreach(prec float double)
   string(TOUPPER "${prec}" PREC)
   if (PFFFT_USE_TYPE_${PREC})
     add_executable( test_pffft_accuracy_${prec}  test_pffft_accuracy.c )
     target_compile_definitions(test_pffft_accuracy_${prec} PRIVATE PFFFT_ENABLE_${PREC})
     target_link_libraries( test_pffft_accuracy_${prec}  PFFFT ${ASANLIB} ${MATHLIB} )
+    target_include_directories( test_pffft_accuracy_${prec} PRIVATE ${PFFFT_SOURCE_DIR}/src )
     if (EMSCRIPTEN)
       # work == NULL puts 2*N scalars of scratch on the stack (128 KiB for
       # complex double at N = 8192): more than Emscripten's default stack
@@ -259,6 +306,7 @@ endif()
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND NOT BUILD_SHARED_LIBS)
   add_executable(test_setup_alloc test_setup_alloc.c)
   target_link_libraries(test_setup_alloc PFFFT ${ASANLIB})
+  target_include_directories(test_setup_alloc PRIVATE ${PFFFT_SOURCE_DIR}/src)
   target_link_options(test_setup_alloc PRIVATE -Wl,--wrap=malloc -Wl,--wrap=free)
   # The wrappers must be a regular object: under -flto (e.g. distro CFLAGS)
   # the library's LTO-generated malloc/free calls otherwise bypass --wrap.

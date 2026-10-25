@@ -6,6 +6,7 @@
 #include <stddef.h>
 #include <pffft/pffft.h>
 #include <pffft/pffft_double.h>
+#include "pffft_internal.h"
 
 void *__real_malloc(size_t size);
 void __real_free(void *ptr);
@@ -40,6 +41,18 @@ int main(void) {
       assert(s && calls == 2);
       pffft_destroy_setup(s);
       assert(live == 0);
+      /* the 8-lane backend, where available: its failures are reported too,
+         without falling back to (and allocating for) the 4-lane setup */
+      calls = 0; fail_at = 0;
+      s = pffft_internal_new_setup(n, PFFFT_REAL, PFFFT_BACKEND_W8);
+      if (s) {
+        assert(calls == 2 && pffft_setup_simd_size(s) == 8);
+        pffft_destroy_setup(s);
+        assert(live == 0);
+        calls = 0; fail_at = point;
+        s = pffft_internal_new_setup(n, PFFFT_REAL, PFFFT_BACKEND_W8);
+        assert(!s && calls == point && live == 0);
+      }
 #endif
 #ifdef PFFFT_ENABLE_DOUBLE
       {

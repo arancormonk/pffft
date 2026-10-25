@@ -46,6 +46,7 @@ typedef __m128 v4sf;
 /* 4 floats by simd vector -- this is pretty much hardcoded in the preprocess/finalize functions
  *  anyway so you will have to work if you want to enable AVX with its 256-bit vectors. */
 #  define SIMD_SZ 4
+#  define PFFFT_SSE_FLOAT_BACKEND 1  /* pffft.c may add the 8-lane AVX2 backend */
 
 typedef union v4sf_union {
   v4sf  v;

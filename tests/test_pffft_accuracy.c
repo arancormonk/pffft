@@ -36,6 +36,8 @@ typedef PFFFTD_Setup PF_Setup;
 #define PREC_NAME "double"
 #else
 #include "pffft/pffft.h"
+#include "pffft_internal.h"
+#define PF_HAVE_BACKENDS 1
 typedef float pfscalar;
 #define PF_EPS FLT_EPSILON
 #define PF(name) pffft_##name
@@ -259,8 +261,29 @@ static void check_err(const char *what, int N, int cplx, double err, double tol_
   if (!(norm <= tol_mult * TOL_FFT)) report_failure(what, N, cplx, err);
 }
 
+#ifdef PF_HAVE_BACKENDS
+/* which implementation test_size() exercises (PFFFT_BACKEND_*) */
+static int g_backend = PFFFT_BACKEND_AUTO;
+#endif
+
+static PF_Setup *new_test_setup(int N, int cplx) {
+  pffft_transform_t tt = cplx ? PFFFT_COMPLEX : PFFFT_REAL;
+#ifdef PF_HAVE_BACKENDS
+  PF_Setup *s = pffft_internal_new_setup(N, tt, g_backend);
+  if (s) {
+    const int lanes = pffft_setup_simd_size(s);
+    if ((g_backend == PFFFT_BACKEND_NATIVE && lanes != pffft_simd_size())
+        || (g_backend == PFFFT_BACKEND_W8 && lanes != 8))
+      report_failure("setup uses an unexpected backend", N, cplx, (double)lanes);
+  }
+  return s;
+#else
+  return PF(new_setup)(N, tt);
+#endif
+}
+
 static void test_size(int N, int cplx) {
-  PF_Setup *s = PF(new_setup)(N, cplx ? PFFFT_COMPLEX : PFFFT_REAL);
+  PF_Setup *s = new_test_setup(N, cplx);
   const int nf = cplx ? 2 * N : N;   /* scalars per buffer */
   const int ns = cplx ? N : N / 2;   /* complex slots in the ordered layout */
   pfscalar *x = alloc_buf(nf), *u = alloc_buf(nf), *y = alloc_buf(nf), *z = alloc_buf(nf);
@@ -566,6 +589,9 @@ int main(int argc, char **argv) {
   }
   test_size_helpers();
 
+#ifdef PF_HAVE_BACKENDS
+  g_backend = PFFFT_BACKEND_NATIVE;
+#endif
   for (cplx = 0; cplx < 2; ++cplx) {
     const int nmin = PF(min_fft_size)(cplx ? PFFFT_COMPLEX : PFFFT_REAL);
     for (N = nmin; N <= max_n; N += nmin) {
@@ -574,11 +600,39 @@ int main(int argc, char **argv) {
       ++counts[cplx];
     }
   }
-  free(tw_table);
-
   printf("tested %d REAL and %d COMPLEX sizes\n", counts[0], counts[1]);
   printf("worst rel. L2 error in eps*log2(N): forward %.3f, backward %.3f, convolution %.3f (limit %.1f)\n",
          worst_fwd, worst_bwd, worst_conv, TOL_FFT);
+
+#ifdef PF_HAVE_BACKENDS
+  /* the 8-lane backend, where the build and the CPU have it: N must be a
+     multiple of 64 (complex) or 128 (real) with N/8 = 2^a 3^b 5^c */
+  {
+    PF_Setup *probe = pffft_internal_new_setup(128, PFFFT_REAL, PFFFT_BACKEND_W8);
+    if (probe) {
+      int wide_counts[2] = { 0, 0 };
+      pffft_destroy_setup(probe);
+      g_backend = PFFFT_BACKEND_W8;
+      worst_fwd = worst_bwd = worst_conv = 0;
+      for (cplx = 0; cplx < 2; ++cplx) {
+        const int nmin = cplx ? 64 : 128;
+        for (N = nmin; N <= max_n; N += nmin) {
+          if (!is_smooth(N / nmin)) continue;
+          test_size(N, cplx);
+          ++wide_counts[cplx];
+        }
+      }
+      printf("8-lane backend: tested %d REAL and %d COMPLEX sizes\n", wide_counts[0], wide_counts[1]);
+      printf("worst rel. L2 error in eps*log2(N): forward %.3f, backward %.3f, convolution %.3f (limit %.1f)\n",
+             worst_fwd, worst_bwd, worst_conv, TOL_FFT);
+    } else {
+      printf("8-lane backend: not available in this build or on this CPU\n");
+    }
+    g_backend = PFFFT_BACKEND_AUTO;
+  }
+#endif
+  free(tw_table);
+
   if (num_failures) {
     printf("%d FAILURES\n", num_failures);
     return 1;

@@ -150,6 +150,8 @@ typedef __m256 pffft_v8sf __attribute__((aligned(16)));
 #define cffti1_ps        pffft_w8_cffti1_ps
 #define cfftf1_il_ps     pffft_w8_cfftf1_il_ps
 #define cfftf1_tail_ps   pffft_w8_cfftf1_tail_ps
+#define cfftf1_tail_ol_ps pffft_w8_cfftf1_tail_ol_ps
+#define cfftf1_passes_ps pffft_w8_cfftf1_passes_ps
 #define passf2_il_ps     pffft_w8_passf2_il_ps
 #define passf3_il_ps     pffft_w8_passf3_il_ps
 #define passf4_il_ps     pffft_w8_passf4_il_ps
@@ -652,8 +654,8 @@ static NEVER_INLINE(void) pffft_w8_transform_internal(const PFFFT_Setup *setup, 
                       setup->twiddle, &setup->ifac[0]) == buff[0] ? 0 : 1);
     } else {
       w8_cplx_preprocess(Ncvec, vinput, buff[ib], e);
-      cfftf1_tail_ps(Ncvec, buff[ib], buff[!ib], 2, 1, 0,
-                     setup->twiddle, &setup->ifac[0], +1, voutput);
+      cfftf1_tail_ol_ps(Ncvec, buff[ib], buff[!ib], 2, 1, 0,
+                        setup->twiddle, &setup->ifac[0], +1, voutput);
       ib = 0;
     }
   }
@@ -723,8 +725,8 @@ static NEVER_INLINE(void) pffft_w8_transform_complex_ordered(const PFFFT_Setup *
   } else {
     if (vinput == buff[ib]) ib = !ib;
     w8_cplx_preprocess_ordered(Ncvec, vinput, buff[ib], e);
-    cfftf1_tail_ps(Ncvec, buff[ib], buff[!ib], 2, 1, 0,
-                   setup->twiddle, setup->ifac, +1, voutput);
+    cfftf1_tail_ol_ps(Ncvec, buff[ib], buff[!ib], 2, 1, 0,
+                      setup->twiddle, setup->ifac, +1, voutput);
     ib = 0;
   }
   if (buff[ib] != voutput) {
@@ -969,6 +971,8 @@ W8_ENTRY(PFFFT_Setup *) pffft_w8_new_setup(int N, pffft_transform_t transform) {
 #undef cffti1_ps
 #undef cfftf1_il_ps
 #undef cfftf1_tail_ps
+#undef cfftf1_tail_ol_ps
+#undef cfftf1_passes_ps
 #undef passf2_il_ps
 #undef passf3_il_ps
 #undef passf4_il_ps

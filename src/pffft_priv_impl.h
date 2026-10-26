@@ -508,8 +508,8 @@ void FUNC_TRANSFORM_INTERNAL(const SETUP_STRUCT *setup, const float *finput, flo
       /* The last pass interleaves directly into the caller's buffer,
          including when the passes run in scratch during an in-place
          transform. */
-      cfftf1_tail_ps(Ncvec, buff[ib], buff[!ib], 2, 1, 0,
-                     setup->twiddle, &setup->ifac[0], +1, voutput);
+      cfftf1_tail_ol_ps(Ncvec, buff[ib], buff[!ib], 2, 1, 0,
+                        setup->twiddle, &setup->ifac[0], +1, voutput);
       ib = 0;
     }
   }
@@ -581,8 +581,8 @@ static NEVER_INLINE(void) pffft_transform_complex_ordered(const SETUP_STRUCT *se
   } else {
     if (vinput == buff[ib]) ib = !ib;
     pffft_cplx_preprocess_ordered(Ncvec, vinput, buff[ib], (v4sf*)setup->e);
-    cfftf1_tail_ps(Ncvec, buff[ib], buff[!ib], 2, 1, 0,
-                   setup->twiddle, setup->ifac, +1, voutput);
+    cfftf1_tail_ol_ps(Ncvec, buff[ib], buff[!ib], 2, 1, 0,
+                      setup->twiddle, setup->ifac, +1, voutput);
     ib = 0;
   }
   if (buff[ib] != voutput) {
@@ -612,7 +612,7 @@ static NEVER_INLINE(void) pffft_transform_complex_inplace(const SETUP_STRUCT *se
     FUNC_CPLX_FINALIZE(Ncvec, res, vdata, (v4sf*)setup->e);
   } else {
     FUNC_CPLX_PREPROCESS(Ncvec, vdata, vdata, (v4sf*)setup->e);
-    cfftf1_tail_ps(Ncvec, vdata, work, 2, 1, 0, setup->twiddle, setup->ifac, +1, vdata);
+    cfftf1_tail_ol_ps(Ncvec, vdata, work, 2, 1, 0, setup->twiddle, setup->ifac, +1, vdata);
   }
 }
 

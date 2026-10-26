@@ -1209,7 +1209,7 @@ static void cffti1_ps(int n, float *wa, int *ifac)
 } /* cffti1 */
 
 
-#ifndef PF_FUSED_LAYOUT   /* superseded by cfftf1_il_ps / cfftf1_tail_ps below */
+#ifndef PF_FUSED_LAYOUT   /* superseded by cfftf1_il_ps / cfftf1_tail_ol_ps below */
 static v4sf *cfftf1_ps(int n, const v4sf *input_readonly, v4sf *work1, v4sf *work2, const float *wa, const int *ifac, int isign) {
   v4sf *in  = (v4sf*)input_readonly;
   v4sf *out = (in == work2 ? work1 : work2);
@@ -1503,12 +1503,17 @@ static NEVER_INLINE(void) passf4_ol_ps(int l1, const v4sf * RESTRICT cc, v4sf * 
 }
 
 /* the passes of cfftf1_ps from factor index k1 on, l1 and iw as cfftf1_ps
-   has them there; 'in' holds the data and 'out' is the other buffer. If
-   il_out is not NULL, the last pass stores interleaved there when it can
+   has them there; 'in' holds the data and 'out' is the other buffer. With
+   'interleave' set, the last pass stores interleaved into il_out when it can
    (radix 4, not reading il_out); otherwise the result is interleaved into
-   il_out afterwards. Returns the buffer holding the result. */
-static v4sf *cfftf1_tail_ps(int n, v4sf *in, v4sf *out, int k1, int l1, int iw,
-                            const float *wa, const int *ifac, int isign, v4sf *il_out) {
+   il_out afterwards. Returns the buffer holding the result. A flag rather
+   than a NULL il_out selects this: callers pass one of their two buffers
+   as il_out, and testing it for NULL would tell a static analyzer that
+   that buffer, too, may be NULL. Callers use the wrappers below, which pass
+   the flag as a constant. */
+static ALWAYS_INLINE(v4sf *) cfftf1_passes_ps(int n, v4sf *in, v4sf *out, int k1, int l1, int iw,
+                                              const float *wa, const int *ifac, int isign,
+                                              int interleave, v4sf *il_out) {
   const int nf = ifac[1];
   assert(in != out);
   for (; k1<=nf+1; k1++) {
@@ -1517,7 +1522,7 @@ static v4sf *cfftf1_tail_ps(int n, v4sf *in, v4sf *out, int k1, int l1, int iw,
     int ido = n / l2;
     int idot = ido + ido;
     v4sf *tmp;
-    if (il_out && k1 == nf+1 && ip == 4 && in != il_out) {
+    if (interleave && k1 == nf+1 && ip == 4 && in != il_out) {
       passf4_ol_ps(l1, in, il_out, (float)isign);
       return il_out;
     }
@@ -1550,7 +1555,7 @@ static v4sf *cfftf1_tail_ps(int n, v4sf *in, v4sf *out, int k1, int l1, int iw,
     iw += (ip - 1)*idot;
     tmp = in; in = out; out = tmp;
   }
-  if (il_out) {
+  if (interleave) {
     int k;
     for (k=0; k < n; ++k) {
       PF_INTERLEAVE2_ST(VLD(in, 2*k), VLD(in, 2*k+1), il_out, 2*k, 2*k+1);
@@ -1558,6 +1563,20 @@ static v4sf *cfftf1_tail_ps(int n, v4sf *in, v4sf *out, int k1, int l1, int iw,
     return il_out;
   }
   return in;
+}
+
+/* cfftf1_passes_ps without interleaving: returns the buffer holding the
+   result, in or out */
+static v4sf *cfftf1_tail_ps(int n, v4sf *in, v4sf *out, int k1, int l1, int iw,
+                            const float *wa, const int *ifac, int isign) {
+  return cfftf1_passes_ps(n, in, out, k1, l1, iw, wa, ifac, isign, 0, NULL);
+}
+
+/* cfftf1_passes_ps with the result interleaved into il_out, which may be
+   in or out */
+static void cfftf1_tail_ol_ps(int n, v4sf *in, v4sf *out, int k1, int l1, int iw,
+                              const float *wa, const int *ifac, int isign, v4sf *il_out) {
+  cfftf1_passes_ps(n, in, out, k1, l1, iw, wa, ifac, isign, 1, il_out);
 }
 
 /* cfftf1_ps(n, work2, work1, work2, ...) for data that is still interleaved
@@ -1587,12 +1606,12 @@ static v4sf *cfftf1_il_ps(int n, const v4sf *input, v4sf *work1, v4sf *work2,
         passf2_il_ps(idot, input, work1, &wa[0], fsign);
         break;
     }
-    return cfftf1_tail_ps(n, work1, work2, 3, ip, (ip - 1)*idot, wa, ifac, isign, NULL);
+    return cfftf1_tail_ps(n, work1, work2, 3, ip, (ip - 1)*idot, wa, ifac, isign);
   }
   for (k=0; k < n; ++k) {
     PF_UNINTERLEAVE2_ST(VLD(input, 2*k), VLD(input, 2*k+1), work2, 2*k, 2*k+1);
   }
-  return cfftf1_tail_ps(n, work2, work1, 2, 1, 0, wa, ifac, isign, NULL);
+  return cfftf1_tail_ps(n, work2, work1, 2, 1, 0, wa, ifac, isign);
 }
 #undef PF_INTERLEAVE2_ST
 #undef PF_UNINTERLEAVE2_ST

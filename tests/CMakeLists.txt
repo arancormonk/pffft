@@ -93,9 +93,12 @@ if (PFFFT_USE_TYPE_FLOAT)
   # the 8-lane backend, which only runs on CPUs that support it, and that
   # backend must not fault on 16-byte aligned data or mix SSE with dirty
   # AVX state (tests/check_isa_baseline.py). Needs GNU objdump (ELF or
-  # PE/COFF); MSVC builds find one on PATH (e.g. MSYS2 binutils).
+  # PE/COFF); MSVC builds find one on PATH (e.g. MSYS2 binutils). Not for
+  # "none" when the compiler's own default is above baseline (see
+  # target_optimizations.cmake): such a build is not a baseline one.
   if (CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64)$" AND (CMAKE_SYSTEM_NAME STREQUAL "Linux" OR WIN32)
-      AND TARGET_C_ARCH MATCHES "^(none|SSE2)$" AND NOT CMAKE_SIZEOF_VOID_P EQUAL 4
+      AND TARGET_C_ARCH MATCHES "^(none|SSE2|x86-64)$" AND NOT PFFFT_C_DEFAULT_ABOVE_BASELINE
+      AND NOT CMAKE_SIZEOF_VOID_P EQUAL 4
       AND Python3_Interpreter_FOUND AND NOT Python3_VERSION VERSION_LESS 3.7)
     # (subprocess.run(capture_output=) needs Python 3.7)
     # GNU objdump: the toolchain's (a cross toolchain's own), else from PATH

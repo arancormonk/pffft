@@ -56,8 +56,8 @@ elseif ( (CMAKE_SYSTEM_PROCESSOR_LOWER STREQUAL "i686") OR (CMAKE_SYSTEM_PROCESS
     # On Windows CMake emits "AMD64" (64-bit) or "x86" (32-bit) rather than the above
     OR (CMAKE_SYSTEM_PROCESSOR_LOWER STREQUAL "amd64") OR (CMAKE_SYSTEM_PROCESSOR_LOWER STREQUAL "x86") )
     set(PFFFT_TARGET_IS_X86 TRUE)
-    set(GCC_MARCH_DESC "native/SSE2:pentium4/SSE3:core2/SSE4:nehalem/AVX:sandybridge/AVX2:haswell")
-    set(GCC_MARCH_VALUES "none;native;pentium4;core2;nehalem;sandybridge;haswell" CACHE INTERNAL "List of possible architectures")
+    set(GCC_MARCH_DESC "native/baseline:x86-64/SSE2:pentium4/SSE3:core2/SSE4:nehalem/AVX:sandybridge/AVX2:haswell")
+    set(GCC_MARCH_VALUES "none;native;x86-64;pentium4;core2;nehalem;sandybridge;haswell" CACHE INTERNAL "List of possible architectures")
     set(GCC_EXTRA_VALUES "" CACHE INTERNAL "List of possible EXTRA options")
     # MSVC and clang-cl /arch levels; "native" picks the build host's level
     set(MSVC_ARCH_VALUES "none;native;SSE2;AVX;AVX2;AVX512" CACHE INTERNAL "List of possible MSVC /arch values")
@@ -160,7 +160,36 @@ endif()
 # FMA3 where the host has it. The baseline ISA (TARGET_C_ARCH=none, used for
 # packages) deliberately stays without it: FMA3 needs Haswell (2013) or
 # Piledriver, and requiring it would break older CPUs. So just say so.
-if (PFFFT_TARGET_IS_X86)
+#
+# "none" adds no flags, so it means the compiler's default ISA, which need not
+# be baseline x86-64: GCC on GitHub's ubuntu-26.04 runners emits x86-64-v3
+# (AVX2, FMA) code without any flags. Ask the compiler, with CMAKE_C_FLAGS,
+# whether it already enables more than SSE2; then a "none" build is not
+# portable, and the baseline ISA audit (tests/check_isa_baseline.py) does not
+# apply to it. -DTARGET_C_ARCH=x86-64 selects the baseline explicitly.
+set(PFFFT_C_DEFAULT_ABOVE_BASELINE FALSE)
+if (PFFFT_TARGET_IS_X86 AND NOT _pffft_C_msvc AND CMAKE_SIZEOF_VOID_P EQUAL 8
+    AND ( ("${TARGET_C_ARCH}" STREQUAL "") OR ("${TARGET_C_ARCH}" STREQUAL "none") ))
+    include(CheckCSourceCompiles)
+    # CMAKE_C_FLAGS may change between configures: check every time
+    unset(PFFFT_C_DEFAULT_IS_BASELINE CACHE)
+    set(CMAKE_REQUIRED_QUIET ON)
+    check_c_source_compiles("
+#if defined(__SSE3__) || defined(__AVX__)
+#  error the compiler targets more than baseline x86-64 by default
+#endif
+int main(void) { return 0; }
+" PFFFT_C_DEFAULT_IS_BASELINE)
+    unset(CMAKE_REQUIRED_QUIET)
+    if (NOT PFFFT_C_DEFAULT_IS_BASELINE)
+        set(PFFFT_C_DEFAULT_ABOVE_BASELINE TRUE)
+        message(STATUS "TARGET_C_ARCH='${TARGET_C_ARCH}': the C compiler targets more than"
+                       " baseline x86-64 by default (SSE3 or AVX without flags), so this"
+                       " build needs a matching CPU; for a portable build use"
+                       " -DTARGET_C_ARCH=x86-64 -DTARGET_CXX_ARCH=x86-64")
+    endif()
+endif()
+if (PFFFT_TARGET_IS_X86 AND NOT PFFFT_C_DEFAULT_ABOVE_BASELINE)
     set(_pffft_have_fma FALSE)
     if (_pffft_C_msvc)
         set(_pffft_fma_arch "AVX2")

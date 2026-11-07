@@ -231,7 +231,12 @@ ctest --preset release-native
 
 Build binaries meant for other machines with the `release` preset, or pass
 `-DTARGET_C_ARCH=none -DTARGET_CXX_ARCH=none`; alternatively distribute a
-separately labelled `release-haswell` package to compatible x86 machines. On
+separately labelled `release-haswell` package to compatible x86 machines. `none`
+adds no flags, so it builds for the compiler's default ISA, which is not
+baseline x86-64 everywhere: GCC on GitHub's `ubuntu-26.04` runners emits
+x86-64-v3 (AVX2, FMA) code by default. Configure reports it when the default is
+above baseline; with GCC or Clang on x86-64,
+`-DTARGET_C_ARCH=x86-64 -DTARGET_CXX_ARCH=x86-64` selects the baseline. On
 MSVC, select a level explicitly with `-DTARGET_C_ARCH=AVX2 -DTARGET_CXX_ARCH=AVX2`
 (or `SSE2`, `AVX`, `AVX512`). The archives uploaded by this repository's CI use
 the baseline ISA, except the MSVC builds labelled `build_sse2`, `build_avx` and

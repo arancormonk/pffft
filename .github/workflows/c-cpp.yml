@@ -74,17 +74,17 @@ jobs:
       with:
         persist-credentials: false
     - name: cmake_make_simd_float_double
-      run: mkdir build_simd_full && cmake -S . -B build_simd_full -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DTARGET_CXX_ARCH=none -DTARGET_C_ARCH=none  && cmake --build build_simd_full && ctest --test-dir build_simd_full --output-on-failure -j 4
+      run: mkdir build_simd_full && cmake -S . -B build_simd_full -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DTARGET_CXX_ARCH=x86-64 -DTARGET_C_ARCH=x86-64  && cmake --build build_simd_full && ctest --test-dir build_simd_full --output-on-failure -j 4
     - name: cmake_make_simd_float
-      run: mkdir build_simd_float && cmake -S . -B build_simd_float -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_TYPE_DOUBLE=OFF -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DTARGET_CXX_ARCH=none -DTARGET_C_ARCH=none  && cmake --build build_simd_float && ctest --test-dir build_simd_float --output-on-failure -j 4
+      run: mkdir build_simd_float && cmake -S . -B build_simd_float -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_TYPE_DOUBLE=OFF -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DTARGET_CXX_ARCH=x86-64 -DTARGET_C_ARCH=x86-64  && cmake --build build_simd_float && ctest --test-dir build_simd_float --output-on-failure -j 4
     - name: cmake_make_simd_double
-      run: mkdir build_simd_double && cmake -S . -B build_simd_double -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_TYPE_FLOAT=OFF -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DTARGET_CXX_ARCH=none -DTARGET_C_ARCH=none  && cmake --build build_simd_double && ctest --test-dir build_simd_double --output-on-failure -j 4
+      run: mkdir build_simd_double && cmake -S . -B build_simd_double -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_TYPE_FLOAT=OFF -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DTARGET_CXX_ARCH=x86-64 -DTARGET_C_ARCH=x86-64  && cmake --build build_simd_double && ctest --test-dir build_simd_double --output-on-failure -j 4
     - name: cmake_make_no-simd_float_double
-      run: mkdir build_no-simd_full && cmake -S . -B build_no-simd_full -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_SIMD=OFF -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DTARGET_CXX_ARCH=none -DTARGET_C_ARCH=none  && cmake --build build_no-simd_full && ctest --test-dir build_no-simd_full --output-on-failure -j 4
+      run: mkdir build_no-simd_full && cmake -S . -B build_no-simd_full -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_SIMD=OFF -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DTARGET_CXX_ARCH=x86-64 -DTARGET_C_ARCH=x86-64  && cmake --build build_no-simd_full && ctest --test-dir build_no-simd_full --output-on-failure -j 4
     - name: cmake_make_no-simd_scalar_float_double
-      run: mkdir build_no-simd_scalar_full && cmake -S . -B build_no-simd_scalar_full -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_SIMD=OFF -DPFFFT_USE_SCALAR_VECT=ON -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DTARGET_CXX_ARCH=none -DTARGET_C_ARCH=none && cmake --build build_no-simd_scalar_full && ctest --test-dir build_no-simd_scalar_full --output-on-failure -j 4
+      run: mkdir build_no-simd_scalar_full && cmake -S . -B build_no-simd_scalar_full -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_SIMD=OFF -DPFFFT_USE_SCALAR_VECT=ON -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DTARGET_CXX_ARCH=x86-64 -DTARGET_C_ARCH=x86-64 && cmake --build build_no-simd_scalar_full && ctest --test-dir build_no-simd_scalar_full --output-on-failure -j 4
     - name: cmake_make_no-simd_novect_float_double
-      run: mkdir build_no-simd_novect && cmake -S . -B build_no-simd_novect -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_SIMD=OFF -DPFFFT_USE_SCALAR_VECT=OFF -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DTARGET_CXX_ARCH=none -DTARGET_C_ARCH=none && cmake --build build_no-simd_novect
+      run: mkdir build_no-simd_novect && cmake -S . -B build_no-simd_novect -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_SIMD=OFF -DPFFFT_USE_SCALAR_VECT=OFF -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DTARGET_CXX_ARCH=x86-64 -DTARGET_C_ARCH=x86-64 && cmake --build build_no-simd_novect
     - name: ctest_no-simd_novect
       # greenffts octave wrappers cannot run outside their environment;
       # everything else -- including the SIMD_SZ==1 nosimd kernels --
@@ -107,17 +107,17 @@ jobs:
       with:
         persist-credentials: false
     - name: cmake_make_simd_float_double
-      run: mkdir build_simd_full && cmake -S . -B build_simd_full -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DTARGET_CXX_ARCH=none -DTARGET_C_ARCH=none  && cmake --build build_simd_full && ctest --test-dir build_simd_full --output-on-failure -j 4
+      run: mkdir build_simd_full && cmake -S . -B build_simd_full -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DTARGET_CXX_ARCH=x86-64 -DTARGET_C_ARCH=x86-64  && cmake --build build_simd_full && ctest --test-dir build_simd_full --output-on-failure -j 4
     - name: cmake_make_simd_float
-      run: mkdir build_simd_float && cmake -S . -B build_simd_float -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_TYPE_DOUBLE=OFF -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DTARGET_CXX_ARCH=none -DTARGET_C_ARCH=none  && cmake --build build_simd_float && ctest --test-dir build_simd_float --output-on-failure -j 4
+      run: mkdir build_simd_float && cmake -S . -B build_simd_float -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_TYPE_DOUBLE=OFF -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DTARGET_CXX_ARCH=x86-64 -DTARGET_C_ARCH=x86-64  && cmake --build build_simd_float && ctest --test-dir build_simd_float --output-on-failure -j 4
     - name: cmake_make_simd_double
-      run: mkdir build_simd_double && cmake -S . -B build_simd_double -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_TYPE_FLOAT=OFF -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DTARGET_CXX_ARCH=none -DTARGET_C_ARCH=none  && cmake --build build_simd_double && ctest --test-dir build_simd_double --output-on-failure -j 4
+      run: mkdir build_simd_double && cmake -S . -B build_simd_double -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_TYPE_FLOAT=OFF -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DTARGET_CXX_ARCH=x86-64 -DTARGET_C_ARCH=x86-64  && cmake --build build_simd_double && ctest --test-dir build_simd_double --output-on-failure -j 4
     - name: cmake_make_no-simd_float_double
-      run: mkdir build_no-simd_full && cmake -S . -B build_no-simd_full -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_SIMD=OFF -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DTARGET_CXX_ARCH=none -DTARGET_C_ARCH=none  && cmake --build build_no-simd_full && ctest --test-dir build_no-simd_full --output-on-failure -j 4
+      run: mkdir build_no-simd_full && cmake -S . -B build_no-simd_full -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_SIMD=OFF -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DTARGET_CXX_ARCH=x86-64 -DTARGET_C_ARCH=x86-64  && cmake --build build_no-simd_full && ctest --test-dir build_no-simd_full --output-on-failure -j 4
     - name: cmake_make_no-simd_scalar_float_double
-      run: mkdir build_no-simd_scalar_full && cmake -S . -B build_no-simd_scalar_full -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_SIMD=OFF -DPFFFT_USE_SCALAR_VECT=ON -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DTARGET_CXX_ARCH=none -DTARGET_C_ARCH=none && cmake --build build_no-simd_scalar_full && ctest --test-dir build_no-simd_scalar_full --output-on-failure -j 4
+      run: mkdir build_no-simd_scalar_full && cmake -S . -B build_no-simd_scalar_full -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_SIMD=OFF -DPFFFT_USE_SCALAR_VECT=ON -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DTARGET_CXX_ARCH=x86-64 -DTARGET_C_ARCH=x86-64 && cmake --build build_no-simd_scalar_full && ctest --test-dir build_no-simd_scalar_full --output-on-failure -j 4
     - name: cmake_make_no-simd_novect_float_double
-      run: mkdir build_no-simd_novect && cmake -S . -B build_no-simd_novect -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_SIMD=OFF -DPFFFT_USE_SCALAR_VECT=OFF -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DTARGET_CXX_ARCH=none -DTARGET_C_ARCH=none && cmake --build build_no-simd_novect
+      run: mkdir build_no-simd_novect && cmake -S . -B build_no-simd_novect -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_SIMD=OFF -DPFFFT_USE_SCALAR_VECT=OFF -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DTARGET_CXX_ARCH=x86-64 -DTARGET_C_ARCH=x86-64 && cmake --build build_no-simd_novect
     - name: ctest_no-simd_novect
       # greenffts octave wrappers cannot run outside their environment;
       # everything else -- including the SIMD_SZ==1 nosimd kernels --

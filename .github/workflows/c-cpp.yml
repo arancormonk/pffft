@@ -608,9 +608,9 @@ jobs:
         path: pffft_windows-mingw-amd64.tar.gz
 
 
-  build_macos14:
+  build_macos15:
     # copied from build_ubuntu-amd64 with minor renaming
-    runs-on: macos-14
+    runs-on: macos-15
 
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -627,16 +627,16 @@ jobs:
     - name: cmake_make_no-simd_scalar_float_double
       run: mkdir build_no-simd_scalar_full && cmake -S . -B build_no-simd_scalar_full -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_SIMD=OFF -DPFFFT_USE_SCALAR_VECT=ON -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DTARGET_CXX_ARCH=none -DTARGET_C_ARCH=none && cmake --build build_no-simd_scalar_full && ctest --test-dir build_no-simd_scalar_full --output-on-failure -j 4
     - name: compress
-      run: tar zcvf pffft_macos-14.tar.gz --exclude=CMakeFiles --exclude=*.cmake --exclude=Makefile --exclude=CMakeCache.txt build_simd_full build_simd_float build_simd_double build_no-simd_full build_no-simd_scalar_full
+      run: tar zcvf pffft_macos-15.tar.gz --exclude=CMakeFiles --exclude=*.cmake --exclude=Makefile --exclude=CMakeCache.txt build_simd_full build_simd_float build_simd_double build_no-simd_full build_no-simd_scalar_full
     - name: 'Upload Artifact'
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       with:
-        name: pffft_macos-14
-        path: pffft_macos-14.tar.gz
+        name: pffft_macos-15
+        path: pffft_macos-15.tar.gz
 
-  build_w_mipp_macos14:
+  build_w_mipp_macos15:
     # copied from build_w_mipp_ubuntu-amd64 with minor renaming
-    runs-on: macos-14
+    runs-on: macos-15
 
     steps:
     - name: check out MIPP
@@ -664,9 +664,9 @@ jobs:
     - name: cmake_make_no-simd_scalar_float_double
       run: mkdir build_no-simd_scalar_full && cmake -S . -B build_no-simd_scalar_full -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_SIMD=OFF -DPFFFT_USE_SCALAR_VECT=ON -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DTARGET_CXX_ARCH=none -DTARGET_C_ARCH=none && cmake --build build_no-simd_scalar_full && ctest --test-dir build_no-simd_scalar_full --output-on-failure -j 4
     - name: compress
-      run: tar zcvf pffft_w_mipp_macos-14.tar.gz --exclude=CMakeFiles --exclude=*.cmake --exclude=Makefile --exclude=CMakeCache.txt build_simd_full build_simd_float build_simd_double build_no-simd_full build_no-simd_scalar_full
+      run: tar zcvf pffft_w_mipp_macos-15.tar.gz --exclude=CMakeFiles --exclude=*.cmake --exclude=Makefile --exclude=CMakeCache.txt build_simd_full build_simd_float build_simd_double build_no-simd_full build_no-simd_scalar_full
     - name: 'Upload Artifact'
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       with:
-        name: pffft_w_mipp_macos-14
-        path: pffft_w_mipp_macos-14.tar.gz
+        name: pffft_w_mipp_macos-15
+        path: pffft_w_mipp_macos-15.tar.gz

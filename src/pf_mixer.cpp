@@ -68,9 +68,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 #ifndef PFFFT_SIMD_DISABLE
-/* 32-bit x86: __i386__, not i386, which strict -std=c++11 does not define;
-   and only when SSE is enabled (-msse, MSVC /arch:SSE or higher) */
-#if (defined(__x86_64__) || defined(_M_X64) || defined(__SSE__) || (defined(_M_IX86_FP) && _M_IX86_FP >= 1))
+/* same condition as src/simd/pf_sse1_float.h: SSE only when the compiler targets it */
+#if !defined(_M_ARM64EC) && (defined(__x86_64__) || defined(__SSE__) || defined(_M_X64) || \
+    (defined(_M_IX86_FP) && _M_IX86_FP >= 1))
   #include <xmmintrin.h>
   #define HAVE_SSE_INTRINSICS 1
 

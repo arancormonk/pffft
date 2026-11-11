@@ -113,12 +113,21 @@ set(_pffft_extra_desc "preset of additional options: neon_vfpv4, neon_rpi3_a53, 
 # A build directory configured by an older pffft, or for another target,
 # may hold a list of choices for the entry. CMake has no way to remove a
 # single cache property, so the entry is recreated with its current value.
+# Creating a cache entry removes a normal variable of the same name (policy
+# CMP0126 OLD, which applies here), e.g. a parent project's
+# set(TARGET_C_ARCH x86-64) before add_subdirectory(), so that one is kept:
+# it is the value in effect, and differs from the cache value if it exists
+# at all.
 macro(_pffft_drop_choice_list entry)
     get_property(_pffft_has_list CACHE ${entry} PROPERTY STRINGS SET)
     if (_pffft_has_list)
         get_property(_pffft_value CACHE ${entry} PROPERTY VALUE)
+        set(_pffft_normal "${${entry}}")
         unset(${entry} CACHE)
         set(${entry} "${_pffft_value}" CACHE STRING "")
+        if (NOT "${_pffft_normal}" STREQUAL "${_pffft_value}")
+            set(${entry} "${_pffft_normal}")
+        endif()
     endif()
 endmacro()
 

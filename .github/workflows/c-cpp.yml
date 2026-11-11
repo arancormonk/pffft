@@ -568,6 +568,32 @@ jobs:
       run: ctest --test-dir build_arm64 -C "$BUILD_TYPE" --output-on-failure -j 4
 
 
+  cross_build_win_msvc_arm64:
+    # Visual Studio -A ARM64 / -A ARM64EC on an x64 host: CMAKE_SYSTEM_PROCESSOR
+    # is the host's "AMD64" there, so pffft must take the target from the
+    # compiler (CMAKE_C_COMPILER_ARCHITECTURE_ID). Build only: neither runs
+    # on x64. The build includes pf_mixer.cpp, whose SSE path must not be
+    # picked for ARM64EC (MSVC defines _M_X64 there too).
+    runs-on: windows-2022
+
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+    - name: Configure and build ARM64 and ARM64EC
+      shell: bash
+      run: |
+        for arch in ARM64 ARM64EC; do
+          lower=$(echo "$arch" | tr '[:upper:]' '[:lower:]')
+          cmake -S . -B "build_$lower" -A "$arch" -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF | tee "configure_$lower.log"
+          # recognised as the compiler's target, not as the x86 host
+          grep -q "no MSVC host tuning for $lower" "configure_$lower.log"
+          if grep -q "has no FMA" "configure_$lower.log"; then echo "$arch treated as x86 (FMA reminder)"; exit 1; fi
+          if [ -e "build_$lower/benchmarks/pf_conv_arch_sse2.vcxproj" ]; then echo "$arch got the x86 bench_pf_conv_float variants"; exit 1; fi
+          cmake --build "build_$lower" --config "$BUILD_TYPE"
+        done
+
+
   build_win_mingw:
     runs-on: windows-2022
     strategy:

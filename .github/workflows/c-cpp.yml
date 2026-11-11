@@ -591,6 +591,20 @@ jobs:
           if grep -q "has no FMA" "configure_$lower.log"; then echo "$arch treated as x86 (FMA reminder)"; exit 1; fi
           if [ -e "build_$lower/benchmarks/pf_conv_arch_sse2.vcxproj" ]; then echo "$arch got the x86 bench_pf_conv_float variants"; exit 1; fi
           cmake --build "build_$lower" --config "$BUILD_TYPE"
+          # SIMD backend, from the VARCH strings that pffft_simd_arch() and
+          # pffftd_simd_arch() return: NEON for ARM64; scalar for ARM64EC,
+          # which defines neither _M_ARM64 nor __ARM_NEON while the SSE
+          # headers exclude it
+          if [ "$arch" = ARM64 ]; then want=NEON; else want=4xScalar; fi
+          lib=$(find "build_$lower" -name pffft.lib | head -1)
+          if [ -z "$lib" ]; then echo "$arch: pffft.lib not found"; exit 1; fi
+          # each name ends a NUL-terminated string, but other bytes may come
+          # right before it, so match it at the end of a line, not the whole
+          backends=$(tr '\0' '\n' < "$lib" | grep -aoE '(SSE1|SSE2|AVX|NEON|4xScalar|Scalar)$' | sort -u | tr '\n' ' ')
+          echo "$arch backends in $lib: $backends"
+          if [ "$backends" != "$want " ]; then
+            echo "$arch: expected $want for float and double"; exit 1
+          fi
         done
 
 

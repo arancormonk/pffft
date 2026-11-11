@@ -133,4 +133,59 @@ configure_case(subproject "${_wrapper}" _log)
 expect_arch(subproject C "none")
 expect_arch(subproject CXX "none")
 
+# A parent's normal TARGET_<lang>_ARCH variables are the values in effect,
+# also where pffft creates or recreates the cache entries (CMP0126 OLD
+# removes a normal variable of the same name then): in a fresh build
+# directory, and in one whose cache still holds the choice list of an older
+# pffft. The cache value is not what applies, so check what pffft uses.
+if (ISA_FLAG)
+    string(REGEX REPLACE "^(-march=|/arch:)" "" _parent_arch "${ISA_FLAG}")
+    set(_override "${WORK_DIR}/override_src")
+    file(MAKE_DIRECTORY "${_override}")
+    file(WRITE "${_override}/CMakeLists.txt"
+        "cmake_minimum_required(VERSION 3.10)\n"
+        "project(pffft_consumer C CXX)\n"
+        "set(TARGET_C_ARCH \"${_parent_arch}\")\n"
+        "set(TARGET_CXX_ARCH \"${_parent_arch}\")\n"
+        "add_subdirectory(\"${PFFFT_SOURCE_DIR}\" pffft)\n")
+    function(expect_parent_arch name log)
+        foreach (_msg "C ARCH for target PFFFT set: ${_parent_arch}"
+                      "C++ ARCH for target PFDSP set: ${_parent_arch}")
+            string(FIND "${log}" "${_msg}" _pos)
+            if (_pos LESS 0)
+                message(FATAL_ERROR "${name}: the parent's TARGET_<lang>_ARCH="
+                                    "${_parent_arch} was not used, expected '${_msg}'\n${log}")
+            endif()
+        endforeach()
+    endfunction()
+    configure_case(parent_override "${_override}" _log)
+    expect_parent_arch(parent_override "${_log}")
+
+    # as left by an older pffft: another value, and a choice list
+    set(_cache "${WORK_DIR}/parent_override/CMakeCache.txt")
+    file(READ "${_cache}" _content)
+    foreach (_lang C CXX)
+        string(REGEX REPLACE "\nTARGET_${_lang}_ARCH:STRING=[^\n]*"
+            "\nTARGET_${_lang}_ARCH:STRING=none\nTARGET_${_lang}_ARCH-STRINGS:INTERNAL=none;native"
+            _content "${_content}")
+    endforeach()
+    file(WRITE "${_cache}" "${_content}")
+    execute_process(
+        COMMAND "${CMAKE_COMMAND}" -E env ${_env_args} "${CMAKE_COMMAND}" .
+        WORKING_DIRECTORY "${WORK_DIR}/parent_override"
+        RESULT_VARIABLE _result
+        OUTPUT_VARIABLE _log
+        ERROR_VARIABLE _log)
+    if (NOT _result EQUAL 0)
+        message(FATAL_ERROR "parent_override_old_cache: configure failed\n${_log}")
+    endif()
+    expect_parent_arch(parent_override_old_cache "${_log}")
+    # gcc/clang drop the list; MSVC/clang-cl on x86 replace it with the /arch
+    # levels. Either way the older pffft's list is gone.
+    file(STRINGS "${_cache}" _lists REGEX "^TARGET_(C|CXX)_ARCH-STRINGS:INTERNAL=none;native$")
+    if (_lists)
+        message(FATAL_ERROR "parent_override_old_cache: the older choice list was kept: ${_lists}")
+    endif()
+endif()
+
 message(STATUS "native architecture defaults: ok")

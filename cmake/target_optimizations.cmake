@@ -109,25 +109,47 @@ set(MSVC_ARCH_VALUES "none;native;SSE2;AVX;AVX2;AVX512")
 set(_pffft_march_desc "target architecture (-march), e.g. native, x86-64, haswell, armv8-a, armv7-a; none: the compiler's default")
 set(_pffft_extra_desc "preset of additional options: neon_vfpv4, neon_rpi3_a53, neon_rpi4_a72 for 32-bit ARM hard-float; apple_m1 for Apple arm64; none")
 
+# A parent project may set TARGET_<lang>_ARCH / _EXTRA as normal variables
+# before add_subdirectory(pffft), e.g. set(TARGET_C_ARCH x86-64). Those are
+# the values in effect. But with cmake_minimum_required(VERSION 3.10), policy
+# CMP0126 is OLD here, so creating a cache entry removes a normal variable
+# of the same name: in a fresh build directory, and whenever
+# _pffft_drop_choice_list() recreates an entry. The options below therefore
+# save such a normal variable first and restore it afterwards.
+#
+# _pffft_save_normal(<entry>)
+# A normal variable exists if the name is defined without a cache entry,
+# or with a value other than the cache value; one with the cache value
+# needs no restoring.
+macro(_pffft_save_normal entry)
+    get_property(_pffft_type CACHE ${entry} PROPERTY TYPE)
+    get_property(_pffft_value CACHE ${entry} PROPERTY VALUE)
+    set(_pffft_has_normal_${entry} FALSE)
+    if (DEFINED ${entry})
+        if (("${_pffft_type}" STREQUAL "") OR NOT ("${${entry}}" STREQUAL "${_pffft_value}"))
+            set(_pffft_has_normal_${entry} TRUE)
+            set(_pffft_normal_${entry} "${${entry}}")
+        endif()
+    endif()
+endmacro()
+
+# _pffft_restore_normal(<entry>)
+macro(_pffft_restore_normal entry)
+    if (_pffft_has_normal_${entry})
+        set(${entry} "${_pffft_normal_${entry}}")
+    endif()
+endmacro()
+
 # _pffft_drop_choice_list(<cache entry>)
 # A build directory configured by an older pffft, or for another target,
 # may hold a list of choices for the entry. CMake has no way to remove a
 # single cache property, so the entry is recreated with its current value.
-# Creating a cache entry removes a normal variable of the same name (policy
-# CMP0126 OLD, which applies here), e.g. a parent project's
-# set(TARGET_C_ARCH x86-64) before add_subdirectory(), so that one is kept:
-# it is the value in effect, and differs from the cache value if it exists
-# at all.
 macro(_pffft_drop_choice_list entry)
     get_property(_pffft_has_list CACHE ${entry} PROPERTY STRINGS SET)
     if (_pffft_has_list)
         get_property(_pffft_value CACHE ${entry} PROPERTY VALUE)
-        set(_pffft_normal "${${entry}}")
         unset(${entry} CACHE)
         set(${entry} "${_pffft_value}" CACHE STRING "")
-        if (NOT "${_pffft_normal}" STREQUAL "${_pffft_value}")
-            set(${entry} "${_pffft_normal}")
-        endif()
     endif()
 endmacro()
 
@@ -136,18 +158,24 @@ endmacro()
 # own flags there.
 macro(_pffft_gcc_clang_options lang langname)
     if (NOT PFFFT_TARGET_IS_WASM)
+        _pffft_save_normal(TARGET_${lang}_ARCH)
+        _pffft_save_normal(TARGET_${lang}_EXTRA)
         _pffft_drop_choice_list(TARGET_${lang}_ARCH)
         set(TARGET_${lang}_ARCH "${_pffft_${lang}_arch_default}" CACHE STRING "")
         set_property(CACHE TARGET_${lang}_ARCH PROPERTY HELPSTRING "gcc/clang ${langname} ${_pffft_march_desc}")
         set(TARGET_${lang}_EXTRA "none" CACHE STRING "")
         set_property(CACHE TARGET_${lang}_EXTRA PROPERTY HELPSTRING "gcc/clang ${langname} ${_pffft_extra_desc}")
         set_property(CACHE TARGET_${lang}_EXTRA PROPERTY STRINGS ${GCC_EXTRA_VALUES})
+        _pffft_restore_normal(TARGET_${lang}_ARCH)
+        _pffft_restore_normal(TARGET_${lang}_EXTRA)
     endif()
 endmacro()
 
 # _pffft_msvc_options(<C|CXX> <display name>)
 # MSVC and clang-cl. The /arch choices are offered for x86 only.
 macro(_pffft_msvc_options lang langname)
+    _pffft_save_normal(TARGET_${lang}_ARCH)
+    _pffft_save_normal(TARGET_${lang}_EXTRA)
     if (NOT PFFFT_TARGET_IS_X86)
         _pffft_drop_choice_list(TARGET_${lang}_ARCH)
     endif()
@@ -157,6 +185,8 @@ macro(_pffft_msvc_options lang langname)
         set_property(CACHE TARGET_${lang}_ARCH PROPERTY STRINGS ${MSVC_ARCH_VALUES})
     endif()
     set(TARGET_${lang}_EXTRA "none" CACHE STRING "msvc additional options")
+    _pffft_restore_normal(TARGET_${lang}_ARCH)
+    _pffft_restore_normal(TARGET_${lang}_EXTRA)
 endmacro()
 
 pffft_msvc_frontend(C _pffft_C_msvc)

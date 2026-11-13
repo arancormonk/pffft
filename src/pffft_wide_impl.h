@@ -215,10 +215,12 @@ typedef __m256 pffft_v8sf __attribute__((aligned(16)));
 #define PF_INTERLEAVE2 W8_TD_INTERLEAVE2
 #define PF_UNINTERLEAVE2_ST(in1, in2, p, i1, i2) W8_STORE2(W8_TD_UNINTERLEAVE2, in1, in2, p, i1, i2)
 #define PF_INTERLEAVE2_ST(in1, in2, p, i1, i2) W8_STORE2(W8_TD_INTERLEAVE2, in1, in2, p, i1, i2)
+#define PF_INPLACE_CODELETS 0  /* the file includes itself with 1 for the in-place codelets */
 #include "pffft_passes_impl.h"
 #undef PF_FUSED_LAYOUT
 #undef PF_UNINTERLEAVE2
 #undef PF_INTERLEAVE2
+#undef PF_INPLACE_CODELETS
 
 #define W8_ALIGNED16(p) ((((uintptr_t)(p)) & 0xF) == 0)
 

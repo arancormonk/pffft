@@ -8,6 +8,10 @@ queries:
 # unreachable even though its extern wrappers (cfftf, rfftf, ...) call them.
 # cpp/world-writable-file-creation assumes umask 0 for every fopen(); only the
 # benchmarks write files, and fopen() honours the process umask.
+# cpp/include-non-header reports tests/test_pffft_passes.c, the white-box test
+# of the passes, which includes the library's translation units (pffft.c,
+# pffft_double.c) on purpose to reach their static functions. The only other
+# such include, pffft.c in the MSVC-only src/pffft_wide_tu.c, is deliberate too.
 query-filters:
   - exclude:
       id: cpp/poorly-documented-function
@@ -15,6 +19,8 @@ query-filters:
       id: cpp/unused-static-function
   - exclude:
       id: cpp/world-writable-file-creation
+  - exclude:
+      id: cpp/include-non-header
 
 # Keep benchmark-only submodules and vendored upstream headers out of
 # project-owned CodeQL results.

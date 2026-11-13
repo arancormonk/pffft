@@ -128,18 +128,18 @@ int FUNC_NEAREST_SIZE(int N, pffft_transform_t cplx, int higher) {
 
 const char * FUNC_SIMD_ARCH(void) { return VARCH; }
 
-
 #if ( SIMD_SZ == 4 )
 /* fuse the complex (de)interleaving into the first/last passes */
 #  define PF_FUSED_LAYOUT 1
 #  define PF_UNINTERLEAVE2 UNINTERLEAVE2
 #  define PF_INTERLEAVE2 INTERLEAVE2
 #endif
+#define PF_INPLACE_CODELETS 0  /* the file includes itself with 1 for the in-place codelets */
 #include "pffft_passes_impl.h"
 #undef PF_FUSED_LAYOUT
 #undef PF_UNINTERLEAVE2
 #undef PF_INTERLEAVE2
-
+#undef PF_INPLACE_CODELETS
 
 struct SETUP_STRUCT {
   PFFFT_SETUP_FIELDS(v4sf, float)

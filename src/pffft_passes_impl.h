@@ -60,20 +60,30 @@
    again by pffft_wide_impl.h for the 8-lane AVX2 float backend, which renames
    every function defined here before the inclusion. The code only uses the
    vector macros (v4sf, VADD, VMUL, LD_PS1, VCPLXMUL, ...), so it works at any
-   vector width. Deliberately no include guard.
+   vector width. Deliberately no include guard: the file is meant to be
+   included several times, and every inclusion is configured by macros that
+   the including file defines before it and undefines after it, a pattern
+   that CodeQL's cpp/missing-header-guard recognises as a template header.
 
-   With PFFFT_INPLACE_FIRST_PASS and the fused layout, the file also
-   includes itself once, with PF_INPLACE_CODELETS defined. That inclusion
-   compiles the eight complex codelets passf2/3/4/5_ps and
-   passf2/3/4/5_il_ps a second time, as the always-inline bodies
-   passf2_body, ..., passf5_il_body without 'restrict', for the in-place
-   first-pass wrappers (passf2_ip_ps, ..., passf5_il_ip_ps); only the
-   function header changes, through PF_CODELET, PF_CODELET_NAME and
-   PF_CODELET_RESTRICT. Only the eight codelets (with their local macros),
-   the definitions of those three macros and the #ifdef PF_FUSED_LAYOUT
-   around the four _il codelets are outside #ifndef PF_INPLACE_CODELETS. */
+   The including file sets PF_INPLACE_CODELETS to 0 or 1, as it sets
+   PF_FUSED_LAYOUT. With 0 the file compiles everything. With
+   PFFFT_INPLACE_FIRST_PASS and the fused layout, that inclusion includes
+   the file once more, with PF_INPLACE_CODELETS 1, and sets it back to 0
+   afterwards. The inclusion with 1 compiles only the eight complex
+   codelets passf2/3/4/5_ps and passf2/3/4/5_il_ps, a second time, as the
+   always-inline bodies passf2_body, ..., passf5_il_body without
+   'restrict', for the in-place first-pass wrappers (passf2_ip_ps, ...,
+   passf5_il_ip_ps); only the function header changes, through PF_CODELET,
+   PF_CODELET_NAME and PF_CODELET_RESTRICT. Only the eight codelets (with
+   their local macros), the definitions of those three macros and the
+   #ifdef PF_FUSED_LAYOUT around the four _il codelets are outside
+   #if !PF_INPLACE_CODELETS. */
 
 #ifndef PF_INPLACE_CODELETS
+#error "pffft_passes_impl.h: the including file has to define PF_INPLACE_CODELETS to 0 or 1"
+#endif
+
+#if !PF_INPLACE_CODELETS
 #include "pffft_pass_config.h"  /* PFFFT_TERMINAL_RADIX8, PFFFT_INPLACE_FIRST_PASS */
 #endif
 
@@ -82,7 +92,7 @@
 #undef PF_CODELET
 #undef PF_CODELET_NAME
 #undef PF_CODELET_RESTRICT
-#ifdef PF_INPLACE_CODELETS
+#if PF_INPLACE_CODELETS
 #  define PF_CODELET(t) ALWAYS_INLINE(t)
 #  define PF_CODELET_NAME(name) name##_body
 #  define PF_CODELET_RESTRICT
@@ -258,7 +268,7 @@ static PF_CODELET(void) PF_CODELET_NAME(passf5)(int ido, int l1, const v4sf * PF
 #define ch_idx(a_1,a_3) ((a_3-1)*l1*ido + a_1 + 1)
 /* leg 1, read again after the first two stores; at l1 == 1 these store to
    the positions of leg 1, so in place it is loaded before them */
-#ifdef PF_INPLACE_CODELETS
+#if PF_INPLACE_CODELETS
 #  define cc_leg1r c1r
 #  define cc_leg1i c1i
 #else
@@ -277,7 +287,7 @@ static PF_CODELET(void) PF_CODELET_NAME(passf5)(int ido, int l1, const v4sf * PF
       tr2 = VADD(VLD(cc, cc_idx(i-1, 2)), VLD(cc, cc_idx(i-1, 5)));
       tr4 = VSUB(VLD(cc, cc_idx(i-1, 3)), VLD(cc, cc_idx(i-1, 4)));
       tr3 = VADD(VLD(cc, cc_idx(i-1, 3)), VLD(cc, cc_idx(i-1, 4)));
-#ifdef PF_INPLACE_CODELETS
+#if PF_INPLACE_CODELETS
       const v4sf c1r = VLD(cc, cc_idx(i-1, 1)), c1i = VLD(cc, cc_idx(i  , 1));
 #endif
       VST(ch, ch_idx(i-1, 1), VADD(VLD(cc, cc_idx(i-1, 1)), VADD(tr2, tr3)));
@@ -320,7 +330,7 @@ static PF_CODELET(void) PF_CODELET_NAME(passf5)(int ido, int l1, const v4sf * PF
 #undef cc_idx
 }
 
-#ifndef PF_INPLACE_CODELETS
+#if !PF_INPLACE_CODELETS
 #if PFFFT_TERMINAL_RADIX8
 /*
   passf8 and passb8 merged here, fsign = -1 for passf8, +1 for passb8.
@@ -1531,10 +1541,10 @@ static v4sf *cfftf1_ps(int n, const v4sf *input_readonly, v4sf *work1, v4sf *wor
   return in; /* this is in fact the output .. */
 }
 #endif
-#endif /* PF_INPLACE_CODELETS */
+#endif /* !PF_INPLACE_CODELETS */
 
 #ifdef PF_FUSED_LAYOUT
-#ifndef PF_INPLACE_CODELETS
+#if !PF_INPLACE_CODELETS
 
 /*
   Complex transforms deinterleave their input before the first pass and
@@ -1553,7 +1563,7 @@ static v4sf *cfftf1_ps(int n, const v4sf *input_readonly, v4sf *work1, v4sf *wor
 #  define PF_INTERLEAVE2_ST(in1, in2, p, i1, i2) PF_INTERLEAVE2(in1, in2, (p)[i1], (p)[i2])
 #  define PF_UNINTERLEAVE2_ST(in1, in2, p, i1, i2) PF_UNINTERLEAVE2(in1, in2, (p)[i1], (p)[i2])
 #endif
-#endif /* PF_INPLACE_CODELETS */
+#endif /* !PF_INPLACE_CODELETS */
 
 static PF_CODELET(void) PF_CODELET_NAME(passf2_il)(int ido, const v4sf * PF_CODELET_RESTRICT in,
                                                    v4sf * PF_CODELET_RESTRICT ch,
@@ -1620,7 +1630,7 @@ static PF_CODELET(void) PF_CODELET_NAME(passf3_il)(int ido, const v4sf * PF_CODE
   }
 }
 
-#ifndef PF_INPLACE_CODELETS
+#if !PF_INPLACE_CODELETS
 /* radix-4 butterfly of passf4_ps on one element pair of each leg; writes
    the four results to (y[2m], y[2m+1]) */
 static ALWAYS_INLINE(void) passf4_il_butterfly(v4sf c0r, v4sf c0i, v4sf c1r, v4sf c1i,
@@ -1643,7 +1653,7 @@ static ALWAYS_INLINE(void) passf4_il_butterfly(v4sf c0r, v4sf c0i, v4sf c1r, v4s
   y[6] = VSUB(tr1, tr4);
   y[7] = VSUB(ti1, ti4);
 }
-#endif /* PF_INPLACE_CODELETS */
+#endif /* !PF_INPLACE_CODELETS */
 
 static PF_CODELET(void) PF_CODELET_NAME(passf4_il)(int ido, const v4sf * PF_CODELET_RESTRICT in,
                                                    v4sf * PF_CODELET_RESTRICT ch,
@@ -1768,7 +1778,7 @@ static PF_CODELET(void) PF_CODELET_NAME(passf5_il)(int ido, const v4sf * PF_CODE
   }
 }
 
-#ifndef PF_INPLACE_CODELETS
+#if !PF_INPLACE_CODELETS
 /* last pass (ido == 2: one complex element per leg) of passf4_ps, storing
    interleaved complex output */
 static NEVER_INLINE(void) passf4_ol_ps(int l1, const v4sf * RESTRICT cc, v4sf * RESTRICT out, float fsign) {
@@ -1834,14 +1844,19 @@ static NEVER_INLINE(void) passf8_ol_ps(int l1, const v4sf *cc, v4sf *out, float 
   means at least two elements per leg. (Its deinterleaving form,
   passf2_il_ps, loads both legs first and is safe at any ido.)
 
-  The bodies come from a second inclusion of this file, which compiles the
-  eight codelets once more under the names passfR_body and passfR_il_body,
-  force-inlined and without 'restrict'. The regular codelets keep
-  'restrict' and their code.
+  The bodies come from a second inclusion of this file, with
+  PF_INPLACE_CODELETS 1, which compiles only the eight codelets once more
+  under the names passfR_body and passfR_il_body, force-inlined and without
+  'restrict'. The regular codelets keep 'restrict' and their code. As for
+  every inclusion of this file, the includer (here the file itself) sets
+  the parameter before and resets it after; the rest of this inclusion
+  continues with 0.
 */
+#undef PF_INPLACE_CODELETS
 #define PF_INPLACE_CODELETS 1
 #include "pffft_passes_impl.h"
 #undef PF_INPLACE_CODELETS
+#define PF_INPLACE_CODELETS 0
 
 static NEVER_INLINE(void) passf2_ip_ps(int ido, v4sf *c, const float *wa1, float fsign) {
   assert(ido > 2);   /* see above: one element per leg is not safe in place */
@@ -2051,14 +2066,16 @@ static v4sf *cfftf1_il_ps(int n, const v4sf *input, v4sf *work1, v4sf *work2,
 }
 #undef PF_INTERLEAVE2_ST
 #undef PF_UNINTERLEAVE2_ST
-#endif /* PF_INPLACE_CODELETS */
+#endif /* !PF_INPLACE_CODELETS */
 #endif /* PF_FUSED_LAYOUT */
-#if PFFFT_TERMINAL_RADIX8 && !defined(PF_INPLACE_CODELETS)
+#if PFFFT_TERMINAL_RADIX8 && !PF_INPLACE_CODELETS
 #undef PF_PASS8
 #endif
-/* the codelet header macros, at the end of the outer inclusion; nothing
-   after the PF_INPLACE_CODELETS inclusion uses them */
-#ifndef PF_INPLACE_CODELETS
+/* the codelet header macros, at the end of the inclusion with
+   PF_INPLACE_CODELETS 0; the inclusion with 1 leaves them in their body
+   form, which nothing after it uses. The including file undefines
+   PF_INPLACE_CODELETS itself. */
+#if !PF_INPLACE_CODELETS
 #undef PF_CODELET
 #undef PF_CODELET_NAME
 #undef PF_CODELET_RESTRICT

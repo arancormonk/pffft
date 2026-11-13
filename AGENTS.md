@@ -48,6 +48,8 @@ ctest -R test_pfconv_lens_symetric
 ctest -R accuracy          # pffft/pffftd and FFTPACK vs. long double reference DFTs
 ctest -R test_pffastconv_modes
 ctest -R test_pffft_cpp_api
+ctest -R test_pffft_passes_float   # white-box tests of the passes, plans and pass-schedule switches
+ctest -R test_pffft_passes_double
 
 # Run specific test executable directly (after build)
 ./test_fft_factors
@@ -274,6 +276,12 @@ cmake -DPFFFT_USE_TYPE_FLOAT=OFF ..
 
 # Build without SIMD
 cmake -DPFFFT_USE_SIMD=OFF ..
+
+# Without the terminal radix-8 pass (AUTO|ON|OFF; AUTO: the default of src/pffft_pass_config.h)
+cmake -DPFFFT_TERMINAL_RADIX8=OFF ..
+
+# Without the in-place first complex pass (AUTO|ON|OFF; AUTO: the default of src/pffft_pass_config.h)
+cmake -DPFFFT_INPLACE_FIRST_PASS=OFF ..
 
 # Debug build with AddressSanitizer
 cmake -DCMAKE_BUILD_TYPE=Debug -DPFFFT_USE_DEBUG_ASAN=ON ..

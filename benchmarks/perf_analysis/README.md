@@ -281,6 +281,10 @@ The runner compiles the standalone drivers against the specified libraries;
 it does not reconfigure the libraries. Output files use exclusive creation so
 accidental reruns cannot overwrite measurements. `--ops`, `--sizes`, `--kinds`
 and `--precisions` restrict the matrix. Use `--no-compile` to reuse drivers.
+`--seed` sets the order of the cases and of the builds within a repeat;
+invocations that form one comparison need different seeds. Every invocation
+appends a line to `<output>.invocations` with its seed and the SHA-256 of
+each driver binary.
 
 To isolate FMA, retain native ISA selection and disable both explicit FMA and
 compiler contraction:
@@ -636,6 +640,11 @@ measured 0.91-0.95x in the runner-built drivers but equal in a separately
 linked binary of the same code, where disabling the fusion was slower:
 code-layout sensitivity at a 5 ns scale, not a cost of the fusion.
 
+The tables were measured with the passes before the [terminal radix-8 pass
+and the in-place first pass](#terminal-radix-8-pass-and-in-place-first-pass)
+and were not measured again for them, so every size keeps the lane count it
+had ([Size tables](#size-tables)).
+
 Against other libraries see [Other FFT libraries](#other-fft-libraries).
 
 ### Other FFT libraries
@@ -864,7 +873,7 @@ and the CPU check also requires the rest of x86-64-v3.
 
 | Candidate | Result |
 | --- | --- |
-| Radix-8 first pass replacing the radix-2 and one radix-4 pass (8-lane complex, N/8 = 2·4^k) | 0.80-1.19x, no consistent gain ([samples](results/wide-radix8-rejected.csv.gz)); consistent with the arm64 radix-8 result in 2ce8a89 |
+| Radix-8 first pass replacing the radix-2 and one radix-4 pass (8-lane complex, N/8 = 2·4^k) | 0.80-1.19x, no consistent gain ([samples](results/wide-radix8-rejected.csv.gz)); consistent with the arm64 radix-8 result in 2ce8a89. That experiment replaced the first pass; the [terminal radix-8 pass](#terminal-radix-8-pass-and-in-place-first-pass) replaces the last, where it needs no twiddles |
 | 8x8 transpose with the 128-bit exchange done by `vinsertf128` loads | 0.96-1.04x: finalize is not bound by the shuffle ports alone |
 | Half-length complex FFT for real input on 8 lanes | not built: same pass work as the 8-way real combination plus two extra sweeps |
 | Split-radix / conjugate-pair, four-step / cache-oblivious, planner | not attempted: no measured speed gain in the literature at these sizes, PFFFT already leads FFTW at large N |
@@ -924,3 +933,397 @@ and the CPU check also requires the rest of x86-64-v3.
 - Double precision stays on its existing 4-lane AVX code; AVX-512 is not used.
 - Buffers at 16 mod 32 bytes are correct but lose part of the gain
   (prototype: 1.15-1.67x instead of 1.4-1.9x).
+
+## Terminal radix-8 pass and in-place first pass
+
+Two changes to the pass schedule of
+[pffft_passes_impl.h](../../src/pffft_passes_impl.h), each a compile-time
+switch of [pffft_pass_config.h](../../src/pffft_pass_config.h):
+
+- **Terminal radix-8 pass** (`PFFFT_TERMINAL_RADIX8`). A plan has no
+  stand-alone radix-2 pass any more: where it had a radix-2 and a radix-4
+  pass, the radix-2 pass is dropped and the last radix-4 pass becomes one
+  twiddle-free radix-8 pass (complex factors 2, ..., 4 become ..., 8; real
+  power-of-two factors 2, 4, ..., 4 become 4, ..., 8). The passes in between
+  run with other `l1` and `ido`, and the transform makes one sweep over the
+  data fewer. Radix 8 is used only as the pass with one element per leg: the
+  last pass of a complex transform, the first pass of the real forward
+  transform and the last of the real backward one. Only there does it need no
+  twiddles; as a twiddled pass in an earlier position it measured slower
+  (the radix-8 first pass under [Tried and rejected](#tried-and-rejected),
+  and the arm64 measurements described at `cffti1_ps`). Real sizes with a
+  factor 3 or 5 keep their radix-2 pass: FFTPACK's odd-radix real passes
+  need an odd `ido`, so those factors come last in a real plan, and a
+  radix-8 pass after them would need twiddles.
+- **In-place first pass** (`PFFFT_INPLACE_FIRST_PASS`). Complex transforms
+  on the backends with the fused layout passes (every 4-lane backend and the
+  8-lane AVX2 one): where the parity of the pass count would otherwise cost
+  an in-place transform an extra sweep to deinterleave or interleave its
+  data, the first pass runs in place. In the first pass every butterfly
+  reads and writes the same positions, so it can; running it in place
+  exchanges the buffers of the later passes, and the separate sweep is not
+  needed. Real transforms are unchanged.
+
+Both are on by default on every target and backend, with one exception. A
+change that does less work per transform applies everywhere unless a
+measurement speaks against it on a backend, and on the single-lane scalar
+build (`-DPFFFT_USE_SIMD=OFF -DPFFFT_USE_SCALAR_VECT=OFF`, backend `Scalar`,
+`SIMD_SZ == 1`) one does: with the terminal radix-8 pass complex transforms
+measured slower there, while real transforms gained
+([below](#slower-cases)). The switch is one per build, so on that build the
+terminal radix-8 pass is off by default; the in-place first pass compiles to
+nothing there, so that build runs the passes it ran before. The 4xScalar
+build, which CMake builds by default with `PFFFT_USE_SIMD=OFF`, keeps both.
+CMake: `-DPFFFT_TERMINAL_RADIX8=AUTO|ON|OFF` and
+`-DPFFFT_INPLACE_FIRST_PASS=AUTO|ON|OFF` (`AUTO`, the default, leaves the
+choice to `pffft_pass_config.h`; a parent project's normal variable of the
+same name is honoured). Other build systems may define either macro to 0
+or 1. With both off the passes are those before this change.
+
+At the sizes whose plan changes, results differ in the last bits from those
+of an earlier build: the accuracy tests pass, a bit-exact comparison
+against an earlier build would not. `test_pffft_passes_float` and
+`test_pffft_passes_double` ([test_pffft_passes.c](../../tests/test_pffft_passes.c))
+test the codelets, their drivers, the plans and the defaults of the switches
+directly.
+
+### Survey
+
+There is no exhaustive per-size acceptance run behind this change; it was
+merged on a survey. Old (master `c3b3005`) against new, both libraries
+built on the machine that measures, the same driver (`bench_hotloops.cpp`)
+linked against each, `run_matrix.py --interleave --repeats 5 --seconds 0.02`:
+one fresh process per sample, the two builds of a repeat back to back in
+random order. 40 complex sizes from 64 to 1,048,576 and 35 real sizes from
+128 to 1,048,576, all eleven operations, float and double. A case is a
+transform type, N and operation; its figure is the median of its five pair
+ratios, old time / new time, so above 1 the new code is faster. *Changed
+cases* are the sizes and operations whose pass plan or buffer routing
+changes; *other cases* the rest (unchanged plan, `pffft_zreorder`,
+`pffft_zconvolve`). Seven CPU models were timed; a Ryzen 9 5950X ran only
+the code-placement diagnostic (item 1 under [Slower cases](#slower-cases)).
+
+The survey ran while the change was being finished, so its new libraries
+are development revisions whose pass code is that of the merge
+(`pffft_passes_impl.h` differs from the merged file in one comment). On the
+x86 SIMD backends both switches were already on by default in that
+revision; on every other backend (NEON on the Neoverse-N2 and the
+Cortex-A53, 4xScalar and single-lane scalar on the Xeon, single-lane scalar
+on the Neoverse-N2) it still had them off by default, and the new library
+was built with `-DPFFFT_TERMINAL_RADIX8=ON -DPFFFT_INPLACE_FIRST_PASS=ON`,
+which for NEON and 4xScalar compiles what the merged default compiles. The
+default build as shipped on the Ryzen 7 5800HS was built from the merge
+candidate itself, which differs from the merged code in the single-lane
+scalar default only and has `master`'s size tables. The development
+revision has other 8-lane size tables than `master`, a regenerated set that
+is not part of this change. That matters only where both builds dispatch on
+a CPU that has a table: on the EPYC 7763 and 9V74 some float sizes ran 4
+lanes in one build and 8 lanes in the other, and those cases are left out
+of the table (item 6). Everywhere else the two builds ran the same lane
+count.
+
+| CPU | compiler, conditions | builds (raw samples) |
+| --- | --- | --- |
+| Ryzen 7 5800HS (Zen 3, Cezanne) | GCC 16.2.1, CPU 14 with its SMT sibling idle, host load at most 2.5 CPUs | host-tuned, 4 lanes, no dispatch ([samples](results/pass-schedule-survey-zen3-5800hs-w4.csv.gz)); host-tuned, 8 lanes at every size ([samples](results/pass-schedule-survey-zen3-5800hs-w8.csv.gz)); host-tuned default as shipped, dispatch with the common Zen 3 size table, float only ([samples](results/pass-schedule-survey-zen3-5800hs-disp.csv.gz)) |
+| Xeon E5-2697 v3 (Haswell-EP) | GCC 16.2.1, one core per socket, SMT sibling idle | host-tuned default ([samples](results/pass-schedule-survey-haswell-e5-2697v3-native.csv.gz)); x86-64 baseline ([samples](results/pass-schedule-survey-haswell-e5-2697v3-x8664.csv.gz)); 4xScalar ([samples](results/pass-schedule-survey-haswell-e5-2697v3-scalar4.csv.gz)); single-lane scalar ([samples](results/pass-schedule-survey-haswell-e5-2697v3-scalar.csv.gz)); host-tuned, 8 lanes at every size, float only, not what this CPU runs by default: no size table covers it ([samples](results/pass-schedule-survey-haswell-e5-2697v3-wide8.csv.gz)) |
+| Cortex-A53 (Raspberry Pi 3 Model B) | GCC 14.2, CPU 3, `ondemand` governor | default, NEON; float complex, float real, double complex ([samples](results/pass-schedule-survey-cortex-a53-rpi3-neon.csv.gz)) |
+| Neoverse-N2 (three GitHub-hosted ARM64 runners, 4 vCPUs) | GCC 13.3.0, CPU 1, host load at most 2.5 CPUs | default, NEON ([1](results/pass-schedule-survey-neoverse-n2-runner1-neon.csv.gz), [2](results/pass-schedule-survey-neoverse-n2-runner2-neon.csv.gz), [3](results/pass-schedule-survey-neoverse-n2-runner3-neon.csv.gz)); single-lane scalar ([1](results/pass-schedule-survey-neoverse-n2-runner1-scalar.csv.gz), [2](results/pass-schedule-survey-neoverse-n2-runner2-scalar.csv.gz), [3](results/pass-schedule-survey-neoverse-n2-runner3-scalar.csv.gz)) |
+| EPYC 7763 (Zen 3 server; three GitHub-hosted runners, 4 vCPUs) | GCC 13.3.0, CPU 1, host load at most 2.5 CPUs | host-tuned default ([1](results/pass-schedule-survey-epyc7763-runner1-native.csv.gz), [2](results/pass-schedule-survey-epyc7763-runner2-native.csv.gz), [3](results/pass-schedule-survey-epyc7763-runner3-native.csv.gz)); x86-64 baseline ([1](results/pass-schedule-survey-epyc7763-runner1-x8664.csv.gz), [2](results/pass-schedule-survey-epyc7763-runner2-x8664.csv.gz), [3](results/pass-schedule-survey-epyc7763-runner3-x8664.csv.gz)) |
+| EPYC 9V74 (Zen 4 server; one GitHub-hosted runner, 4 vCPUs) | GCC 13.3.0, CPU 1, host load at most 2.5 CPUs | host-tuned default ([samples](results/pass-schedule-survey-epyc9v74-runner1-native.csv.gz)); x86-64 baseline ([samples](results/pass-schedule-survey-epyc9v74-runner1-x8664.csv.gz)) |
+| EPYC 9V45 (Zen 5 server; two GitHub-hosted runners, 4 vCPUs) | GCC 13.3.0, CPU 1, host load at most 2.5 CPUs | host-tuned default ([1](results/pass-schedule-survey-epyc9v45-runner1-native.csv.gz), [2](results/pass-schedule-survey-epyc9v45-runner2-native.csv.gz)); x86-64 baseline ([1](results/pass-schedule-survey-epyc9v45-runner1-x8664.csv.gz), [2](results/pass-schedule-survey-epyc9v45-runner2-x8664.csv.gz)) |
+
+The single-lane scalar builds were measured with the terminal radix-8 pass
+forced on, the measurement that decided its default there. The [invocation records](results/pass-schedule-survey-records.txt)
+give each file's start and end, rows, seed and the SHA-256 of both driver
+binaries. To repeat one part of the survey (one transform type and
+precision per invocation, each with a seed of its own):
+
+```sh
+mkdir -p build_old_src
+git archive c3b3005 | tar -x -C build_old_src
+cmake -S build_old_src -B build_old -DCMAKE_BUILD_TYPE=Release
+cmake -S . -B build_new -DCMAKE_BUILD_TYPE=Release
+cmake --build build_old --parallel
+cmake --build build_new --parallel
+SIZES=$(zcat benchmarks/perf_analysis/results/pass-schedule-survey-haswell-e5-2697v3-native.csv.gz |
+        awk -F, '$4 == "complex" {print $6}' | sort -nu)
+python3 benchmarks/perf_analysis/run_matrix.py \
+  --build base=build_old --build new=build_new \
+  --output pass-schedule-complex-float.csv --cpu CPU --idle-sibling \
+  --max-busy-cpus 2.5 --interleave --repeats 5 --seconds 0.02 --seed SEED \
+  --kinds complex --precisions float --sizes $SIZES \
+  --ops forward backward ordered-forward ordered-backward inplace-forward \
+        inplace-backward inplace-ordered-forward inplace-ordered-backward \
+        reorder zconv pipeline
+```
+
+This builds the merged tree, where the host-tuned default builds need no
+option. For the other builds, add to both configurations:
+`-DPFFFT_ENABLE_WIDE_DISPATCH=OFF` (4 lanes, no dispatch),
+`-DPFFFT_WIDE_ALL_SIZES=ON` (8 lanes at every size),
+`-DTARGET_C_ARCH=x86-64 -DTARGET_CXX_ARCH=x86-64` (x86-64 baseline),
+`-DPFFFT_USE_SIMD=OFF` (4xScalar), `-DPFFFT_USE_SIMD=OFF
+-DPFFFT_USE_SCALAR_VECT=OFF` (single-lane scalar; `-DPFFFT_TERMINAL_RADIX8=ON`
+for the new build only, since `c3b3005` has no such option).
+
+Each cell gives, over the changed cases of a row, the geometric mean of the
+ratios, the lowest and highest single case, and how many cases are below
+1.00. The last column gives the geometric mean over the other cases,
+complex / real, with the number of other cases below 0.97 in brackets.
+Backend labels are those the driver prints (`pffft_simd_arch()` and the lane
+count). Where several runners of one CPU model (Neoverse-N2, EPYC 7763,
+EPYC 9V45) agree, the row gives the range of their figures. On the EPYC
+7763 and 9V74 the float cells also give the number of cases left out
+(item 6); they are neither changed nor other cases. "—": not measured.
+
+| CPU | build | precision, backend | complex, changed cases | real, changed cases | other cases, complex / real |
+| --- | --- | --- | --- | --- | --- |
+| Ryzen 7 5800HS (Zen 3) | host-tuned, 4 lanes, no dispatch | float, SSE1-x4 | 1.071 (0.93-1.23; 13 of 191) | 1.084 (0.96-1.27; 10 of 63) | 1.001 (7) / 1.000 (4) |
+| Ryzen 7 5800HS (Zen 3) | host-tuned, 4 lanes, no dispatch | double, AVX-x4 | 1.090 (0.93-1.40; 7 of 191) | 1.135 (0.98-1.35; 3 of 63) | 0.978 (44) / 1.002 (3) |
+| Ryzen 7 5800HS (Zen 3) | host-tuned, 8 lanes at every size | float, SSE1-x8 (complex also SSE1-x4) | 1.104 (0.81-1.40; 2 of 238) | 1.118 (0.98-1.33; 4 of 63) | 0.995 (10) / 0.999 (11) |
+| Ryzen 7 5800HS (Zen 3) | host-tuned default as shipped (dispatch, common Zen 3 size table) | float, SSE1-x4 and SSE1-x8 | 1.106 (0.82-1.38; 3 of 206) | 1.122 (0.98-1.32; 2 of 45) | 0.997 (13) / 1.000 (5) |
+| Xeon E5-2697 v3 (Haswell-EP) | host-tuned default | float, SSE1-x4 | 1.136 (1.01-1.27; 0 of 191) | 1.148 (0.96-1.35; 1 of 63) | 1.000 (2) / 1.000 (9) |
+| Xeon E5-2697 v3 (Haswell-EP) | host-tuned default | double, AVX-x4 | 1.146 (0.97-1.28; 1 of 191) | 1.149 (1.03-1.35; 0 of 63) | 1.000 (7) / 1.001 (11) |
+| Xeon E5-2697 v3 (Haswell-EP) | x86-64 baseline | float, SSE1-x4 | 1.116 (1.01-1.23; 0 of 191) | 1.124 (0.96-1.34; 1 of 63) | 1.000 (4) / 0.999 (9) |
+| Xeon E5-2697 v3 (Haswell-EP) | x86-64 baseline | double, SSE2-x4 | 1.106 (0.99-1.28; 1 of 191) | 1.109 (0.98-1.31; 2 of 63) | 1.000 (3) / 0.999 (6) |
+| Xeon E5-2697 v3 (Haswell-EP) | 4xScalar (the default without SIMD) | float, 4xScalar-x4 | 1.070 (0.95-1.24; 14 of 191) | 1.152 (0.89-1.42; 3 of 63) | 0.999 (3) / 1.000 (3) |
+| Xeon E5-2697 v3 (Haswell-EP) | 4xScalar (the default without SIMD) | double, 4xScalar-x4 | 1.059 (0.89-1.26; 37 of 191) | 1.131 (0.83-1.41; 1 of 63) | 1.000 (3) / 1.001 (8) |
+| Xeon E5-2697 v3 (Haswell-EP) | single-lane scalar, terminal radix-8 pass forced on (off by default) | float, Scalar-x1 | 0.942 (0.84-1.08; 144 of 171) | 1.152 (1.04-1.40; 0 of 63) | 0.996 (13) / 0.999 (2) |
+| Xeon E5-2697 v3 (Haswell-EP) | single-lane scalar, terminal radix-8 pass forced on (off by default) | double, Scalar-x1 | 0.994 (0.85-1.16; 93 of 171) | 1.130 (1.04-1.25; 0 of 63) | 1.002 (1) / 1.000 (3) |
+| Xeon E5-2697 v3 (Haswell-EP) | host-tuned, 8 lanes at every size (no size table covers this CPU) | float, SSE1-x8 (complex also SSE1-x4) | 1.151 (1.05-1.38; 0 of 238) | 1.133 (1.03-1.29; 0 of 63) | 1.003 (3) / 1.003 (6) |
+| Cortex-A53 (Raspberry Pi 3) | default (NEON) | float, NEON-x4 | 1.056 (0.82-1.26; 38 of 191) | 1.100 (0.92-1.28; 4 of 63) | 0.998 (5) / 0.997 (12) |
+| Cortex-A53 (Raspberry Pi 3) | default (NEON) | double, NEON-x4 | 1.052 (0.87-1.25; 22 of 191) | — | 1.000 (4) / — |
+| Neoverse-N2 (3 runners) | default (NEON) | float, NEON-x4 | 1.078 (1.03-1.19; 0 of 191) | 1.068-1.069 (0.98-1.16; 3-4 of 63) | 0.999-1.000 (0-1) / 0.998 (0-4) |
+| Neoverse-N2 (3 runners) | default (NEON) | double, NEON-x4 | 1.076-1.077 (1.00-1.19; 0 of 191) | 1.058 (0.85-1.27; 10 of 63) | 0.999-1.001 (3-6) / 1.000-1.002 (0-4) |
+| Neoverse-N2 (3 runners) | single-lane scalar, terminal radix-8 pass forced on (off by default) | float, Scalar-x1 | 0.978 (0.93-1.01; 142 of 171) | 1.081 (1.00-1.30; 0 of 63) | 0.999-1.000 (2-5) / 1.007-1.008 (0-3) |
+| EPYC 7763 (Zen 3 server, 3 runners) | host-tuned default | float, SSE1-x4 and SSE1-x8 | 1.134-1.137 (1.00-1.43; 0-1 of 193; 55 left out) | 1.132-1.137 (0.98-1.34; 1-4 of 45; 22 left out) | 0.992-0.996 (15-19) / 0.997 (9-12) |
+| EPYC 7763 (Zen 3 server, 3 runners) | host-tuned default | double, AVX-x4 | 1.107-1.117 (0.96-1.40; 2 of 191) | 1.162-1.163 (0.91-1.37; 2 of 63) | 1.001-1.002 (8-16) / 1.001-1.003 (4-8) |
+| EPYC 7763 (Zen 3 server, 3 runners) | x86-64 baseline | float, SSE1-x4 and SSE1-x8 | 1.134-1.137 (1.01-1.38; 0 of 193; 55 left out) | 1.130-1.131 (0.97-1.34; 0-2 of 45; 22 left out) | 0.995-0.997 (7-10) / 0.998-0.999 (9-11) |
+| EPYC 7763 (Zen 3 server, 3 runners) | x86-64 baseline | double, SSE2-x4 | 1.078-1.083 (0.98-1.23; 0-1 of 191) | 1.103-1.118 (0.97-1.39; 2-3 of 63) | 0.999-1.002 (6-9) / 1.001-1.002 (5-8) |
+| EPYC 9V74 (Zen 4 server) | host-tuned default | float, SSE1-x4 and SSE1-x8 | 1.140 (0.98-1.40; 4 of 204; 55 left out) | 1.126 (0.93-1.36; 5 of 63; 33 left out) | 0.997 (7) / 0.998 (0) |
+| EPYC 9V74 (Zen 4 server) | host-tuned default | double, AVX-x4 | 1.118 (0.99-1.38; 2 of 191) | 1.142 (0.92-1.37; 5 of 63) | 1.000 (5) / 0.997 (4) |
+| EPYC 9V74 (Zen 4 server) | x86-64 baseline | float, SSE1-x4 and SSE1-x8 | 1.140 (1.03-1.43; 0 of 204; 55 left out) | 1.128 (0.93-1.36; 6 of 63; 33 left out) | 1.000 (3) / 0.999 (6) |
+| EPYC 9V74 (Zen 4 server) | x86-64 baseline | double, SSE2-x4 | 1.070 (0.91-1.22; 6 of 191) | 1.074 (0.96-1.22; 7 of 63) | 0.999 (1) / 1.001 (4) |
+| EPYC 9V45 (Zen 5 server, 2 runners) | host-tuned default | float, SSE1-x4 | 1.078-1.080 (1.01-1.26; 0 of 191) | 1.137-1.142 (0.93-1.40; 2-4 of 63) | 1.077-1.079 (4-8) / 1.004-1.005 (7-15) |
+| EPYC 9V45 (Zen 5 server, 2 runners) | host-tuned default | double, AVX-x4 | 1.094-1.097 (0.93-1.34; 12-13 of 191) | 1.182-1.183 (1.02-1.36; 0 of 63) | 0.986 (62-63) / 1.003 (8-10) |
+| EPYC 9V45 (Zen 5 server, 2 runners) | x86-64 baseline | float, SSE1-x4 | 1.090-1.091 (0.95-1.30; 1-2 of 191) | 1.125-1.138 (0.97-1.39; 2 of 63) | 1.001-1.002 (2-4) / 0.999-1.000 (8-10) |
+| EPYC 9V45 (Zen 5 server, 2 runners) | x86-64 baseline | double, SSE2-x4 | 1.085-1.087 (0.90-1.24; 0-5 of 191) | 1.095 (0.96-1.29; 3-5 of 63) | 0.997-0.998 (16) / 0.996-0.997 (13-26) |
+
+The single-lane scalar rows have fewer changed complex cases (171), as only
+the terminal radix-8 pass applies there; the rows with 8 lanes at every
+size have more (238), as with 8 lanes more cases change their plan or
+routing. In the float rows of builds that choose the lane count per size
+(the default build as shipped on the Ryzen 7 5800HS, the EPYC 7763 and
+9V74), the counts depend on which sizes run 8 lanes and, on the EPYC
+runners, on the cases left out.
+
+### Slower cases
+
+Over all rows, 453 changed cases read below 0.97. The two lowest are one
+case on the Ryzen 7 5800HS, float complex N = 128 in-place forward at 8
+lanes: 0.813 in the build with 8 lanes at every size and 0.817 in the
+default build as shipped, which runs this size at 8 lanes on that CPU. Most
+of that loss is not the routing change: in the same two files the
+operations whose code path is unchanged read 0.85 to 0.88 at that size,
+and the same case reads 1.10 to 1.17 on the EPYC 7763 and 9V74 and 1.12 on
+the Haswell Xeon with 8 lanes at every size (item 8). Then come the
+Cortex-A53 at 0.820 (float complex forward, N = 30720; item 4), the Xeon's
+4xScalar build at 0.832 (double real N = 512 in-place ordered forward), the
+single-lane scalar rows with the terminal radix-8 pass forced on, from
+0.836 (float complex N = 1536 in-place forward on the Xeon; item 5), and
+the Neoverse-N2's double real in-place transforms at N = 128, from 0.847
+(item 3). The 4xScalar build on the Xeon has 37 of 191 double complex
+changed cases below 1.00, single cases down to 0.89 in double complex and
+in float real, and in double real one case below 1.00 (the 0.832 above), at
+geometric means of 1.059, 1.152 and 1.131; the survey has no breakdown of
+these.
+
+1. **Code placement on Zen 3, shown on an untouched function.**
+   `pffftd_zreorder` on complex data (double precision, 4 lanes, host-tuned
+   build) reads 0.80 to 0.85 at every size from 64 to about 20,000 on the
+   Ryzen 7 5800HS (0.87 to 0.96 above), although its source is not part of
+   the change. On a Ryzen 9 5950X the same pair of builds reads 0.82, 0.82,
+   0.84 and 0.86 at N = 256, 1024, 4096 and 16384 (59 ns for the old build
+   against 72 ns for the new at N = 256); with both builds compiled with
+   `-falign-functions=64 -falign-loops=64` it reads 1.00, 1.00, 1.00 and
+   0.99 (65 ns for both). The old build's loop happened to land in a fast
+   position and the new build's in a slow one. This is the "other cases"
+   figure of 0.978 with 44 cases below 0.97 in the table; without
+   `zreorder` those cases are at 1.00. Samples, 12 pairs per case, with the
+   forward transform and `zconvolve` as controls at 1.00:
+   [default placement](results/pass-schedule-placement-zreorder-p0.csv.gz),
+   [aligned](results/pass-schedule-placement-zreorder-p1.csv.gz). Single
+   cases on Zen 3 move by such amounts with code placement alone, so a
+   single case there says little.
+2. **Complex N = 2560 and 7680 on Zen 3** (plans 5x4x4x8 and 5x3x4x4x8,
+   4 lanes). On the Ryzen 7 5800HS the in-place forward transform reads 0.93
+   (float) and 0.93 (double) at N = 2560 and 0.96 and 0.94 at N = 7680; at
+   N = 2560 float backward, ordered backward, in-place backward and the
+   pipeline read 0.93 to 0.97, while forward, ordered forward and the
+   in-place ordered modes there gain 4 to 13%. The Haswell Xeon is faster in
+   every one of these cases (2 to 25%). Not examined further.
+3. **Real in-place transforms at a few sizes.** The parity of the pass
+   count changes there, and the in-place first pass is a change to complex
+   transforms only. On 4 lanes the unordered in-place real transforms read,
+   at N = 128, 2048, 32768 and 524288: on the Neoverse-N2 in double
+   precision 0.85 to 0.89, 0.87 to 0.90, 0.91 to 0.96 and 0.96 to 0.99 (all
+   three runners; in float 0.98 to 1.05 at the same sizes); on the Haswell
+   Xeon 0.96 for N = 2048 in-place forward in float (in the host-tuned and
+   the x86-64 baseline build); on the Ryzen 7 5800HS 0.97 for N = 32768
+   in-place backward and 0.96 for N = 524288 in-place ordered backward in
+   float. The out-of-place modes at the same sizes gain. On the x86 runners
+   of GitHub (item 6) the real changed cases below 0.97 on at least one
+   runner are all in in-place modes: on the EPYC 9V74 float N = 65536 at 8
+   lanes (in-place backward 0.93, in-place ordered backward 0.95 and 0.96;
+   both builds), double N = 32768 (in-place backward 0.92 and in-place
+   ordered backward 0.93 host-tuned; three in-place modes at 0.96 to 0.97
+   baseline) and double N = 2048 in-place backward 0.96 (baseline); on the
+   EPYC 9V45 float N = 524288 in-place forward and backward (0.94 and 0.93
+   on one runner, 1.00 and 1.06 on the other; host-tuned) and double
+   N = 32768 in-place backward (0.96 on one runner, 0.99 on the other;
+   baseline); on the EPYC 7763 double N = 524288 in-place ordered forward
+   (0.91 on one runner, 1.07 and 1.09 on the other two; host-tuned), and no
+   real case in float or in the baseline build.
+4. **Cortex-A53 (Raspberry Pi 3), NEON.** In float complex the sizes with a
+   changed plan gain up to N = 2048 (geometric mean per size 1.06 to 1.17)
+   and from 131072 up (1.03 to 1.05), and read 0.95 to 0.98 at N = 8192,
+   24576, 30720 and 32768 (1.01 at 10240 and 40960); single cases go down to
+   0.82 (forward at N = 30720). The pairs of one case scatter by about 5% on
+   that board (governor `ondemand`, under-voltage and throttling flags set),
+   so single cases mean little there. The Neoverse-N2 has no complex case
+   below 1.00 in either precision. In double complex the board reads 1.052
+   over the changed cases (0.87 to 1.25; 22 of 191 below 1.00): per size,
+   the sizes with a changed plan read 1.08 to 1.10 from N = 96 to 640, 1.03
+   to 1.05 from 1536 to 2560 and from 24576 to 40960, 1.02 to 1.03 at 131072
+   and 524288, and 0.99 to 1.00 at N = 6144, 7680 and 10240 (1.04 at 8192).
+   Its float real row reads 1.100 (0.92 to 1.28; 4 of 63 below 1.00).
+5. **The single-lane scalar build** (no SIMD, one lane; not what CMake
+   builds by default without SIMD, which is 4xScalar). With the terminal
+   radix-8 pass forced on, complex transforms are slower at the sizes whose
+   plan changes (geometric means 0.942 in float and 0.994 in double on the
+   Xeon, 0.978 in float on the Neoverse-N2), while real transforms gain
+   (1.152 in float and 1.130 in double on the Xeon, 1.081 in float on the
+   Neoverse-N2). The switch is one per build, so the terminal radix-8 pass
+   is off by default on that build. 4xScalar gains in both transform types
+   and keeps the default.
+6. **The x86 runners of GitHub (EPYC 7763, EPYC 9V74, EPYC 9V45): which
+   code they compared.** The new library of these twelve files was built
+   from a revision that has the pass code of this change (it differs from
+   the merged sources in comments and in the defaults of other targets
+   only) but other 8-lane size tables than `master`: a regenerated set that
+   is not part of this change. Both builds dispatch at run time, so on the
+   two CPUs that have a size table (EPYC 7763, EPYC 9V74) some sizes ran 4
+   lanes in one build and 8 lanes in the other. Those cases are left out
+   (55 of the 440 complex cases, and 22 of the 385 real cases on the EPYC
+   7763 or 33 on the EPYC 9V74, per float file); the rows hold the cases in
+   which both builds ran the same lane count, which is the lane count the
+   merged code runs there, because its tables are `master`'s. At the sizes
+   that are left out, the new passes were not timed on these machines at the
+   lane count the merged code uses. The EPYC 9V45 is covered by no size
+   table (4 lanes at every size) and double precision has no 8-lane code,
+   so nothing is left out in those files. The slower changed complex cases
+   on these runners (below 0.97 on at least one runner) are, all of them:
+   in float none on the EPYC 7763 and 9V74 (386 and 408 cases over both
+   builds), and on the EPYC 9V45 N = 131072 forward in the baseline build
+   (1.03 on one runner, 0.95 on the other); in double N = 10240 in-place
+   forward on the EPYC 7763 (0.96, 0.99, 0.96; host-tuned), five operations
+   at N = 524288 on the EPYC 9V74 in the baseline build (0.91 to 0.96, its
+   single runner), and on the EPYC 9V45 the pipeline at N = 524288 in the
+   host-tuned build (0.93 on both runners) and cases that are below 0.97 on
+   one runner and at 1.00 or above on the other (host-tuned: N = 131072
+   in-place backward 0.96 / 1.14, N = 524288 backward 0.97 / 1.01;
+   baseline: N = 524288 forward, ordered forward and pipeline 0.94 to 0.95
+   on runner 2 against 1.00 to 1.05 on runner 1, N = 128 in-place ordered
+   forward 1.14 / 0.90). The real ones are in item 3.
+7. **EPYC 9V45 (Zen 5), host-tuned build: two effects on code the change
+   does not touch.** GCC 13.3 on the runners does not know this CPU
+   (`-march=native`). Both effects are the same on both runners of this
+   model, and neither shows in the x86-64 baseline build on the same two
+   machines or in the host-tuned build on the EPYC 9V74 and 7763.
+   (a) `pffft_zreorder` on complex float data reads 1.27 to 1.71 on runner
+   1 and 1.11 to 1.70 on runner 2 at the 40 sizes (geometric mean 1.61 and
+   1.59), although its source is unchanged. It alone is the "other cases"
+   mean of 1.079 and 1.077 of that row: the transforms with unchanged plan
+   and routing read 0.999 on both runners.
+   (b) In double precision the complex transforms whose plan and routing
+   are unchanged read 0.979 and 0.978 in the geometric mean (169 cases),
+   with 61 and 60 cases below 0.97, of which 59 and 57 at N >= 4096 (the
+   lowest 0.90). Per size (geometric mean of the unchanged operations,
+   runner 1 / runner 2): N = 4096: 0.969 / 0.978, 12288: 0.949 / 0.945,
+   16384: 0.931 / 0.938, 20480: 0.948 / 0.952, 49152: 0.948 / 0.942,
+   61440: 0.963 / 0.950, 65536: 0.935 / 0.955, 262144: 0.937 / 0.920.
+   N = 5120, 15360 and 1048576 read 0.979 to 0.995, and every such size
+   below 4096 reads 0.993 to 1.008. The baseline build on the same runners
+   reads 0.991 to 1.017 at all these sizes, and the host-tuned build on the
+   EPYC 9V74 0.991 to 1.003 at N >= 4096. The sizes whose plan changes gain
+   on this build as well (1.094 and 1.097, 12 and 13 of the 191 cases below
+   1.00, the lowest 0.93).
+   The cause was not examined (no machine of this type was at hand); on
+   Zen 3 an effect of this kind on the same function was the placement of
+   the code (item 1).
+8. **Float complex N = 128 at 8 lanes on the Ryzen 7 5800HS: the two lowest
+   changed cases of the survey.** The plan (4x4 at 8 lanes) is unchanged at
+   this size; only the in-place modes change their routing. In-place forward
+   reads 0.813 in the build with 8 lanes at every size and 0.817 in the
+   default build as shipped, which runs this size at 8 lanes on that CPU.
+   In the same two files the operations whose code path is unchanged read:
+   forward 0.85 and 0.88, ordered backward 0.87 and 0.87, pipeline 0.85 and
+   0.86; in-place backward reads 1.22 in both and the in-place ordered
+   modes 1.11 to 1.17. So most of the loss is not the routing change. The
+   same case (in-place forward, N = 128, 8 lanes) reads 1.12 to 1.17 on the
+   EPYC 7763 (three runners, both builds), 1.17 and 1.10 on the EPYC 9V74
+   (host-tuned, baseline) and 1.12 on the Haswell Xeon with 8 lanes at every
+   size. The unchanged forward transform at this size reads 1.06 to 1.08 in
+   the host-tuned build and 0.88 to 0.89 in the baseline build on the EPYC
+   7763 (all three runners), 0.98 to 1.02 on the EPYC 9V74 and the Xeon.
+   Not examined further; item 1 shows how much code placement alone moves a
+   single case on Zen 3.
+
+### Not measured
+
+- PowerPC (AltiVec/VSX) and ARMv7 only run the test suite, under emulation
+  in CI; WebAssembly only runs the tests. MSVC builds and 32-bit x86 were
+  not timed.
+- No Intel CPU other than the Haswell-EP Xeon. Desktop Zen 3 (Vermeer),
+  which has a size table of its own, only in the two code-placement files
+  of the Ryzen 9 5950X (item 1).
+- The Cortex-A53 in double precision real and its single-lane scalar
+  build; the Neoverse-N2's single-lane scalar build in double precision.
+- On the EPYC 7763 and 9V74, the float cases that are left out (item 6):
+  at those sizes the new passes were not timed on these machines at the
+  lane count the merged code uses.
+
+### Size tables
+
+The 8-lane size tables ([pffft_wide_sizes.h](../../src/pffft_wide_sizes.h)),
+[wide_size_table.py](wide_size_table.py) and the sweeps behind them are not
+changed: they were measured with the earlier passes. Every size therefore
+runs the lane count it ran before, so no size can get slower through a
+table; sizes at which the 8-lane code would now newly pass the rule stay on
+4 lanes until the tables are measured again.
+
+### Benchmark tooling
+
+- `run_matrix.py`: `--seed` sets the order of the cases and of the builds
+  within a repeat (independent invocations, such as the parts of one
+  comparison, need different seeds); every invocation appends a record to
+  `<output>.invocations` (start, end, rows before and after, seed, SHA-256
+  of each driver binary); `--resume` is safe after a killed invocation (its
+  rows move to `<output>.discarded` and are measured again);
+  `--perf-events` runs each sample under `perf stat` (counts for the whole
+  driver process); `--idle-sibling` rejects and repeats a sample during
+  which an SMT sibling of the measuring CPU was busy; `--self-test` checks
+  the parsers, the sibling decision, the order and the records without
+  running a benchmark (CTest `run_matrix_selftest`, on Linux hosts).
+- `bench_hotloops.cpp` checks its size argument with `pffft_is_valid_size()`
+  (`pffftd_is_valid_size()` in double) instead of creating a setup first.
+  Creating and destroying a setup before the driver allocated its buffers
+  changed where glibc placed them: consecutive heap blocks staggered by 64
+  or 128 bytes within their pages instead of separate mappings at one page
+  offset. At sizes with a large power-of-two factor that changed timings by
+  several percent in either direction; 4K aliasing between loads and
+  earlier stores is the likely mechanism. The driver's buffers now lie where
+  those of a program that allocates them first do.
+- `mca_predict.py` reads the inferred table of `pffft_wide_sizes.h` under its
+  current array names again, and has a `--self-test` for that reader (CTest
+  `mca_predict_selftest`).

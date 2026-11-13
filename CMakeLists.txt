@@ -31,6 +31,25 @@ option(PFFFT_WIDE_ALL_SIZES "benchmarking only: use the 8-lane AVX2 implementati
 option(PFFFT_USE_SIMD        "use SIMD (SSE/AVX/NEON/ALTIVEC) CPU features? - " ON)
 option(PFFFT_USE_SCALAR_VECT "use 4-element vector scalar operations (if no other SIMD)" ON)
 option(PFFFT_USE_WASM_RELAXED_SIMD "use WebAssembly Relaxed SIMD for higher performance? requires a browser/runtime with Relaxed SIMD support" OFF)
+# pass schedule switches (src/pffft_pass_config.h): AUTO is the default of
+# that header, on, except the terminal radix-8 pass on the single-lane scalar
+# build (PFFFT_USE_SIMD=OFF with PFFFT_USE_SCALAR_VECT=OFF)
+include(cmake/save_normal_variable.cmake)
+# a parent project's normal variable is the value in effect, else the cache
+# value; creating the cache entry removes the normal variable, so keep it
+_pffft_save_normal(PFFFT_TERMINAL_RADIX8)
+_pffft_save_normal(PFFFT_INPLACE_FIRST_PASS)
+set(PFFFT_TERMINAL_RADIX8 AUTO CACHE STRING "replace a radix-2 and a radix-4 pass by one terminal radix-8 pass: AUTO, ON or OFF")
+set(PFFFT_INPLACE_FIRST_PASS AUTO CACHE STRING "run the first complex pass in place instead of an extra (de)interleave sweep: AUTO, ON or OFF")
+# the values are accepted in any case; <option>_MODE holds it in upper case
+foreach(_pffft_opt PFFFT_TERMINAL_RADIX8 PFFFT_INPLACE_FIRST_PASS)
+  _pffft_restore_normal(${_pffft_opt})
+  set_property(CACHE ${_pffft_opt} PROPERTY STRINGS AUTO ON OFF)
+  string(TOUPPER "${${_pffft_opt}}" ${_pffft_opt}_MODE)
+  if (NOT ${_pffft_opt}_MODE MATCHES "^(AUTO|ON|OFF)$")
+    message(FATAL_ERROR "${_pffft_opt} must be AUTO, ON or OFF, not '${${_pffft_opt}}'")
+  endif()
+endforeach()
 
 # what to install?
 option(INSTALL_PFFFT      "install pffft to CMAKE_INSTALL_PREFIX?" ON)
@@ -183,7 +202,7 @@ endif()
 ######################################################
 
 add_library(PFFFT ${FLOAT_SOURCES} ${DOUBLE_SOURCES} src/pffft_common.c
-  src/pffft_priv_impl.h src/pffft_passes_impl.h src/pffft_cplx_impl.h src/pffft_real_impl.h
+  src/pffft_priv_impl.h src/pffft_passes_impl.h src/pffft_pass_config.h src/pffft_cplx_impl.h src/pffft_real_impl.h
   src/pffft_wide_impl.h src/pffft_wide_sizes.h src/pffft_wide_select.h src/pffft_wide_api.h
   src/pffft_setup.h src/pffft_cpu_x86.h src/pffft_internal.h
   include/pffft/pffft.hpp)
@@ -205,6 +224,14 @@ endif()
 if(PFFFT_WIDE_ALL_SIZES)
   target_compile_definitions(PFFFT PRIVATE PFFFT_WIDE_ALL_SIZES=1)
 endif()
+# AUTO leaves the default to src/pffft_pass_config.h
+foreach(_pffft_opt PFFFT_TERMINAL_RADIX8 PFFFT_INPLACE_FIRST_PASS)
+  if (${_pffft_opt}_MODE STREQUAL "ON")
+    target_compile_definitions(PFFFT PRIVATE ${_pffft_opt}=1)
+  elseif (${_pffft_opt}_MODE STREQUAL "OFF")
+    target_compile_definitions(PFFFT PRIVATE ${_pffft_opt}=0)
+  endif()
+endforeach()
 # MSVC has no per-function target selection: on x64 the 8-lane AVX2 backend
 # is a translation unit of its own, compiled with /arch:AVX2
 set(PFFFT_WIDE_TU_BUILD OFF)

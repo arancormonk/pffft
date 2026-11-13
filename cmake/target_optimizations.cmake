@@ -111,34 +111,12 @@ set(_pffft_extra_desc "preset of additional options: neon_vfpv4, neon_rpi3_a53, 
 
 # A parent project may set TARGET_<lang>_ARCH / _EXTRA as normal variables
 # before add_subdirectory(pffft), e.g. set(TARGET_C_ARCH x86-64). Those are
-# the values in effect. But with cmake_minimum_required(VERSION 3.10), policy
-# CMP0126 is OLD here, so creating a cache entry removes a normal variable
-# of the same name: in a fresh build directory, and whenever
-# _pffft_drop_choice_list() recreates an entry. The options below therefore
-# save such a normal variable first and restore it afterwards.
-#
-# _pffft_save_normal(<entry>)
-# A normal variable exists if the name is defined without a cache entry,
-# or with a value other than the cache value; one with the cache value
-# needs no restoring.
-macro(_pffft_save_normal entry)
-    get_property(_pffft_type CACHE ${entry} PROPERTY TYPE)
-    get_property(_pffft_value CACHE ${entry} PROPERTY VALUE)
-    set(_pffft_has_normal_${entry} FALSE)
-    if (DEFINED ${entry})
-        if (("${_pffft_type}" STREQUAL "") OR NOT ("${${entry}}" STREQUAL "${_pffft_value}"))
-            set(_pffft_has_normal_${entry} TRUE)
-            set(_pffft_normal_${entry} "${${entry}}")
-        endif()
-    endif()
-endmacro()
-
-# _pffft_restore_normal(<entry>)
-macro(_pffft_restore_normal entry)
-    if (_pffft_has_normal_${entry})
-        set(${entry} "${_pffft_normal_${entry}}")
-    endif()
-endmacro()
+# the values in effect. But creating a cache entry removes a normal variable
+# of the same name (see save_normal_variable.cmake): in a fresh build
+# directory, and whenever _pffft_drop_choice_list() recreates an entry. The
+# options below therefore save such a normal variable first and restore it
+# afterwards.
+include(${CMAKE_CURRENT_LIST_DIR}/save_normal_variable.cmake)
 
 # _pffft_drop_choice_list(<cache entry>)
 # A build directory configured by an older pffft, or for another target,

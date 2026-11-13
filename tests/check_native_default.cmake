@@ -3,6 +3,10 @@
 #     for MSVC-style compilers), unless the compiler or host cannot
 #   - CMAKE_C_FLAGS/CMAKE_CXX_FLAGS that already pick an ISA: "none"
 #   - built as a dependency through add_subdirectory(): "none"
+# and that a parent project's normal variables are the values in effect:
+#   - TARGET_C_ARCH / TARGET_CXX_ARCH
+#   - PFFFT_TERMINAL_RADIX8 / PFFFT_INPLACE_FIRST_PASS, which also take
+#     their value from the cache without one and reject invalid values
 #
 # cmake -DPFFFT_SOURCE_DIR=... -DWORK_DIR=... -DGENERATOR=... [-DMAKE_PROGRAM=...]
 #       -DC_COMPILER=... [-DC_COMPILER_ARG1=...] -DCXX_COMPILER=... [-DCXX_COMPILER_ARG1=...]
@@ -187,5 +191,106 @@ if (ISA_FLAG)
         message(FATAL_ERROR "parent_override_old_cache: the older choice list was kept: ${_lists}")
     endif()
 endif()
+
+# PFFFT_TERMINAL_RADIX8 / PFFFT_INPLACE_FIRST_PASS: a parent's normal
+# variables are the values in effect, also in a fresh build directory, and
+# win over the cache; without them the cache value applies. What applies is
+# the PFFFT target's COMPILE_DEFINITIONS, which the consumer prints.
+function(configure_failing_case name source_dir out_log)
+    set(_bin "${WORK_DIR}/${name}")
+    file(REMOVE_RECURSE "${_bin}")
+    file(MAKE_DIRECTORY "${_bin}")
+    execute_process(
+        COMMAND "${CMAKE_COMMAND}" -E env ${_env_args}
+                "${CMAKE_COMMAND}" ${_common_args} ${ARGN} "${source_dir}"
+        WORKING_DIRECTORY "${_bin}"
+        RESULT_VARIABLE _result
+        OUTPUT_VARIABLE _output
+        ERROR_VARIABLE _output)
+    if (_result EQUAL 0)
+        message(FATAL_ERROR "${name}: configure succeeded, expected it to fail\n${_output}")
+    endif()
+    set(${out_log} "${_output}" PARENT_SCOPE)
+endfunction()
+
+# pass_switch_consumer(<name> <set() lines of the parent>)
+function(pass_switch_consumer name parent_sets)
+    set(_src "${WORK_DIR}/${name}_src")
+    file(MAKE_DIRECTORY "${_src}")
+    file(WRITE "${_src}/CMakeLists.txt"
+        "cmake_minimum_required(VERSION 3.10)\n"
+        "project(pffft_consumer C CXX)\n"
+        "${parent_sets}"
+        "add_subdirectory(\"${PFFFT_SOURCE_DIR}\" pffft)\n"
+        "get_target_property(_defs PFFFT COMPILE_DEFINITIONS)\n"
+        "string(REPLACE \";\" \"|\" _defs \"\${_defs}\")\n"
+        "message(STATUS \"PFFFT COMPILE_DEFINITIONS: |\${_defs}|\")\n")
+endfunction()
+
+# expect_pass_switch(<case> <log> <option> <0|1|undefined>)
+function(expect_pass_switch name log option expected)
+    if (NOT "${log}" MATCHES "PFFFT COMPILE_DEFINITIONS: (\\|[^\n]*\\|)")
+        message(FATAL_ERROR "${name}: the consumer printed no COMPILE_DEFINITIONS\n${log}")
+    endif()
+    set(_defs "${CMAKE_MATCH_1}")
+    string(FIND "${_defs}" "|${option}=" _any)
+    string(FIND "${_defs}" "|${option}=${expected}|" _exact)
+    if (expected STREQUAL "undefined")
+        if (NOT _any LESS 0)
+            message(FATAL_ERROR "${name}: ${option} is defined, expected no definition: ${_defs}")
+        endif()
+    elseif (_exact LESS 0)
+        message(FATAL_ERROR "${name}: ${option}=${expected} is not defined: ${_defs}")
+    endif()
+endfunction()
+
+# a. b. the parent's OFF, in a fresh build directory and on a second configure
+pass_switch_consumer(parent_off
+    "set(PFFFT_TERMINAL_RADIX8 OFF)\nset(PFFFT_INPLACE_FIRST_PASS OFF)\n")
+configure_case(parent_off "${WORK_DIR}/parent_off_src" _log)
+expect_pass_switch(parent_off "${_log}" PFFFT_TERMINAL_RADIX8 0)
+expect_pass_switch(parent_off "${_log}" PFFFT_INPLACE_FIRST_PASS 0)
+execute_process(
+    COMMAND "${CMAKE_COMMAND}" -E env ${_env_args} "${CMAKE_COMMAND}" .
+    WORKING_DIRECTORY "${WORK_DIR}/parent_off"
+    RESULT_VARIABLE _result
+    OUTPUT_VARIABLE _log
+    ERROR_VARIABLE _log)
+if (NOT _result EQUAL 0)
+    message(FATAL_ERROR "parent_off_again: configure failed\n${_log}")
+endif()
+expect_pass_switch(parent_off_again "${_log}" PFFFT_TERMINAL_RADIX8 0)
+expect_pass_switch(parent_off_again "${_log}" PFFFT_INPLACE_FIRST_PASS 0)
+
+# c. any case
+pass_switch_consumer(parent_case
+    "set(PFFFT_TERMINAL_RADIX8 on)\nset(PFFFT_INPLACE_FIRST_PASS Off)\n")
+configure_case(parent_case "${WORK_DIR}/parent_case_src" _log)
+expect_pass_switch(parent_case "${_log}" PFFFT_TERMINAL_RADIX8 1)
+expect_pass_switch(parent_case "${_log}" PFFFT_INPLACE_FIRST_PASS 0)
+
+# d. an invalid value is rejected
+pass_switch_consumer(parent_invalid "set(PFFFT_TERMINAL_RADIX8 yes)\n")
+configure_failing_case(parent_invalid "${WORK_DIR}/parent_invalid_src" _log)
+string(FIND "${_log}" "PFFFT_TERMINAL_RADIX8 must be AUTO, ON or OFF, not 'yes'" _pos)
+if (_pos LESS 0)
+    message(FATAL_ERROR "parent_invalid: the configure failed without the expected message\n${_log}")
+endif()
+
+# e. no normal variable: AUTO, or the value from the command line
+pass_switch_consumer(cache_only "")
+configure_case(cache_auto "${WORK_DIR}/cache_only_src" _log)
+expect_pass_switch(cache_auto "${_log}" PFFFT_TERMINAL_RADIX8 undefined)
+expect_pass_switch(cache_auto "${_log}" PFFFT_INPLACE_FIRST_PASS undefined)
+configure_case(cache_cmdline "${WORK_DIR}/cache_only_src" _log
+    -DPFFFT_TERMINAL_RADIX8=OFF -DPFFFT_INPLACE_FIRST_PASS=ON)
+expect_pass_switch(cache_cmdline "${_log}" PFFFT_TERMINAL_RADIX8 0)
+expect_pass_switch(cache_cmdline "${_log}" PFFFT_INPLACE_FIRST_PASS 1)
+
+# f. the parent's normal variables win over the command line
+configure_case(parent_off_cmdline "${WORK_DIR}/parent_off_src" _log
+    -DPFFFT_TERMINAL_RADIX8=ON -DPFFFT_INPLACE_FIRST_PASS=ON)
+expect_pass_switch(parent_off_cmdline "${_log}" PFFFT_TERMINAL_RADIX8 0)
+expect_pass_switch(parent_off_cmdline "${_log}" PFFFT_INPLACE_FIRST_PASS 0)
 
 message(STATUS "native architecture defaults: ok")

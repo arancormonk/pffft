@@ -39,6 +39,38 @@ jobs:
       run: cmake --build --preset "$PRESET" --parallel 2
     - name: Test
       run: ctest --preset "$PRESET" -j 2
+    # The pass schedule switches (PFFFT_TERMINAL_RADIX8, PFFFT_INPLACE_FIRST_PASS)
+    # default to on here: test the other positions, each in its own build
+    # directory with the cache variables of the release preset spelled out
+    # (Ninja, Release, TARGET_<lang>_ARCH=none) and its test preset's output
+    - name: pass schedule switches off (previous passes)
+      if: matrix.preset == 'release'
+      run: |
+        cmake -S . -B build_passes_off -G Ninja -DCMAKE_BUILD_TYPE=Release -DTARGET_C_ARCH=none -DTARGET_CXX_ARCH=none -DPFFFT_BUILD_BENCHMARKS=OFF -DPFFFT_BUILD_EXAMPLES=OFF -DPFFFT_TERMINAL_RADIX8=OFF -DPFFFT_INPLACE_FIRST_PASS=OFF
+        cmake --build build_passes_off --parallel 2
+        ctest --test-dir build_passes_off -j 2 --output-on-failure
+    - name: pass schedule mixed, terminal radix 8 only
+      if: matrix.preset == 'release'
+      run: |
+        cmake -S . -B build_passes_radix8_only -G Ninja -DCMAKE_BUILD_TYPE=Release -DTARGET_C_ARCH=none -DTARGET_CXX_ARCH=none -DPFFFT_BUILD_BENCHMARKS=OFF -DPFFFT_BUILD_EXAMPLES=OFF -DPFFFT_TERMINAL_RADIX8=ON -DPFFFT_INPLACE_FIRST_PASS=OFF
+        cmake --build build_passes_radix8_only --parallel 2
+        ctest --test-dir build_passes_radix8_only -j 2 --output-on-failure
+    - name: pass schedule mixed, in-place first pass only
+      if: matrix.preset == 'release'
+      run: |
+        cmake -S . -B build_passes_inplace_only -G Ninja -DCMAKE_BUILD_TYPE=Release -DTARGET_C_ARCH=none -DTARGET_CXX_ARCH=none -DPFFFT_BUILD_BENCHMARKS=OFF -DPFFFT_BUILD_EXAMPLES=OFF -DPFFFT_TERMINAL_RADIX8=OFF -DPFFFT_INPLACE_FIRST_PASS=ON
+        cmake --build build_passes_inplace_only --parallel 2
+        ctest --test-dir build_passes_inplace_only -j 2 --output-on-failure
+    - name: pass schedule forced on, single-lane scalar (not the default on this backend)
+      # SIMD_SZ == 1 without the fused layout, where the in-place first pass
+      # compiles to nothing and the terminal radix-8 pass is off by default
+      # (pffft_pass_config.h): test it on; the default position of the
+      # single-lane scalar build is tested by the no-simd_novect steps
+      if: matrix.preset == 'release'
+      run: |
+        cmake -S . -B build_passes_scalar_on -G Ninja -DCMAKE_BUILD_TYPE=Release -DTARGET_C_ARCH=none -DTARGET_CXX_ARCH=none -DPFFFT_BUILD_BENCHMARKS=OFF -DPFFFT_BUILD_EXAMPLES=OFF -DPFFFT_USE_SIMD=OFF -DPFFFT_USE_SCALAR_VECT=OFF -DPFFFT_TERMINAL_RADIX8=ON -DPFFFT_INPLACE_FIRST_PASS=ON
+        cmake --build build_passes_scalar_on --parallel 2
+        ctest --test-dir build_passes_scalar_on -j 2 --output-on-failure
 
   build_emscripten:
     runs-on: ubuntu-latest
@@ -54,6 +86,12 @@ jobs:
       run: cmake --build build_wasm
     - name: test
       run: cd build_wasm && ctest --output-on-failure
+    - name: pass schedule switches off (the previous passes)
+      # the pass schedule switches default to on; the other position
+      run: |
+        emcmake cmake -S . -B build_wasm_passes_off -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DCMAKE_CROSSCOMPILING_EMULATOR=node -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DPFFFT_BUILD_TESTS=ON -DPFFFT_BUILD_BENCHMARKS=OFF -DPFFFT_BUILD_EXAMPLES=OFF -DPFFFT_TERMINAL_RADIX8=OFF -DPFFFT_INPLACE_FIRST_PASS=OFF
+        cmake --build build_wasm_passes_off
+        cd build_wasm_passes_off && ctest --output-on-failure
 
   build_w_mipp_ubuntu-amd64:
     runs-on: ubuntu-latest
@@ -162,6 +200,9 @@ jobs:
       run: cmake -S . -B build_simd_debug -DCMAKE_BUILD_TYPE=Debug -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF && cmake --build build_simd_debug --parallel && ctest --test-dir build_simd_debug --output-on-failure -j 4
     - name: cmake_make_no-simd_float_double
       run: cmake -S . -B build_no-simd_full -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_SIMD=OFF -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF && cmake --build build_no-simd_full --parallel && ctest --test-dir build_no-simd_full --output-on-failure -j 4
+    - name: pass schedule switches off (the previous passes)
+      # the pass schedule switches default to on; the other position
+      run: cmake -S . -B build_simd_passes_off -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DPFFFT_TERMINAL_RADIX8=OFF -DPFFFT_INPLACE_FIRST_PASS=OFF && cmake --build build_simd_passes_off --parallel && ctest --test-dir build_simd_passes_off --output-on-failure -j 4
 
   build_linux_cross_qemu:
     # SIMD backends no hosted runner provides, run under qemu-user
@@ -210,6 +251,24 @@ jobs:
       run: cmake --build build --parallel
     - name: test
       run: ctest --test-dir build --output-on-failure -j 4
+    - name: pass schedule switches off (the previous passes)
+      # the pass schedule switches default to on; the other position
+      env:
+        TRIPLE: ${{ matrix.triple }}
+        PROCESSOR: ${{ matrix.processor }}
+        QEMU: ${{ matrix.qemu }}
+        FLAGS: ${{ matrix.flags }}
+      run: |
+        cmake -S . -B build_passes_off -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
+          -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR="$PROCESSOR" \
+          -DCMAKE_C_COMPILER="$TRIPLE-gcc" -DCMAKE_CXX_COMPILER="$TRIPLE-g++" \
+          -DCMAKE_C_FLAGS="$FLAGS" -DCMAKE_CXX_FLAGS="$FLAGS" \
+          -DMATH_LIBRARY="/usr/$TRIPLE/lib/libm.so" \
+          "-DCMAKE_CROSSCOMPILING_EMULATOR=$QEMU;-L;/usr/$TRIPLE" \
+          -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DPFFFT_BUILD_EXAMPLES=OFF \
+          -DPFFFT_TERMINAL_RADIX8=OFF -DPFFFT_INPLACE_FIRST_PASS=OFF
+        cmake --build build_passes_off --parallel
+        ctest --test-dir build_passes_off --output-on-failure -j 4
 
   cross_build_win_from_linux:
     runs-on: ubuntu-24.04
@@ -566,6 +625,13 @@ jobs:
     - name: Test
       shell: bash
       run: ctest --test-dir build_arm64 -C "$BUILD_TYPE" --output-on-failure -j 4
+    - name: pass schedule switches off (the previous passes)
+      # the pass schedule switches default to on; the other position
+      shell: bash
+      run: |
+        cmake -S . -B build_arm64_passes_off -A ARM64 -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DENABLE_PFDSP=ON -DPFFFT_TERMINAL_RADIX8=OFF -DPFFFT_INPLACE_FIRST_PASS=OFF
+        cmake --build build_arm64_passes_off --config "$BUILD_TYPE"
+        ctest --test-dir build_arm64_passes_off -C "$BUILD_TYPE" --output-on-failure -j 4
 
 
   cross_build_win_msvc_arm64:
@@ -666,6 +732,9 @@ jobs:
       run: mkdir build_no-simd_full && cmake -S . -B build_no-simd_full -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_SIMD=OFF -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DTARGET_CXX_ARCH=none -DTARGET_C_ARCH=none  && cmake --build build_no-simd_full && ctest --test-dir build_no-simd_full --output-on-failure -j 4
     - name: cmake_make_no-simd_scalar_float_double
       run: mkdir build_no-simd_scalar_full && cmake -S . -B build_no-simd_scalar_full -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_SIMD=OFF -DPFFFT_USE_SCALAR_VECT=ON -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DTARGET_CXX_ARCH=none -DTARGET_C_ARCH=none && cmake --build build_no-simd_scalar_full && ctest --test-dir build_no-simd_scalar_full --output-on-failure -j 4
+    - name: pass schedule switches off (the previous passes)
+      # the pass schedule switches default to on; the other position
+      run: mkdir build_simd_passes_off && cmake -S . -B build_simd_passes_off -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DTARGET_CXX_ARCH=none -DTARGET_C_ARCH=none -DPFFFT_TERMINAL_RADIX8=OFF -DPFFFT_INPLACE_FIRST_PASS=OFF && cmake --build build_simd_passes_off && ctest --test-dir build_simd_passes_off --output-on-failure -j 4
     - name: compress
       run: tar zcvf pffft_macos-15.tar.gz --exclude=CMakeFiles --exclude=*.cmake --exclude=Makefile --exclude=CMakeCache.txt build_simd_full build_simd_float build_simd_double build_no-simd_full build_no-simd_scalar_full
     - name: 'Upload Artifact'

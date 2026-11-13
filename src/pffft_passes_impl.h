@@ -60,12 +60,44 @@
    again by pffft_wide_impl.h for the 8-lane AVX2 float backend, which renames
    every function defined here before the inclusion. The code only uses the
    vector macros (v4sf, VADD, VMUL, LD_PS1, VCPLXMUL, ...), so it works at any
-   vector width. Deliberately no include guard. */
+   vector width. Deliberately no include guard.
+
+   With PFFFT_INPLACE_FIRST_PASS and the fused layout, the file also
+   includes itself once, with PF_INPLACE_CODELETS defined. That inclusion
+   compiles the eight complex codelets passf2/3/4/5_ps and
+   passf2/3/4/5_il_ps a second time, as the always-inline bodies
+   passf2_body, ..., passf5_il_body without 'restrict', for the in-place
+   first-pass wrappers (passf2_ip_ps, ..., passf5_il_ip_ps); only the
+   function header changes, through PF_CODELET, PF_CODELET_NAME and
+   PF_CODELET_RESTRICT. Only the eight codelets (with their local macros),
+   the definitions of those three macros and the #ifdef PF_FUSED_LAYOUT
+   around the four _il codelets are outside #ifndef PF_INPLACE_CODELETS. */
+
+#ifndef PF_INPLACE_CODELETS
+#include "pffft_pass_config.h"  /* PFFFT_TERMINAL_RADIX8, PFFFT_INPLACE_FIRST_PASS */
+#endif
+
+/* the header of the eight codelets compiled twice: the regular codelet,
+   or the body of an in-place wrapper */
+#undef PF_CODELET
+#undef PF_CODELET_NAME
+#undef PF_CODELET_RESTRICT
+#ifdef PF_INPLACE_CODELETS
+#  define PF_CODELET(t) ALWAYS_INLINE(t)
+#  define PF_CODELET_NAME(name) name##_body
+#  define PF_CODELET_RESTRICT
+#else
+#  define PF_CODELET(t) NEVER_INLINE(t)
+#  define PF_CODELET_NAME(name) name##_ps
+#  define PF_CODELET_RESTRICT RESTRICT
+#endif
 
 /*
   passf2 and passb2 has been merged here, fsign = -1 for passf2, +1 for passb2
 */
-static NEVER_INLINE(void) passf2_ps(int ido, int l1, const v4sf * RESTRICT cc, v4sf * RESTRICT ch, const float *wa1, float fsign) {
+static PF_CODELET(void) PF_CODELET_NAME(passf2)(int ido, int l1, const v4sf * PF_CODELET_RESTRICT cc,
+                                                v4sf * PF_CODELET_RESTRICT ch,
+                                                const float *wa1, float fsign) {
   int k, i;
   int l1ido = l1*ido;
   if (ido <= 2) {
@@ -98,8 +130,9 @@ static NEVER_INLINE(void) passf2_ps(int ido, int l1, const v4sf * RESTRICT cc, v
   without an 'f' suffix, for when this file is compiled with '#define float double'.
   In the float build, the values round to the same floats as the old suffixed literals.
 */
-static NEVER_INLINE(void) passf3_ps(int ido, int l1, const v4sf * RESTRICT cc, v4sf * RESTRICT ch,
-                                    const float *wa1, const float *wa2, float fsign) {
+static PF_CODELET(void) PF_CODELET_NAME(passf3)(int ido, int l1, const v4sf * PF_CODELET_RESTRICT cc,
+                                                v4sf * PF_CODELET_RESTRICT ch,
+                                                const float *wa1, const float *wa2, float fsign) {
   static const float taur = (float)-0.5;                     /* cos(2*pi/3)   */
   float taui = (float)0.86602540378443864676*fsign;          /* sin(2*pi/3) = sqrt(3)/2 */
   int i, k;
@@ -132,8 +165,10 @@ static NEVER_INLINE(void) passf3_ps(int ido, int l1, const v4sf * RESTRICT cc, v
   }
 } /* passf3 */
 
-static NEVER_INLINE(void) passf4_ps(int ido, int l1, const v4sf * RESTRICT cc, v4sf * RESTRICT ch,
-                                    const float *wa1, const float *wa2, const float *wa3, float fsign) {
+static PF_CODELET(void) PF_CODELET_NAME(passf4)(int ido, int l1, const v4sf * PF_CODELET_RESTRICT cc,
+                                                v4sf * PF_CODELET_RESTRICT ch,
+                                                const float *wa1, const float *wa2, const float *wa3,
+                                                float fsign) {
   /* isign == -1 for forward transform and +1 for backward transform */
 
   int i, k;
@@ -203,9 +238,10 @@ static NEVER_INLINE(void) passf4_ps(int ido, int l1, const v4sf * RESTRICT cc, v
 /*
   passf5 and passb5 has been merged here, fsign = -1 for passf5, +1 for passb5
 */
-static NEVER_INLINE(void) passf5_ps(int ido, int l1, const v4sf * RESTRICT cc, v4sf * RESTRICT ch,
-                                    const float *wa1, const float *wa2,
-                                    const float *wa3, const float *wa4, float fsign) {
+static PF_CODELET(void) PF_CODELET_NAME(passf5)(int ido, int l1, const v4sf * PF_CODELET_RESTRICT cc,
+                                                v4sf * PF_CODELET_RESTRICT ch,
+                                                const float *wa1, const float *wa2,
+                                                const float *wa3, const float *wa4, float fsign) {
   static const float tr11 = (float)0.30901699437494742410;   /* cos(2*pi/5) = (sqrt(5)-1)/4 */
   const float ti11 = (float)0.95105651629515357212*fsign;    /* sin(2*pi/5) */
   static const float tr12 = (float)-0.80901699437494742410;  /* cos(4*pi/5) = -(sqrt(5)+1)/4 */
@@ -220,6 +256,15 @@ static NEVER_INLINE(void) passf5_ps(int ido, int l1, const v4sf * RESTRICT cc, v
 
 #define cc_idx(a_1,a_2) ((a_2-1)*ido + a_1 + 1)
 #define ch_idx(a_1,a_3) ((a_3-1)*l1*ido + a_1 + 1)
+/* leg 1, read again after the first two stores; at l1 == 1 these store to
+   the positions of leg 1, so in place it is loaded before them */
+#ifdef PF_INPLACE_CODELETS
+#  define cc_leg1r c1r
+#  define cc_leg1i c1i
+#else
+#  define cc_leg1r VLD(cc, cc_idx(i-1, 1))
+#  define cc_leg1i VLD(cc, cc_idx(i  , 1))
+#endif
 
   assert(ido >= 2);  /* ido == 2 (one complex element) is reached when SIMD_SZ == 1 */
   for (k = 0; k < l1; ++k, cc += 5*ido, ch += ido) {
@@ -232,12 +277,15 @@ static NEVER_INLINE(void) passf5_ps(int ido, int l1, const v4sf * RESTRICT cc, v
       tr2 = VADD(VLD(cc, cc_idx(i-1, 2)), VLD(cc, cc_idx(i-1, 5)));
       tr4 = VSUB(VLD(cc, cc_idx(i-1, 3)), VLD(cc, cc_idx(i-1, 4)));
       tr3 = VADD(VLD(cc, cc_idx(i-1, 3)), VLD(cc, cc_idx(i-1, 4)));
+#ifdef PF_INPLACE_CODELETS
+      const v4sf c1r = VLD(cc, cc_idx(i-1, 1)), c1i = VLD(cc, cc_idx(i  , 1));
+#endif
       VST(ch, ch_idx(i-1, 1), VADD(VLD(cc, cc_idx(i-1, 1)), VADD(tr2, tr3)));
       VST(ch, ch_idx(i  , 1), VADD(VLD(cc, cc_idx(i  , 1)), VADD(ti2, ti3)));
-      cr2 = VADD(VLD(cc, cc_idx(i-1, 1)), SVMADD(tr11, tr2, SVMUL(tr12, tr3)));
-      ci2 = VADD(VLD(cc, cc_idx(i  , 1)), SVMADD(tr11, ti2, SVMUL(tr12, ti3)));
-      cr3 = VADD(VLD(cc, cc_idx(i-1, 1)), SVMADD(tr12, tr2, SVMUL(tr11, tr3)));
-      ci3 = VADD(VLD(cc, cc_idx(i  , 1)), SVMADD(tr12, ti2, SVMUL(tr11, ti3)));
+      cr2 = VADD(cc_leg1r, SVMADD(tr11, tr2, SVMUL(tr12, tr3)));
+      ci2 = VADD(cc_leg1i, SVMADD(tr11, ti2, SVMUL(tr12, ti3)));
+      cr3 = VADD(cc_leg1r, SVMADD(tr12, tr2, SVMUL(tr11, tr3)));
+      ci3 = VADD(cc_leg1i, SVMADD(tr12, ti2, SVMUL(tr11, ti3)));
       cr5 = SVMADD(ti11, tr5, SVMUL(ti12, tr4));
       ci5 = SVMADD(ti11, ti5, SVMUL(ti12, ti4));
       cr4 = SVMSUB(ti11, tr4, SVMUL(ti12, tr5));
@@ -266,10 +314,91 @@ static NEVER_INLINE(void) passf5_ps(int ido, int l1, const v4sf * RESTRICT cc, v
       VST(ch, ch_idx(i, 5), di5);
     }
   }
+#undef cc_leg1i
+#undef cc_leg1r
 #undef ch_idx
 #undef cc_idx
 }
 
+#ifndef PF_INPLACE_CODELETS
+#if PFFFT_TERMINAL_RADIX8
+/*
+  passf8 and passb8 merged here, fsign = -1 for passf8, +1 for passb8.
+
+  The radix-8 pass of terminal_radix8_plan: the last pass of a complex
+  transform, with one complex element per leg (ido == 2) and therefore no
+  twiddles, for any l1. It replaces the plan's radix-2 pass and its last
+  radix-4 pass: the radix-2 pass is dropped and the last radix-4 pass
+  becomes this one, so every pass in between runs with other l1 and ido;
+  the transform has one pass over the data fewer.
+
+  The radix-8 DFT is evaluated half by half: the even outputs are the DFT-4
+  of (x_j + x_{j+4}), the odd ones the DFT-4 of (x_j - x_{j+4}) w8^j. The
+  inputs are loaded again for the odd half rather than kept in registers,
+  so that at most about twelve vector values are live (x86-64 has sixteen
+  vector registers); cc and ch are deliberately not 'restrict', which makes
+  the compiler reload them after the first half's stores. The 1/sqrt(2) of
+  w8 and w8^3 is folded into the last butterfly as a multiply-add.
+
+  The backward transform is the forward one with real and imaginary parts
+  exchanged on input and output: R, I are the vector offsets of the parts
+  the arithmetic treats as real and imaginary (0,1 forward; 1,0 backward),
+  and ST(m, a, b) stores output m, a being the part read at offset R.
+  k8 is the vector 1/sqrt(2) in the caller.
+*/
+#define PF_PASS8(cc, R, I, ST)                                                                 \
+  {                                                                                             \
+    v4sf s0r = VADD(VLD(cc, 0+R), VLD(cc, 8+R)),  s0i = VADD(VLD(cc, 0+I), VLD(cc, 8+I));       \
+    v4sf s1r = VADD(VLD(cc, 2+R), VLD(cc, 10+R)), s1i = VADD(VLD(cc, 2+I), VLD(cc, 10+I));      \
+    v4sf s2r = VADD(VLD(cc, 4+R), VLD(cc, 12+R)), s2i = VADD(VLD(cc, 4+I), VLD(cc, 12+I));      \
+    v4sf s3r = VADD(VLD(cc, 6+R), VLD(cc, 14+R)), s3i = VADD(VLD(cc, 6+I), VLD(cc, 14+I));      \
+    v4sf t1r = VSUB(s0r, s2r), t1i = VSUB(s0i, s2i);                                            \
+    v4sf t2r = VADD(s0r, s2r), t2i = VADD(s0i, s2i);                                            \
+    v4sf t3r = VADD(s1r, s3r), t3i = VADD(s1i, s3i);                                            \
+    v4sf t4r = VSUB(s1i, s3i), t4i = VSUB(s3r, s1r);                                            \
+    ST(0, VADD(t2r, t3r), VADD(t2i, t3i))                                                       \
+    ST(2, VADD(t1r, t4r), VADD(t1i, t4i))                                                       \
+    ST(4, VSUB(t2r, t3r), VSUB(t2i, t3i))                                                       \
+    ST(6, VSUB(t1r, t4r), VSUB(t1i, t4i))                                                       \
+  }                                                                                             \
+  {                                                                                             \
+    v4sf d0r = VSUB(VLD(cc, 0+R), VLD(cc, 8+R)),  d0i = VSUB(VLD(cc, 0+I), VLD(cc, 8+I));       \
+    v4sf d1r = VSUB(VLD(cc, 2+R), VLD(cc, 10+R)), d1i = VSUB(VLD(cc, 2+I), VLD(cc, 10+I));      \
+    v4sf d2r = VSUB(VLD(cc, 4+R), VLD(cc, 12+R)), d2i = VSUB(VLD(cc, 4+I), VLD(cc, 12+I));      \
+    v4sf d3r = VSUB(VLD(cc, 6+R), VLD(cc, 14+R)), d3i = VSUB(VLD(cc, 6+I), VLD(cc, 14+I));      \
+    v4sf p1r = VADD(d1r, d1i), p1i = VSUB(d1i, d1r);                                            \
+    v4sf s3_ = VADD(d3r, d3i), p3r = VSUB(d3i, d3r);                                            \
+    v4sf t1r = VSUB(d0r, d2i), t1i = VADD(d0i, d2r);                                            \
+    v4sf t2r = VADD(d0r, d2i), t2i = VSUB(d0i, d2r);                                            \
+    v4sf q3r = VADD(p1r, p3r), q3i = VSUB(p1i, s3_);                                            \
+    v4sf er_ = VSUB(p1r, p3r), ei_ = VADD(p1i, s3_);                                            \
+    ST(1, VMADD(k8, q3r, t2r), VMADD(k8, q3i, t2i))                                             \
+    ST(3, VMADD(k8, ei_, t1r), VMSUB(k8, er_, t1i))                                             \
+    ST(5, VMSUB(k8, q3r, t2r), VMSUB(k8, q3i, t2i))                                             \
+    ST(7, VMSUB(k8, ei_, t1r), VMADD(k8, er_, t1i))                                             \
+  }
+
+static NEVER_INLINE(void) passf8_ps(int ido, int l1, const v4sf *cc, v4sf *ch, float fsign) {
+  const float c8 = (float)M_SQRT1_2;   /* cos(pi/4) = sin(pi/4) = 1/sqrt(2) */
+  const v4sf k8 = LD_PS1(c8);          /* LD_PS1 may take its argument's address */
+  const int l1ido = l1*ido;
+  int k;
+  assert(ido == 2);
+  if (fsign < 0) {
+#define PF_ST8(m, a, b) { VST(ch, (m)*l1ido, a); VST(ch, (m)*l1ido + 1, b); }
+    for (k=0; k < l1ido; k += ido, ch += ido, cc += 8*ido) {
+      PF_PASS8(cc, 0, 1, PF_ST8)
+    }
+#undef PF_ST8
+  } else {
+#define PF_ST8(m, a, b) { VST(ch, (m)*l1ido + 1, a); VST(ch, (m)*l1ido, b); }
+    for (k=0; k < l1ido; k += ido, ch += ido, cc += 8*ido) {
+      PF_PASS8(cc, 1, 0, PF_ST8)
+    }
+#undef PF_ST8
+  }
+} /* passf8 */
+#else  /* PFFFT_TERMINAL_RADIX8 */
 /*
   passf8 and passb8 merged here, fsign = -1 for passf8, +1 for passb8
 
@@ -360,6 +489,7 @@ static NEVER_INLINE(void) passf8_ps(int ido, int l1, const v4sf * RESTRICT cc, v
     VST(ch, 7*ido + 1, VSUB(t1i, t4i));
   }
 } /* passf8 */
+#endif /* PFFFT_TERMINAL_RADIX8 */
 
 
 static NEVER_INLINE(void) radf2_ps(int ido, int l1, const v4sf * RESTRICT cc, v4sf * RESTRICT ch, const float *wa1) {
@@ -973,6 +1103,73 @@ static void radb5_ps(int ido, int l1, const v4sf *RESTRICT cc, v4sf *RESTRICT ch
 #undef ch_idx
 } /* radb5 */
 
+#if PFFFT_TERMINAL_RADIX8
+/*
+  Radix-8 real passes at ido == 1 (no twiddles), from terminal_radix8_plan:
+  the first pass of the forward transform and the last pass of the backward
+  one. They replace the radix-2 pass, the one with the longest twiddle
+  table, and the radix-4 pass at ido == 1: the radix-2 pass is dropped and
+  that radix-4 pass becomes the radix-8 pass, so every pass in between runs
+  with other l1 and ido; the transform has one pass over the data fewer.
+
+  forward:  X_m = sum_j a_j exp(-2 pi i j m/8), stored half-complex as
+            R0 R1 I1 R2 I2 R3 I3 R4
+  backward: 8 a_j from the same layout (unscaled, as FFTPACK's passes)
+*/
+static NEVER_INLINE(void) radf8_ps(int ido, int l1, const v4sf * RESTRICT cc, v4sf * RESTRICT ch) {
+  const float c8 = (float)M_SQRT1_2;   /* 1/sqrt(2) */
+  const v4sf k8 = LD_PS1(c8);          /* named: see passf8_ps */
+  int k;
+  assert(ido == 1);
+  (void)ido; /* otherwise unused when assertions are disabled */
+  for (k=0; k < l1; ++k, ++cc, ch += 8) {
+    v4sf a0 = VLD(cc, 0),    a4 = VLD(cc, 4*l1);
+    v4sf a1 = VLD(cc, l1),   a5 = VLD(cc, 5*l1);
+    v4sf a2 = VLD(cc, 2*l1), a6 = VLD(cc, 6*l1);
+    v4sf a3 = VLD(cc, 3*l1), a7 = VLD(cc, 7*l1);
+    v4sf s0 = VADD(a0, a4), d0 = VSUB(a0, a4);
+    v4sf s1 = VADD(a1, a5), d1 = VSUB(a1, a5);
+    v4sf s2 = VADD(a2, a6), d2 = VSUB(a2, a6), nd2 = VSUB(a6, a2);
+    v4sf s3 = VADD(a3, a7), d3 = VSUB(a3, a7);
+    v4sf e0 = VADD(s0, s2), e1 = VADD(s1, s3);
+    v4sf u = VSUB(d1, d3), v = VADD(d1, d3);
+    VST(ch, 0, VADD(e0, e1));            /* R0 */
+    VST(ch, 1, VMADD(k8, u, d0));        /* R1 = d0 + u/sqrt2 */
+    VST(ch, 2, VMSUB(k8, v, nd2));       /* I1 = -d2 - v/sqrt2 */
+    VST(ch, 3, VSUB(s0, s2));            /* R2 */
+    VST(ch, 4, VSUB(s3, s1));            /* I2 */
+    VST(ch, 5, VMSUB(k8, u, d0));        /* R3 = d0 - u/sqrt2 */
+    VST(ch, 6, VMSUB(k8, v, d2));        /* I3 = d2 - v/sqrt2 */
+    VST(ch, 7, VSUB(e0, e1));            /* R4 */
+  }
+} /* radf8 */
+
+static NEVER_INLINE(void) radb8_ps(int ido, int l1, const v4sf * RESTRICT cc, v4sf * RESTRICT ch) {
+  const float c2 = 2.f, csq2 = (float)M_SQRT2;
+  const v4sf two = LD_PS1(c2), sq2 = LD_PS1(csq2);  /* named: see passf8_ps */
+  int k;
+  assert(ido == 1);
+  (void)ido; /* otherwise unused when assertions are disabled */
+  for (k=0; k < l1; ++k, cc += 8, ++ch) {
+    v4sf r0 = VLD(cc, 0), r1 = VLD(cc, 1), i1 = VLD(cc, 2), r2 = VLD(cc, 3);
+    v4sf i2 = VLD(cc, 4), r3 = VLD(cc, 5), i3 = VLD(cc, 6), r4 = VLD(cc, 7);
+    v4sf p = VADD(r0, r4), q = VSUB(r0, r4);
+    v4sf a = VADD(r1, r3), b = VSUB(r1, r3), c = VSUB(i3, i1), d = VADD(i1, i3);
+    v4sf e0 = VMADD(two, r2, p), e2 = VMSUB(two, r2, p);
+    v4sf e1 = VMSUB(two, i2, q), e3 = VMADD(two, i2, q);
+    v4sf f1 = VSUB(b, d), f3 = VADD(b, d);
+    VST(ch, 0,    VMADD(two, a, e0));
+    VST(ch, 4*l1, VMSUB(two, a, e0));
+    VST(ch, 2*l1, VMADD(two, c, e2));
+    VST(ch, 6*l1, VMSUB(two, c, e2));
+    VST(ch, 1*l1, VMADD(sq2, f1, e1));
+    VST(ch, 5*l1, VMSUB(sq2, f1, e1));
+    VST(ch, 3*l1, VMSUB(sq2, f3, e3));
+    VST(ch, 7*l1, VMADD(sq2, f3, e3));
+  }
+} /* radb8 */
+#endif /* PFFFT_TERMINAL_RADIX8 */
+
 static NEVER_INLINE(v4sf *) rfftf1_ps(int n, const v4sf *input_readonly, v4sf *work1, v4sf *work2,
                                       const float *wa, const int *ifac) {
   v4sf *in  = (v4sf*)input_readonly;
@@ -987,6 +1184,17 @@ static NEVER_INLINE(v4sf *) rfftf1_ps(int n, const v4sf *input_readonly, v4sf *w
     int l1 = l2 / ip;
     int ido = n / l2;
     iw -= (ip - 1)*ido;
+#if PFFFT_TERMINAL_RADIX8
+    /* radix 8 is dispatched outside the switch: a fifth case makes GCC
+       compile it to a jump table, an indirect jump. check_isa_baseline
+       rejects an indirect jump in 8-lane code while the upper ymm halves
+       may be dirty, and they are here: the radix-3 and radix-5 passes are
+       inlined into this driver. The complex drivers dispatch by if-chain
+       for the same reason. */
+    if (ip == 8) {
+      radf8_ps(ido, l1, in, out);
+    } else
+#endif
     switch (ip) {
       case 5: {
         int ix2 = iw + ido;
@@ -1032,6 +1240,12 @@ static NEVER_INLINE(v4sf *) rfftb1_ps(int n, const v4sf *input_readonly, v4sf *w
     int ip = ifac[k1 + 1];
     int l2 = ip*l1;
     int ido = n / l2;
+#if PFFFT_TERMINAL_RADIX8
+    /* outside the switch: no jump table, see rfftf1_ps */
+    if (ip == 8) {
+      radb8_ps(ido, l1, in, out);
+    } else
+#endif
     switch (ip) {
       case 5: {
         int ix2 = iw + ido;
@@ -1131,12 +1345,48 @@ static void twiddle_cos_sin(int m, int n, float *c, float *s)
   *s = (float)sx;
 }
 
+#if PFFFT_TERMINAL_RADIX8
+/*
+  The plan rule of PFFFT_TERMINAL_RADIX8, applied by rffti1_ps and
+  cffti1_ps to the factor list decompose() made: no stand-alone radix-2
+  pass. If the list starts with a 2 (decompose puts a 2 first) and ends
+  with a 4, the 2 is dropped and that last 4 becomes an 8; ifac[1] is
+  updated. Returns the number of factors.
+
+  The last factor is the pass with one element per leg: the last pass of
+  a complex transform in both directions, the first pass of the real
+  forward transform and the last of the real backward one. There the
+  radix-8 pass (passf8_ps, radf8_ps, radb8_ps) needs no twiddles.
+  Complex lists 2, ..., 4 become ..., 8. Real lists end with a 4 only for
+  powers of two, 2, 4, ..., 4, which become 4, ..., 8: FFTPACK's odd-radix
+  real passes need an odd ido, so the factors 3 and 5 come last in a real
+  list and their passes run before the even-radix ones in the forward
+  transform; a radix-8 pass after them would need twiddles, and the list
+  keeps its radix-2 pass.
+*/
+static int terminal_radix8_plan(int *ifac) {
+  int nf = ifac[1], k;
+  if (nf >= 2 && ifac[2] == 2 && ifac[nf+1] == 4) {
+    for (k = 2; k <= nf; ++k) ifac[k] = ifac[k+1];
+    ifac[nf] = 8;
+    ifac[1] = --nf;
+  }
+  return nf;
+}
+#endif /* PFFFT_TERMINAL_RADIX8 */
+
 static void rffti1_ps(int n, float *wa, int *ifac)
 {
   static const int ntryh[] = { 4,2,3,5,0 };
   int k1, j, ii;
 
+#if PFFFT_TERMINAL_RADIX8
+  int nf;
+  decompose(n,ifac,ntryh);
+  nf = terminal_radix8_plan(ifac);
+#else
   int nf = decompose(n,ifac,ntryh);
+#endif
   int is = 0;
   int nfm1 = nf - 1;
   int l1 = 1;
@@ -1162,23 +1412,45 @@ static void rffti1_ps(int n, float *wa, int *ifac)
 
 static void cffti1_ps(int n, float *wa, int *ifac)
 {
-  static const int ntryh_large[] = { 5,3,8,4,2,0 };
-  static const int ntryh_default[] = { 5,3,4,2,0 };
-  /* Use the radix-8 codelet only for the single-pass Ncvec==8 case (N=32
-     complex), where a single dedicated pass is guaranteed. Measured on
-     Mac/arm64, Android/arm64-v8a and iPhone/arm64 (20-rep sustained,
-     Mann-Whitney U + Hodges-Lehmann shift): Ncvec==8 is a clear win
-     (-2% to -21%) on every platform/precision; Ncvec==16 regressed
-     double precision by +4% to +6% on every platform even when
+  /* Radix 8 is used only as the pass with one element per leg, the last
+     one, where it needs no twiddles. As a twiddled pass in an earlier
+     position it is slower: on x86-64, the passes alone (without the
+     cross-lane step) of an 8-lane complex transform of N = 16384, per-lane
+     length n = 2048, took 1.47 times as long with 8,8,8,4 as with
+     2,4,4,4,4,4, and the arm64 measurements below found the same. Two
+     regimes:
+
+     PFFFT_TERMINAL_RADIX8 == 0: radix 8 only for n == 8 (the Ncvec==8
+     case, N=32 complex on 4 lanes), where a single dedicated pass is
+     guaranteed. Measured on Mac/arm64, Android/arm64-v8a and iPhone/arm64
+     (20-rep sustained, Mann-Whitney U + Hodges-Lehmann shift): Ncvec==8
+     is a clear win (-2% to -21%) on every platform/precision; Ncvec==16
+     regressed double precision by +4% to +6% on every platform even when
      restricted-in, and was mixed-to-negative for float, so it was
      excluded and the radix-16 codelet (passf16_ps) removed entirely --
      it would otherwise be unreachable at every N. Larger multi-pass
      sizes regress severely (+15% to +27% at N=16384) if this gate is
-     lifted; see git history for the controlled A/B data. */
+     lifted; see git history for the controlled A/B data.
+
+     PFFFT_TERMINAL_RADIX8 == 1: the default try-list for every n, then
+     terminal_radix8_plan: a list 2, ..., 4 becomes ..., 8 (n == 8 still
+     gives the single pass 8), which saves one sweep over the data. The
+     measurements are in benchmarks/perf_analysis/README.md. */
+#if PFFFT_TERMINAL_RADIX8
+  static const int ntryh[] = { 5,3,4,2,0 };
+  int k1, j, ii;
+
+  int nf;
+  decompose(n,ifac,ntryh);
+  nf = terminal_radix8_plan(ifac);
+#else
+  static const int ntryh_large[] = { 5,3,8,4,2,0 };
+  static const int ntryh_default[] = { 5,3,4,2,0 };
   const int *ntryh = (n == 8) ? ntryh_large : ntryh_default;
   int k1, j, ii;
 
   int nf = decompose(n,ifac,ntryh);
+#endif
 
   int i = 1;
   int l1 = 1;
@@ -1259,8 +1531,10 @@ static v4sf *cfftf1_ps(int n, const v4sf *input_readonly, v4sf *work1, v4sf *wor
   return in; /* this is in fact the output .. */
 }
 #endif
+#endif /* PF_INPLACE_CODELETS */
 
 #ifdef PF_FUSED_LAYOUT
+#ifndef PF_INPLACE_CODELETS
 
 /*
   Complex transforms deinterleave their input before the first pass and
@@ -1279,9 +1553,11 @@ static v4sf *cfftf1_ps(int n, const v4sf *input_readonly, v4sf *work1, v4sf *wor
 #  define PF_INTERLEAVE2_ST(in1, in2, p, i1, i2) PF_INTERLEAVE2(in1, in2, (p)[i1], (p)[i2])
 #  define PF_UNINTERLEAVE2_ST(in1, in2, p, i1, i2) PF_UNINTERLEAVE2(in1, in2, (p)[i1], (p)[i2])
 #endif
+#endif /* PF_INPLACE_CODELETS */
 
-static NEVER_INLINE(void) passf2_il_ps(int ido, const v4sf * RESTRICT in, v4sf * RESTRICT ch,
-                                       const float *wa1, float fsign) {
+static PF_CODELET(void) PF_CODELET_NAME(passf2_il)(int ido, const v4sf * PF_CODELET_RESTRICT in,
+                                                   v4sf * PF_CODELET_RESTRICT ch,
+                                                   const float *wa1, float fsign) {
   int i;
   v4sf c0r, c0i, c1r, c1i;
   if (ido <= 2) {
@@ -1308,8 +1584,9 @@ static NEVER_INLINE(void) passf2_il_ps(int ido, const v4sf * RESTRICT in, v4sf *
   }
 }
 
-static NEVER_INLINE(void) passf3_il_ps(int ido, const v4sf * RESTRICT in, v4sf * RESTRICT ch,
-                                       const float *wa1, const float *wa2, float fsign) {
+static PF_CODELET(void) PF_CODELET_NAME(passf3_il)(int ido, const v4sf * PF_CODELET_RESTRICT in,
+                                                   v4sf * PF_CODELET_RESTRICT ch,
+                                                   const float *wa1, const float *wa2, float fsign) {
   static const float taur = (float)-0.5;                     /* cos(2*pi/3)   */
   float taui = (float)0.86602540378443864676*fsign;          /* sin(2*pi/3) = sqrt(3)/2 */
   int i;
@@ -1343,6 +1620,7 @@ static NEVER_INLINE(void) passf3_il_ps(int ido, const v4sf * RESTRICT in, v4sf *
   }
 }
 
+#ifndef PF_INPLACE_CODELETS
 /* radix-4 butterfly of passf4_ps on one element pair of each leg; writes
    the four results to (y[2m], y[2m+1]) */
 static ALWAYS_INLINE(void) passf4_il_butterfly(v4sf c0r, v4sf c0i, v4sf c1r, v4sf c1i,
@@ -1365,9 +1643,12 @@ static ALWAYS_INLINE(void) passf4_il_butterfly(v4sf c0r, v4sf c0i, v4sf c1r, v4s
   y[6] = VSUB(tr1, tr4);
   y[7] = VSUB(ti1, ti4);
 }
+#endif /* PF_INPLACE_CODELETS */
 
-static NEVER_INLINE(void) passf4_il_ps(int ido, const v4sf * RESTRICT in, v4sf * RESTRICT ch,
-                                       const float *wa1, const float *wa2, const float *wa3, float fsign) {
+static PF_CODELET(void) PF_CODELET_NAME(passf4_il)(int ido, const v4sf * PF_CODELET_RESTRICT in,
+                                                   v4sf * PF_CODELET_RESTRICT ch,
+                                                   const float *wa1, const float *wa2, const float *wa3,
+                                                   float fsign) {
   int i;
   v4sf c0r, c0i, c1r, c1i, c2r, c2i, c3r, c3i;
   if (ido == 2) {
@@ -1425,9 +1706,10 @@ static NEVER_INLINE(void) passf4_il_ps(int ido, const v4sf * RESTRICT in, v4sf *
   }
 }
 
-static NEVER_INLINE(void) passf5_il_ps(int ido, const v4sf * RESTRICT in, v4sf * RESTRICT ch,
-                                       const float *wa1, const float *wa2,
-                                       const float *wa3, const float *wa4, float fsign) {
+static PF_CODELET(void) PF_CODELET_NAME(passf5_il)(int ido, const v4sf * PF_CODELET_RESTRICT in,
+                                                   v4sf * PF_CODELET_RESTRICT ch,
+                                                   const float *wa1, const float *wa2,
+                                                   const float *wa3, const float *wa4, float fsign) {
   static const float tr11 = (float)0.30901699437494742410;   /* cos(2*pi/5) = (sqrt(5)-1)/4 */
   const float ti11 = (float)0.95105651629515357212*fsign;    /* sin(2*pi/5) */
   static const float tr12 = (float)-0.80901699437494742410;  /* cos(4*pi/5) = -(sqrt(5)+1)/4 */
@@ -1486,6 +1768,7 @@ static NEVER_INLINE(void) passf5_il_ps(int ido, const v4sf * RESTRICT in, v4sf *
   }
 }
 
+#ifndef PF_INPLACE_CODELETS
 /* last pass (ido == 2: one complex element per leg) of passf4_ps, storing
    interleaved complex output */
 static NEVER_INLINE(void) passf4_ol_ps(int l1, const v4sf * RESTRICT cc, v4sf * RESTRICT out, float fsign) {
@@ -1502,20 +1785,148 @@ static NEVER_INLINE(void) passf4_ol_ps(int l1, const v4sf * RESTRICT cc, v4sf * 
   }
 }
 
+#if PFFFT_TERMINAL_RADIX8
+/* passf8_ps (ido == 2: the last pass), storing interleaved complex output;
+   the same arithmetic, so the result has the bits of passf8_ps followed by
+   PF_INTERLEAVE2 */
+static NEVER_INLINE(void) passf8_ol_ps(int l1, const v4sf *cc, v4sf *out, float fsign) {
+  const float c8 = (float)M_SQRT1_2;   /* 1/sqrt(2) */
+  const v4sf k8 = LD_PS1(c8);          /* named: see passf8_ps */
+  const int ido = 2, l1ido = l1*ido;
+  int k;
+  if (fsign < 0) {
+#define PF_ST8(m, a, b) PF_INTERLEAVE2_ST(a, b, out, (m)*l1ido, (m)*l1ido + 1);
+    for (k=0; k < l1ido; k += ido, out += ido, cc += 8*ido) {
+      PF_PASS8(cc, 0, 1, PF_ST8)
+    }
+#undef PF_ST8
+  } else {
+#define PF_ST8(m, a, b) PF_INTERLEAVE2_ST(b, a, out, (m)*l1ido, (m)*l1ido + 1);
+    for (k=0; k < l1ido; k += ido, out += ido, cc += 8*ido) {
+      PF_PASS8(cc, 1, 0, PF_ST8)
+    }
+#undef PF_ST8
+  }
+}
+#endif /* PFFFT_TERMINAL_RADIX8 */
+
+#if PFFFT_INPLACE_FIRST_PASS
+/*
+  The first complex pass in place. In the first pass (l1 == 1) each
+  butterfly reads the element pair at position i of every leg and writes
+  its results to the same positions, so the pass can run with input and
+  output the same buffer, provided that no butterfly reads a position after
+  storing to it. The drivers below use that where a fused (de)interleaving
+  pass would otherwise have to write into its own input: running the first
+  pass in place exchanges the buffers of the later passes, and the separate
+  (de)interleaving sweep over the data is not needed.
+
+  The bodies meet the condition as follows. passf4_ps (ido > 2) and the
+  four deinterleaving codelets passf2/3/4/5_il_ps load every leg before
+  their first store. passf2_ps (ido > 2) and passf3_ps store the outputs of
+  leg 0 between their loads, but each position is read only before the
+  store to it. passf5_ps reads leg 1 again after storing to it; its in-place
+  instantiation loads leg 1 into two locals before the first store
+  (cc_leg1r, cc_leg1i). The plain radix-2 codelet with one element per leg
+  (ido <= 2) stores ch[0] and then reads cc[0] again, so it must not run in
+  place: passf2_ip_ps asserts ido > 2, and the driver takes the first pass
+  in place only when another pass follows, which for a radix-2 first pass
+  means at least two elements per leg. (Its deinterleaving form,
+  passf2_il_ps, loads both legs first and is safe at any ido.)
+
+  The bodies come from a second inclusion of this file, which compiles the
+  eight codelets once more under the names passfR_body and passfR_il_body,
+  force-inlined and without 'restrict'. The regular codelets keep
+  'restrict' and their code.
+*/
+#define PF_INPLACE_CODELETS 1
+#include "pffft_passes_impl.h"
+#undef PF_INPLACE_CODELETS
+
+static NEVER_INLINE(void) passf2_ip_ps(int ido, v4sf *c, const float *wa1, float fsign) {
+  assert(ido > 2);   /* see above: one element per leg is not safe in place */
+  passf2_body(ido, 1, c, c, wa1, fsign);
+}
+
+static NEVER_INLINE(void) passf3_ip_ps(int ido, v4sf *c, const float *wa1, const float *wa2,
+                                       float fsign) {
+  assert(ido > 2);
+  passf3_body(ido, 1, c, c, wa1, wa2, fsign);
+}
+
+static NEVER_INLINE(void) passf4_ip_ps(int ido, v4sf *c, const float *wa1, const float *wa2,
+                                       const float *wa3, float fsign) {
+  assert(ido > 2);
+  passf4_body(ido, 1, c, c, wa1, wa2, wa3, fsign);
+}
+
+static NEVER_INLINE(void) passf5_ip_ps(int ido, v4sf *c, const float *wa1, const float *wa2,
+                                       const float *wa3, const float *wa4, float fsign) {
+  assert(ido > 2);
+  passf5_body(ido, 1, c, c, wa1, wa2, wa3, wa4, fsign);
+}
+
+static NEVER_INLINE(void) passf2_il_ip_ps(int ido, v4sf *c, const float *wa1, float fsign) {
+  passf2_il_body(ido, c, c, wa1, fsign);
+}
+
+static NEVER_INLINE(void) passf3_il_ip_ps(int ido, v4sf *c, const float *wa1, const float *wa2,
+                                          float fsign) {
+  passf3_il_body(ido, c, c, wa1, wa2, fsign);
+}
+
+static NEVER_INLINE(void) passf4_il_ip_ps(int ido, v4sf *c, const float *wa1, const float *wa2,
+                                          const float *wa3, float fsign) {
+  passf4_il_body(ido, c, c, wa1, wa2, wa3, fsign);
+}
+
+static NEVER_INLINE(void) passf5_il_ip_ps(int ido, v4sf *c, const float *wa1, const float *wa2,
+                                          const float *wa3, const float *wa4, float fsign) {
+  passf5_il_body(ido, c, c, wa1, wa2, wa3, wa4, fsign);
+}
+#endif /* PFFFT_INPLACE_FIRST_PASS */
+
 /* the passes of cfftf1_ps from factor index k1 on, l1 and iw as cfftf1_ps
    has them there; 'in' holds the data and 'out' is the other buffer. With
-   'interleave' set, the last pass stores interleaved into il_out when it can
-   (radix 4, not reading il_out); otherwise the result is interleaved into
-   il_out afterwards. Returns the buffer holding the result. A flag rather
-   than a NULL il_out selects this: callers pass one of their two buffers
-   as il_out, and testing it for NULL would tell a static analyzer that
-   that buffer, too, may be NULL. Callers use the wrappers below, which pass
-   the flag as a constant. */
+   'interleave' set, the last pass stores interleaved into il_out when it
+   can (radix 4, or radix 8 with PFFFT_TERMINAL_RADIX8, not reading
+   il_out); otherwise the result is interleaved into il_out afterwards, in
+   a separate sweep. With PFFFT_INPLACE_FIRST_PASS, when the last pass
+   would read il_out and the first pass (l1 == 1, not radix 8) is followed
+   by another, the first pass runs in place in 'in' (passfR_ip_ps above),
+   so that the last pass reads the other buffer. Returns the buffer holding
+   the result. A flag rather than a NULL il_out selects this: callers pass
+   one of their two buffers as il_out, and testing it for NULL would tell a
+   static analyzer that that buffer, too, may be NULL. Callers use the
+   wrappers below, which pass the flag as a constant. */
 static ALWAYS_INLINE(v4sf *) cfftf1_passes_ps(int n, v4sf *in, v4sf *out, int k1, int l1, int iw,
                                               const float *wa, const int *ifac, int isign,
                                               int interleave, v4sf *il_out) {
   const int nf = ifac[1];
   assert(in != out);
+#if PFFFT_INPLACE_FIRST_PASS
+  /* the passes k1 .. nf+1 alternate between in and out, so the last one
+     reads 'in' when their number is odd. An if-chain, not a switch: no
+     jump table in the 8-lane code (check_isa_baseline) */
+  if (interleave && l1 == 1 && k1 <= nf && ifac[k1] != 8 &&
+      (((nf + 2 - k1) & 1) ? in : out) == il_out) {
+    const int ip = ifac[k1], idot = 2*(n / ip);
+    const float fsign = (float)isign;
+    if (ip == 4) {
+      passf4_ip_ps(idot, in, &wa[iw], &wa[iw + idot], &wa[iw + 2*idot], fsign);
+    } else if (ip == 2) {
+      passf2_ip_ps(idot, in, &wa[iw], fsign);
+    } else if (ip == 3) {
+      passf3_ip_ps(idot, in, &wa[iw], &wa[iw + idot], fsign);
+    } else {
+      assert(ip == 5);
+      passf5_ip_ps(idot, in, &wa[iw], &wa[iw + idot], &wa[iw + 2*idot], &wa[iw + 3*idot], fsign);
+    }
+    l1 = ip;
+    iw += (ip - 1)*idot;
+    ++k1;
+  }
+#endif
   for (; k1<=nf+1; k1++) {
     int ip = ifac[k1];
     int l2 = ip*l1;
@@ -1526,6 +1937,12 @@ static ALWAYS_INLINE(v4sf *) cfftf1_passes_ps(int n, v4sf *in, v4sf *out, int k1
       passf4_ol_ps(l1, in, il_out, (float)isign);
       return il_out;
     }
+#if PFFFT_TERMINAL_RADIX8
+    if (interleave && k1 == nf+1 && ip == 8 && in != il_out) {
+      passf8_ol_ps(l1, in, il_out, (float)isign);
+      return il_out;
+    }
+#endif
     switch (ip) {
       case 8: {
         passf8_ps(idot, l1, in, out, isign);
@@ -1581,8 +1998,11 @@ static void cfftf1_tail_ol_ps(int n, v4sf *in, v4sf *out, int k1, int l1, int iw
 
 /* cfftf1_ps(n, work2, work1, work2, ...) for data that is still interleaved
    in 'input': the first pass deinterleaves it while loading and writes work1.
-   input may be work2 but not work1 (then the deinterleaving is a separate
-   pass into work2, as without fusion). Returns the buffer holding the result. */
+   input may be work2. If it is work1, the first pass deinterleaves in place
+   in work1 with PFFFT_INPLACE_FIRST_PASS (passfR_il_ip_ps above); without
+   it, and for the single radix-8 pass of n == 8, the deinterleaving is a
+   separate pass into work2, as without fusion. Returns the buffer holding
+   the result. */
 static v4sf *cfftf1_il_ps(int n, const v4sf *input, v4sf *work1, v4sf *work2,
                           const float *wa, const int *ifac, int isign) {
   const int ip = ifac[2];
@@ -1590,6 +2010,22 @@ static v4sf *cfftf1_il_ps(int n, const v4sf *input, v4sf *work1, v4sf *work2,
   const float fsign = (float)isign;
   int k;
   assert(work1 != work2);
+#if PFFFT_INPLACE_FIRST_PASS
+  if (input == work1 && ip != 8) {
+    /* an if-chain, not a switch: no jump table in the 8-lane code */
+    if (ip == 4) {
+      passf4_il_ip_ps(idot, work1, &wa[0], &wa[idot], &wa[2*idot], fsign);
+    } else if (ip == 2) {
+      passf2_il_ip_ps(idot, work1, &wa[0], fsign);
+    } else if (ip == 3) {
+      passf3_il_ip_ps(idot, work1, &wa[0], &wa[idot], fsign);
+    } else {
+      assert(ip == 5);
+      passf5_il_ip_ps(idot, work1, &wa[0], &wa[idot], &wa[2*idot], &wa[3*idot], fsign);
+    }
+    return cfftf1_tail_ps(n, work1, work2, 3, ip, (ip - 1)*idot, wa, ifac, isign);
+  }
+#endif
   if (input != work1 && ip != 8) {
     switch (ip) {
       case 5:
@@ -1615,4 +2051,15 @@ static v4sf *cfftf1_il_ps(int n, const v4sf *input, v4sf *work1, v4sf *work2,
 }
 #undef PF_INTERLEAVE2_ST
 #undef PF_UNINTERLEAVE2_ST
+#endif /* PF_INPLACE_CODELETS */
 #endif /* PF_FUSED_LAYOUT */
+#if PFFFT_TERMINAL_RADIX8 && !defined(PF_INPLACE_CODELETS)
+#undef PF_PASS8
+#endif
+/* the codelet header macros, at the end of the outer inclusion; nothing
+   after the PF_INPLACE_CODELETS inclusion uses them */
+#ifndef PF_INPLACE_CODELETS
+#undef PF_CODELET
+#undef PF_CODELET_NAME
+#undef PF_CODELET_RESTRICT
+#endif

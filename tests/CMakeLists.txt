@@ -88,6 +88,19 @@ if (PFFFT_USE_TYPE_FLOAT)
     # (statistics.quantiles needs Python 3.8)
     add_test(NAME wide_size_table_selftest
              COMMAND ${Python3_EXECUTABLE} ${PFFFT_SOURCE_DIR}/benchmarks/perf_analysis/wide_size_table.py --self-test)
+    # The benchmark runner is a tool for Linux hosts (CPU pinning, /proc,
+    # perf); its self-test runs where the tool runs.
+    if (CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
+      # parsers of the benchmark runner (perf stat output, SMT sibling lists)
+      add_test(NAME run_matrix_selftest
+               COMMAND ${Python3_EXECUTABLE} ${PFFFT_SOURCE_DIR}/benchmarks/perf_analysis/run_matrix.py --self-test)
+    else()
+      message(STATUS "run_matrix_selftest: not run, the tool is for Linux hosts")
+    endif()
+    # the static cross-check's reader of src/pffft_wide_sizes.h (no valgrind
+    # or llvm-mca needed)
+    add_test(NAME mca_predict_selftest
+             COMMAND ${Python3_EXECUTABLE} ${PFFFT_SOURCE_DIR}/benchmarks/perf_analysis/mca_predict.py --self-test)
   endif()
   # A baseline x86-64 build must keep every instruction beyond SSE2 inside
   # the 8-lane backend, which only runs on CPUs that support it, and that
@@ -220,6 +233,48 @@ foreach(prec float double)
       target_link_options(test_pffft_accuracy_${prec} PRIVATE "-sSTACK_SIZE=1048576")
     endif()
     add_test(NAME test_pffft_accuracy_${prec} COMMAND test_pffft_accuracy_${prec})
+  endif()
+endforeach()
+
+######################################################
+
+# White-box tests of the passes: test_pffft_passes.c includes the library
+# source to reach its static functions, so it is compiled as the PFFFT
+# target is (definitions, options, include directories) and does not link it.
+# The defaults of PFFFT_TERMINAL_RADIX8 and PFFFT_INPLACE_FIRST_PASS are on
+# for every target and backend, except PFFFT_TERMINAL_RADIX8 on the
+# single-lane scalar build (SIMD_SZ == 1), where it is off
+# (pffft_pass_config.h); the test checks the default of a switch that the
+# build (CMake option, compiler flags, a parent project's definitions) leaves
+# to the header.
+if (PFFFT_WIDE_TU_BUILD)
+  # as for the library: source file properties are per directory
+  set_source_files_properties(${PFFFT_SOURCE_DIR}/src/pffft_wide_tu.c
+                              PROPERTIES COMPILE_OPTIONS "/arch:AVX2;/GL-")
+endif()
+foreach(prec float double)
+  string(TOUPPER "${prec}" PREC)
+  if (PFFFT_USE_TYPE_${PREC})
+    set(_pffft_passes_t test_pffft_passes_${prec})
+    add_executable(${_pffft_passes_t} test_pffft_passes.c ${PFFFT_SOURCE_DIR}/src/pffft_common.c)
+    if (PFFFT_WIDE_TU_BUILD AND prec STREQUAL "float")
+      target_sources(${_pffft_passes_t} PRIVATE ${PFFFT_SOURCE_DIR}/src/pffft_wide_tu.c)
+    endif()
+    target_compile_definitions(${_pffft_passes_t} PRIVATE $<TARGET_PROPERTY:PFFFT,COMPILE_DEFINITIONS>
+                               PFFFT_ENABLE_${PREC} PFFFT_STATIC_DEFINE)
+    target_compile_options(${_pffft_passes_t} PRIVATE $<TARGET_PROPERTY:PFFFT,COMPILE_OPTIONS>)
+    target_include_directories(${_pffft_passes_t} PRIVATE $<TARGET_PROPERTY:PFFFT,INCLUDE_DIRECTORIES>)
+    set_target_properties(${_pffft_passes_t} PROPERTIES C_VISIBILITY_PRESET hidden)
+    target_link_libraries(${_pffft_passes_t} ${ASANLIB} ${MATHLIB})
+    if (EMSCRIPTEN)
+      # the large-N tests allocate up to about 200 MiB: far more than
+      # Emscripten's fixed 16 MiB heap
+      target_link_options(${_pffft_passes_t} PRIVATE "-sALLOW_MEMORY_GROWTH=1")
+    endif()
+    add_test(NAME ${_pffft_passes_t} COMMAND ${_pffft_passes_t})
+    if (PFFFT_TEST_REQUIRE_WIDE AND prec STREQUAL "float")
+      set_tests_properties(${_pffft_passes_t} PROPERTIES ENVIRONMENT "PFFFT_TEST_REQUIRE_WIDE=1")
+    endif()
   endif()
 endforeach()
 

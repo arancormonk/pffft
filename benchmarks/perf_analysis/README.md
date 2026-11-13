@@ -967,9 +967,11 @@ switch of [pffft_pass_config.h](../../src/pffft_pass_config.h):
 Both are on by default on every target and backend, with one exception. A
 change that does less work per transform applies everywhere unless a
 measurement speaks against it on a backend, and on the single-lane scalar
-build (`-DPFFFT_USE_SIMD=OFF -DPFFFT_USE_SCALAR_VECT=OFF`, backend `Scalar`,
-`SIMD_SZ == 1`) one does: with the terminal radix-8 pass complex transforms
-measured slower there, while real transforms gained
+build (backend `Scalar`, `SIMD_SZ == 1`: `-DPFFFT_USE_SCALAR_VECT=OFF` with
+`-DPFFFT_USE_SIMD=OFF`, as measured, or on a target without a SIMD backend
+for the precision; without CMake, no SIMD backend and no
+`PFFFT_SCALVEC_ENABLED`) one does: with the terminal radix-8 pass complex
+transforms measured slower there, while real transforms gained
 ([below](#slower-cases)). The switch is one per build, so on that build the
 terminal radix-8 pass is off by default; the in-place first pass compiles to
 nothing there, so that build runs the passes it ran before. The 4xScalar

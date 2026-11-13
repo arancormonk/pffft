@@ -278,6 +278,13 @@ foreach(prec float double)
   endif()
 endforeach()
 
+# pffft_pass_config.h alone: the defaults, and definitions made before it
+# (expressions without parentheses among them) become the literal 0 or 1;
+# needs no library
+add_executable(test_pffft_pass_config test_pffft_pass_config.c)
+target_include_directories(test_pffft_pass_config PRIVATE ${PFFFT_SOURCE_DIR}/src)
+add_test(NAME test_pffft_pass_config COMMAND test_pffft_pass_config)
+
 ######################################################
 
 add_executable( test_pffft_cpp_api test_pffft_cpp_api.cpp )

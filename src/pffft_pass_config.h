@@ -33,8 +33,10 @@
   build. The measurements are documented in
   benchmarks/perf_analysis/README.md. The build may define either switch
   to 0 or 1 (CMake: -DPFFFT_TERMINAL_RADIX8=ON|OFF, likewise
-  PFFFT_INPLACE_FIRST_PASS; AUTO keeps the default). With both 0 the
-  passes are those of the revision before these switches.
+  PFFFT_INPLACE_FIRST_PASS; AUTO keeps the default); any integer constant
+  expression of that value that #if can evaluate is accepted, with or
+  without parentheses, and becomes the literal. With both 0 the passes are
+  those of the revision before these switches.
 
   Included by pffft_passes_impl.h, after the simd/pf_*.h backend selection,
   which defines SIMD_SZ, and read once per translation unit: the 8-lane
@@ -61,11 +63,29 @@
 #  define PFFFT_INPLACE_FIRST_PASS 1
 #endif
 
-#if PFFFT_TERMINAL_RADIX8 != 0 && PFFFT_TERMINAL_RADIX8 != 1
+/* A definition of the build may be any expression, without parentheses
+   (-DPFFFT_TERMINAL_RADIX8=0?0:1): checked in parentheses, then redefined
+   as the literal 0 or 1, so that every later use (#if X && ..., and the
+   tests) sees one token and needs no parentheses of its own. */
+#if (PFFFT_TERMINAL_RADIX8) != 0 && (PFFFT_TERMINAL_RADIX8) != 1
 #  error "PFFFT_TERMINAL_RADIX8 must be 0 or 1"
 #endif
-#if PFFFT_INPLACE_FIRST_PASS != 0 && PFFFT_INPLACE_FIRST_PASS != 1
+#if (PFFFT_TERMINAL_RADIX8)
+#  undef PFFFT_TERMINAL_RADIX8
+#  define PFFFT_TERMINAL_RADIX8 1
+#else
+#  undef PFFFT_TERMINAL_RADIX8
+#  define PFFFT_TERMINAL_RADIX8 0
+#endif
+#if (PFFFT_INPLACE_FIRST_PASS) != 0 && (PFFFT_INPLACE_FIRST_PASS) != 1
 #  error "PFFFT_INPLACE_FIRST_PASS must be 0 or 1"
+#endif
+#if (PFFFT_INPLACE_FIRST_PASS)
+#  undef PFFFT_INPLACE_FIRST_PASS
+#  define PFFFT_INPLACE_FIRST_PASS 1
+#else
+#  undef PFFFT_INPLACE_FIRST_PASS
+#  define PFFFT_INPLACE_FIRST_PASS 0
 #endif
 
 #endif /* PFFFT_PASS_CONFIG_H */

@@ -33,7 +33,8 @@ option(PFFFT_USE_SCALAR_VECT "use 4-element vector scalar operations (if no othe
 option(PFFFT_USE_WASM_RELAXED_SIMD "use WebAssembly Relaxed SIMD for higher performance? requires a browser/runtime with Relaxed SIMD support" OFF)
 # pass schedule switches (src/pffft_pass_config.h): AUTO is the default of
 # that header, on, except the terminal radix-8 pass on the single-lane scalar
-# build (PFFFT_USE_SIMD=OFF with PFFFT_USE_SCALAR_VECT=OFF)
+# build (SIMD_SZ == 1: PFFFT_USE_SCALAR_VECT=OFF, and PFFFT_USE_SIMD=OFF or a
+# target without a SIMD backend for the precision)
 include(cmake/save_normal_variable.cmake)
 # a parent project's normal variable is the value in effect, else the cache
 # value; creating the cache entry removes the normal variable, so keep it

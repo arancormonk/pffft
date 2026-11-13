@@ -410,8 +410,10 @@ sweep over the data where they apply:
   Real transforms are unchanged.
 
 Both are on by default on every target and backend, with one exception: on
-the single-lane scalar build (`-DPFFFT_USE_SIMD=OFF
--DPFFFT_USE_SCALAR_VECT=OFF`) the terminal radix-8 pass is off by default,
+the single-lane scalar build (`SIMD_SZ == 1`: `-DPFFFT_USE_SCALAR_VECT=OFF`
+with `-DPFFFT_USE_SIMD=OFF` or on a target without a SIMD backend for the
+precision; without CMake, no SIMD backend and no `PFFFT_SCALVEC_ENABLED`)
+the terminal radix-8 pass is off by default,
 because complex transforms measured slower with it there (real transforms
 gained, but the switch is one per build). The 4xScalar build, which CMake
 builds by default without SIMD, keeps both. `-DPFFFT_TERMINAL_RADIX8=OFF`

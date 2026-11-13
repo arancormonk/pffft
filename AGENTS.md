@@ -50,6 +50,7 @@ ctest -R test_pffastconv_modes
 ctest -R test_pffft_cpp_api
 ctest -R test_pffft_passes_float   # white-box tests of the passes, plans and pass-schedule switches
 ctest -R test_pffft_passes_double
+ctest -R test_pffft_pass_config    # pffft_pass_config.h: defaults; any definition becomes the literal 0 or 1
 
 # Run specific test executable directly (after build)
 ./test_fft_factors

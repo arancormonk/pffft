@@ -53,9 +53,12 @@ jobs:
         }
         ops="forward backward ordered-forward ordered-backward inplace-forward inplace-backward inplace-ordered-forward inplace-ordered-backward pipeline reorder zconv"
         for kind in complex real; do
+          # --seed: every job and kind measures in an order of its own; run_matrix.py records the
+          # seed in out/sweep-$kind.csv.invocations, which the artifact upload (path: out) includes
           python3 benchmarks/perf_analysis/run_matrix.py --precisions float --interleave --repeats 3 \
             --seconds 0.05 --cpu 1 --max-busy-cpus 2.5 --kinds $kind --sizes $(sizes $kind) --ops $ops \
             --build native4=b_native4 --build wide=b_wide --output out/sweep-$kind.csv \
+            --seed "$(python3 -c 'import secrets; print(secrets.randbits(62))')" \
             $( [ $kind = real ] && echo --no-compile )
         done
         cat out/sweep-complex.csv > out/sweep.csv

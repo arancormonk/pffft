@@ -32,6 +32,7 @@ L1-resident (complex N <= 1024, real N <= 2048), all eight modes:
 
 usage: mca_predict.py --wide DIR --native4 DIR --measured CSV[.gz] --output PREFIX
                       [--models m1,m2,...] [--calls K]
+       mca_predict.py --self-test   (the size header's parser; no valgrind or llvm-mca)
 """
 import argparse
 import collections
@@ -47,6 +48,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
+SIZES_HEADER = ROOT / "src" / "pffft_wide_sizes.h"
 MODES = ["forward", "backward", "ordered-forward", "ordered-backward", "inplace-forward",
          "inplace-backward", "inplace-ordered-forward", "inplace-ordered-backward"]
 # every inferred group of src/pffft_cpu_x86.h -> LLVM -mcpu, plus the controls
@@ -207,26 +209,93 @@ def measured_ratios(path):
     return out
 
 
-def inferred_sizes():
-    text = (ROOT / "src" / "pffft_wide_sizes.h").read_text()
+class SizeHeaderError(Exception):
+    pass
+
+
+def parse_inferred_sizes(text, source):
+    """{kind: set of N} of the inferred table in the text of a header written by
+    wide_size_table.py: pffft_wide_inferred_<kind>_sizes[], as many entries as
+    PFFFT_WIDE_INFERRED_<KIND>_COUNT says (a table of count 0 holds one unused 0)"""
     out = {}
     for kind in ("complex", "real"):
-        m = re.search(r"pffft_wide_" + kind + r"_inferred_sizes\[\] = \{([^}]*)\}", text)
-        out[kind] = {int(x) for x in m.group(1).replace(",", " ").split()}
+        name = f"pffft_wide_inferred_{kind}_sizes"
+        macro = f"PFFFT_WIDE_INFERRED_{kind.upper()}_COUNT"
+        m = re.search(r"\bstatic const int " + name + r"\[\] = \{([^}]*)\}", text)
+        if not m:
+            raise SizeHeaderError(f"{source}: array {name}[] not found")
+        c = re.search(r"^#define " + macro + r" (\d+)$", text, re.M)
+        if not c:
+            raise SizeHeaderError(f"{source}: {macro} not found")
+        values = [int(x) for x in m.group(1).replace(",", " ").split()]
+        count = int(c.group(1))
+        if len(values) != max(count, 1):
+            raise SizeHeaderError(f"{source}: {name}[] has {len(values)} entries, {macro} is {count}")
+        out[kind] = set(values[:count])
     return out
+
+
+def inferred_sizes():
+    return parse_inferred_sizes(SIZES_HEADER.read_text(), SIZES_HEADER)
+
+
+def self_test():
+    """the parser of src/pffft_wide_sizes.h, on the real header and in memory"""
+    text = SIZES_HEADER.read_text()
+    sizes = parse_inferred_sizes(text, SIZES_HEADER)
+    for kind in ("complex", "real"):
+        count = int(re.search(r"^#define PFFFT_WIDE_INFERRED_" + kind.upper() + r"_COUNT (\d+)$",
+                              text, re.M).group(1))
+        assert sizes[kind], f"{SIZES_HEADER}: inferred {kind} table empty"
+        assert len(sizes[kind]) == count, f"inferred {kind}: {len(sizes[kind])} sizes, the header says {count}"
+
+    def header(complex_count, complex_values, real_count=1, real_values="128,"):
+        return (f"#define PFFFT_WIDE_INFERRED_COMPLEX_COUNT {complex_count}\n"
+                f"static const int pffft_wide_inferred_complex_sizes[] = {{\n  {complex_values}\n}};\n"
+                f"#define PFFFT_WIDE_INFERRED_REAL_COUNT {real_count}\n"
+                f"static const int pffft_wide_inferred_real_sizes[] = {{\n  {real_values}\n}};\n")
+
+    def error(text):
+        try:
+            parse_inferred_sizes(text, "sizes.h")
+        except SizeHeaderError as e:
+            return str(e)
+        raise AssertionError("no error")
+
+    assert parse_inferred_sizes(header(2, "64, 128,"), "sizes.h") == {"complex": {64, 128}, "real": {128}}
+    assert parse_inferred_sizes(header(0, "0,"), "sizes.h")["complex"] == set(), "count 0: the unused element"
+    # the name the header had before the per-group tables
+    old = header(2, "64, 128,").replace("pffft_wide_inferred_complex_sizes", "pffft_wide_complex_inferred_sizes")
+    assert error(old) == "sizes.h: array pffft_wide_inferred_complex_sizes[] not found", error(old)
+    assert error(header(2, "64, 128,").replace("_REAL_COUNT", "_REAL_N")) == \
+        "sizes.h: PFFFT_WIDE_INFERRED_REAL_COUNT not found"
+    assert error(header(3, "64, 128,")) == \
+        "sizes.h: pffft_wide_inferred_complex_sizes[] has 2 entries, PFFFT_WIDE_INFERRED_COMPLEX_COUNT is 3"
+    print(f"mca_predict.py self-test passed (inferred table: {len(sizes['complex'])} complex, "
+          f"{len(sizes['real'])} real sizes)")
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--wide", type=Path, required=True)
-    ap.add_argument("--native4", type=Path, required=True)
-    ap.add_argument("--measured", type=Path, required=True)
-    ap.add_argument("--output", type=Path, required=True)
+    ap.add_argument("--wide", type=Path)
+    ap.add_argument("--native4", type=Path)
+    ap.add_argument("--measured", type=Path)
+    ap.add_argument("--output", type=Path)
     ap.add_argument("--models", default=",".join(MODELS))
     ap.add_argument("--calls", type=int, default=20)
+    ap.add_argument("--self-test", action="store_true")
     args = ap.parse_args()
+    if args.self_test:
+        self_test()
+        return
+    missing = [o for o in ("wide", "native4", "measured", "output") if getattr(args, o) is None]
+    if missing:
+        ap.error("the following arguments are required: " + ", ".join("--" + o for o in missing))
     models = args.models.split(",")
-    sizes = inferred_sizes()
+    try:
+        sizes = inferred_sizes()
+    except SizeHeaderError as e:
+        sys.exit(str(e))
     measured = measured_ratios(args.measured)
     cases = [(kind, n, mode) for kind in ("complex", "real") for n in sorted(sizes[kind])
              if n <= L1_LIMIT[kind] for mode in MODES if (kind, n, mode) in measured]

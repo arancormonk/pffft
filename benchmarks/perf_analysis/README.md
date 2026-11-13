@@ -769,7 +769,8 @@ A CPU model joins the measured class with two sweeps like the ones above on
 it: a `native4` build (`-DPFFFT_ENABLE_WIDE_DISPATCH=OFF`) and a `wide` build
 (`-DPFFFT_WIDE_ALL_SIZES=ON`: the 8-lane code at every size it supports),
 `run_matrix.py --interleave --repeats 3` over all supported sizes and the
-eleven operations, then `wide_size_table.py` and a per-model entry in
+eleven operations, each sweep with a `--seed` of its own so that the sweeps'
+orders are independent, then `wide_size_table.py` and a per-model entry in
 `pffft_x86_wide_class()`. The workflow
 [bench-runner-sweep.yml](../../.github/workflows/bench-runner-sweep.yml)
 runs such sweeps on GitHub-hosted runners (virtual machines whose CPU varies

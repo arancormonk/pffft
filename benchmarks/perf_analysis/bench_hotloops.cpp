@@ -96,6 +96,10 @@ static void check_equal(const scalar *a, const scalar *b, int n, double scale) {
   }
 }
 
+/* Every argument, or combination of them, that the driver does not measure ends the same way:
+   "invalid arguments: <what>" on stderr (from the catch below) and exit status 1. The texts are
+   literals on purpose: building a message with values in main() changes the code generated for
+   the loops it times (register allocation, block order), and a literal changes none of it. */
 int main(int argc, char **argv) {
   if (argc != 6) {
     std::fprintf(stderr, "usage: %s real|complex OP N REPEATS SECONDS\n"
@@ -110,11 +114,27 @@ int main(int argc, char **argv) {
     const int n = std::atoi(argv[3]), repeats = std::atoi(argv[4]);
     const double seconds = std::atof(argv[5]);
     const bool complex = kind == "complex";
-    if ((kind != "real" && !complex) || n < 32 || n > (1 << 22) ||
+    if ((kind != "real" && !complex) || n > (1 << 22) ||
+        !PF(is_valid_size)(n, complex ? PFFFT_COMPLEX : PFFFT_REAL) ||
         repeats < 1 || repeats > 100 || !(seconds > 0 && seconds <= 60))
-      throw std::runtime_error("invalid arguments");
+      throw std::runtime_error("invalid arguments: KIND is real or complex, N a size the library "
+                               "supports up to 2^22, REPEATS 1 to 100, SECONDS above 0 up to 60");
     const int count = complex ? 2 * n : n;
     std::snprintf(backend_label, sizeof backend_label, "%s", PF(simd_arch)());
+    /* The buffers are the first allocations that the driver or the library makes, apart from the
+       two argument strings: nothing above this line may allocate. Their placement is part of what
+       is measured, and it is the allocator's: what follows is glibc's malloc with its default
+       settings in a fresh process. Large buffers get separate mappings that all start at the same
+       offset in their pages; at 128 KiB, just above the mmap threshold, the first one still comes
+       from the heap the C++ runtime started, at that offset or 64 bytes further. Small buffers are
+       consecutive heap chunks, each 64 or 128 bytes further into its page than the one before
+       when their size is a multiple of the page size. A setup created and destroyed first, as an
+       earlier size check did, shifts the small ones and puts the large ones of nearly every size
+       into the heap as well, with that same stagger. At sizes with a large power-of-two factor
+       such a stagger between large buffers slowed the transforms, by an amount that depends on
+       the plan: on a Ryzen 9 5950X about 5% with nine passes and 13% with eight (complex
+       N = 552960, 8 lanes, pipeline); false store-to-load dependencies (4K aliasing) are the
+       likely cause. */
     Buffer input(count), spectrum(count), filter(count), product(count),
            output(count), work(count), ordered(count);
     fill(input.data, count);
@@ -129,7 +149,9 @@ int main(int argc, char **argv) {
       int flags = complex ? PFFASTCONV_CPLX_INP_OUT : 0;
       if (op == "fastconv-single") flags |= PFFASTCONV_CPLX_SINGLE_FFT;
       PFFASTCONV_Setup *conv = pffastconv_new_setup(coeffs.data(), filter_len, &block, flags);
-      if (!conv || block != n) throw std::runtime_error("unexpected convolution block size");
+      if (!conv || block != n)
+        throw std::runtime_error("invalid arguments: no convolution setup of block size N for this "
+                                 "KIND and N");
       int produced = pffastconv_apply(conv, input.data, n, output.data, 0);
       if (produced != n - filter_len + 1) throw std::runtime_error("incorrect output count");
       for (int j = 0; j < produced; ++j) {
@@ -151,7 +173,7 @@ int main(int argc, char **argv) {
 #endif
 
     setup_t *setup = PF(new_setup)(n, complex ? PFFFT_COMPLEX : PFFFT_REAL);
-    if (!setup) throw std::runtime_error("unsupported FFT size");
+    if (!setup) throw std::runtime_error("invalid arguments: no FFT setup for this KIND and N");
     std::snprintf(backend_label, sizeof backend_label, "%s-x%d", PF(simd_arch)(),
                   PF(setup_simd_size)(setup));
     PF(transform)(setup, input.data, spectrum.data, work.data, PFFFT_FORWARD);
@@ -174,7 +196,8 @@ int main(int argc, char **argv) {
     check_equal(output.data, input.data, count, 1.0 / n);
     for (int i = 0; i < count; ++i) filter.data[i] = spectrum.data[i] / n;
     if (op == "zp" && (complex || PF(zconvert_zp)(setup, spectrum.data, filter.data, 1) != 0))
-      throw std::runtime_error("zero phase requires real FFT");
+      throw std::runtime_error("invalid arguments: zp needs a real FFT whose spectrum converts to "
+                               "zero phase");
 
     /* Repeated unnormalized in-place transforms would overflow random input.
        Validate with random data above, then time zero input (including warmup)
@@ -213,7 +236,7 @@ int main(int argc, char **argv) {
               PF(zconvolve)(setup, spectrum.data, filter.data, product.data);
               PF(transform)(setup, product.data, output.data, work.data, PFFFT_BACKWARD));
     else
-      throw std::runtime_error("unknown operation");
+      throw std::runtime_error("invalid arguments: unknown operation for the " PRECISION " driver");
 #undef MEASURE
     PF(destroy_setup)(setup);
     return 0;

@@ -102,6 +102,7 @@ endif()
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/")
 include(cmake/target_optimizations.cmake)
 include(cmake/compiler_warnings.cmake)
+include(cmake/simd_backend_probe.cmake)
 find_package(PAPI)
 find_package(MIPP)
 if (MIPP_FOUND)
@@ -204,7 +205,7 @@ endif()
 
 add_library(PFFFT ${FLOAT_SOURCES} ${DOUBLE_SOURCES} src/pffft_common.c
   src/pffft_priv_impl.h src/pffft_passes_impl.h src/pffft_pass_config.h src/pffft_cplx_impl.h src/pffft_real_impl.h
-  src/pffft_wide_impl.h src/pffft_wide_sizes.h src/pffft_wide_select.h src/pffft_wide_api.h
+  src/pffft_wide_impl.h src/pffft_wide_config.h src/pffft_wide_sizes.h src/pffft_wide_select.h src/pffft_wide_api.h
   src/pffft_setup.h src/pffft_cpu_x86.h src/pffft_internal.h
   include/pffft/pffft.hpp)
 add_library(PFFFT::PFFFT ALIAS PFFFT)
@@ -262,6 +263,7 @@ target_set_c_arch_flags(PFFFT)
 if (NOT PFFFT_USE_SIMD)
   target_compile_definitions(PFFFT PRIVATE PFFFT_SIMD_DISABLE=1)
 endif()
+pffft_report_simd_backend(PFFFT)
 target_link_libraries( PFFFT ${ASANLIB} ${MATHLIB} )
 target_include_directories(PFFFT
   PUBLIC

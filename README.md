@@ -33,7 +33,8 @@ on x86 cpus, Altivec (float) and VSX (double) on powerpc cpus, NEON on ARM cpus
 The SIMD backend is picked at compile time from what the compiler targets:
 NEON whenever it is enabled (always on AArch64; on 32-bit ARM with e.g.
 `-mfpu=neon`), VSX with e.g. `-mcpu=power7` (the ppc64le default), WASM SIMD
-with `-msimd128`.
+with `-msimd128`. `cmake` reports the choice, e.g.
+`Detected SIMD backend for PFFFT: float: NEON, double: NEON`.
 
 PFFFT is a fork of [Julien Pommier's library on bitbucket](https://bitbucket.org/jpommier/pffft/)
 with some changes and additions. This repository,

@@ -206,7 +206,7 @@ jobs:
 
   build_linux_cross_qemu:
     # SIMD backends no hosted runner provides, run under qemu-user
-    runs-on: ubuntu-24.04
+    runs-on: ${{ matrix.os || 'ubuntu-24.04' }}
     strategy:
       fail-fast: false
       matrix:
@@ -221,6 +221,25 @@ jobs:
             processor: ppc64le
             qemu: qemu-ppc64le
             flags: ""
+          # ubuntu-26.04 for GCC 15: GCC lowers fixed-length vector types to
+          # RVV from version 14 on, ubuntu-24.04 has GCC 13. The two VLENs
+          # cover 4 doubles in two registers and in one.
+          - name: riscv64-rvv-vlen128
+            os: ubuntu-26.04
+            triple: riscv64-linux-gnu
+            processor: riscv64
+            qemu: qemu-riscv64
+            qemu_cpu: rv64,v=true,vlen=128
+            flags: -march=rv64gcv
+            backend: "float: RVV, double: RVV"
+          - name: riscv64-rvv-vlen256
+            os: ubuntu-26.04
+            triple: riscv64-linux-gnu
+            processor: riscv64
+            qemu: qemu-riscv64
+            qemu_cpu: rv64,v=true,vlen=256
+            flags: -march=rv64gcv_zvl256b
+            backend: "float: RVV, double: RVV"
     name: build_linux_cross_qemu (${{ matrix.name }})
 
     steps:
@@ -238,15 +257,23 @@ jobs:
         TRIPLE: ${{ matrix.triple }}
         PROCESSOR: ${{ matrix.processor }}
         QEMU: ${{ matrix.qemu }}
+        QEMU_CPU: ${{ matrix.qemu_cpu }}
         FLAGS: ${{ matrix.flags }}
+        BACKEND: ${{ matrix.backend }}
       run: |
         cmake -S . -B build -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
           -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR="$PROCESSOR" \
           -DCMAKE_C_COMPILER="$TRIPLE-gcc" -DCMAKE_CXX_COMPILER="$TRIPLE-g++" \
           -DCMAKE_C_FLAGS="$FLAGS" -DCMAKE_CXX_FLAGS="$FLAGS" \
           -DMATH_LIBRARY="/usr/$TRIPLE/lib/libm.so" \
-          "-DCMAKE_CROSSCOMPILING_EMULATOR=$QEMU;-L;/usr/$TRIPLE" \
-          -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DPFFFT_BUILD_EXAMPLES=OFF
+          "-DCMAKE_CROSSCOMPILING_EMULATOR=$QEMU;-L;/usr/$TRIPLE${QEMU_CPU:+;-cpu;$QEMU_CPU}" \
+          -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DPFFFT_BUILD_EXAMPLES=OFF \
+          > configure.log
+        cat configure.log
+        # fail when the SIMD backend is not the expected one
+        if [ -n "$BACKEND" ]; then
+          grep -F "Detected SIMD backend for PFFFT: $BACKEND" configure.log
+        fi
     - name: build
       run: cmake --build build --parallel
     - name: test
@@ -257,6 +284,7 @@ jobs:
         TRIPLE: ${{ matrix.triple }}
         PROCESSOR: ${{ matrix.processor }}
         QEMU: ${{ matrix.qemu }}
+        QEMU_CPU: ${{ matrix.qemu_cpu }}
         FLAGS: ${{ matrix.flags }}
       run: |
         cmake -S . -B build_passes_off -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
@@ -264,7 +292,7 @@ jobs:
           -DCMAKE_C_COMPILER="$TRIPLE-gcc" -DCMAKE_CXX_COMPILER="$TRIPLE-g++" \
           -DCMAKE_C_FLAGS="$FLAGS" -DCMAKE_CXX_FLAGS="$FLAGS" \
           -DMATH_LIBRARY="/usr/$TRIPLE/lib/libm.so" \
-          "-DCMAKE_CROSSCOMPILING_EMULATOR=$QEMU;-L;/usr/$TRIPLE" \
+          "-DCMAKE_CROSSCOMPILING_EMULATOR=$QEMU;-L;/usr/$TRIPLE${QEMU_CPU:+;-cpu;$QEMU_CPU}" \
           -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DPFFFT_BUILD_EXAMPLES=OFF \
           -DPFFFT_TERMINAL_RADIX8=OFF -DPFFFT_INPLACE_FIRST_PASS=OFF
         cmake --build build_passes_off --parallel

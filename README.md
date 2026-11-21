@@ -28,13 +28,14 @@ PFFFT does 1D Fast Fourier Transforms, of single precision real and
 complex vectors. It tries do it fast, it tries to be correct, and it
 tries to be small. Computations do take advantage of SSE1/AVX/AVX2 instructions
 on x86 cpus, Altivec (float) and VSX (double) on powerpc cpus, NEON on ARM cpus
-(including Apple Silicon), and WASM SIMD on WebAssembly. The license is BSD-like.
+(including Apple Silicon), RVV on RISC-V and WASM SIMD on WebAssembly. The
+license is BSD-like.
 
 The SIMD backend is picked at compile time from what the compiler targets:
 NEON whenever it is enabled (always on AArch64; on 32-bit ARM with e.g.
-`-mfpu=neon`), VSX with e.g. `-mcpu=power7` (the ppc64le default), WASM SIMD
-with `-msimd128`. `cmake` reports the choice, e.g.
-`Detected SIMD backend for PFFFT: float: NEON, double: NEON`.
+`-mfpu=neon`), VSX with e.g. `-mcpu=power7` (the ppc64le default), RVV with
+e.g. `-march=rv64gcv`, WASM SIMD with `-msimd128`. `cmake` reports the
+choice, e.g. `Detected SIMD backend for PFFFT: float: NEON, double: NEON`.
 
 PFFFT is a fork of [Julien Pommier's library on bitbucket](https://bitbucket.org/jpommier/pffft/)
 with some changes and additions. This repository,
@@ -146,7 +147,7 @@ sudo apt-get install cmake-curses-gui
 Some of the options:
 * `PFFFT_USE_TYPE_FLOAT` to activate single precision 'float' (default: ON)
 * `PFFFT_USE_TYPE_DOUBLE` to activate 'double' precision float (default: ON)
-* `PFFFT_USE_SIMD` to use SIMD (SSE/AVX/NEON/ALTIVEC/WASM SIMD) CPU features? (default: ON)
+* `PFFFT_USE_SIMD` to use SIMD (SSE/AVX/NEON/ALTIVEC/VSX/RVV/WASM SIMD) CPU features? (default: ON)
 * `PFFFT_USE_SCALAR_VECT` to use 4-element vector scalar operations (if no other SIMD) (default: ON)
 * `PFFFT_USE_WASM_RELAXED_SIMD` to use WebAssembly Relaxed SIMD multiply-add instructions, which may be fused when supported by the runtime (default: OFF)
 
@@ -535,6 +536,29 @@ If you build for Emscripten without the bundled CMake config (e.g. a raw
 `emcc`/Makefile/Bazel invocation), compile with `-msimd128` to select the WASM
 SIMD backend; `PFFFT_ENABLE_WASM` is no longer needed.
 
+### RISC-V: RVV backend
+
+The RVV backend (`src/simd/pf_rvv_float.h`, `src/simd/pf_rvv_double.h`, by
+Michael Neuling, from marton78/pffft) uses fixed-length GCC/Clang vector types,
+which the compiler lowers to RVV 1.0 instructions: 4 floats need VLEN >= 128,
+4 doubles are one register with VLEN >= 256 and two with VLEN = 128. It is
+selected when the compiler targets vector floats with VLEN >= 128 (the V
+extension, or Zve32f / Zve64d with Zvl128b; Zve64d or V for double), as with
+every other backend; the usual toolchain default `rv64gc` keeps the scalar code. Cross
+builds therefore need the architecture, e.g.
+
+```sh
+cmake -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=riscv64 \
+      -DCMAKE_C_COMPILER=riscv64-linux-gnu-gcc -DCMAKE_CXX_COMPILER=riscv64-linux-gnu-g++ \
+      -DTARGET_C_ARCH=rv64gcv -DTARGET_CXX_ARCH=rv64gcv \
+      "-DCMAKE_CROSSCOMPILING_EMULATOR=qemu-riscv64;-L;/usr/riscv64-linux-gnu;-cpu;rv64,v=true,vlen=128" ..
+```
+
+and `rv64gcv_zvl256b` tells the compiler VLEN >= 256, so 4 doubles fit one
+register. Native builds use `-march=native` where the compiler accepts it.
+Fused multiply-add is explicit, as on the other backends (GCC does not contract
+`a * b + c` in ISO C mode); `PFFFT_DISABLE_FMA` turns it off.
+
 ## Using pffft in your CMake project
 
 pffft can be included as a dependency in your CMake project via `FetchContent` or `add_subdirectory()`. When used this way, tests, benchmarks, examples, and the standalone `uninstall` helper target are automatically disabled, so pffft won't pollute your build or ctest runner with unnecessary targets or cause target-name collisions.
@@ -605,6 +629,7 @@ Git history shows following first commits of the major contributors:
 * Gunj Joshi: April 1, 2025
 * Aleksey Vaneev: December 20, 2025
 * Sergi Granell (xerpi): February 26, 2026
+* Michael Neuling: May 26, 2026
 * arancormonk: October 12, 2026
 
 There are a few other contributors not listed here.
@@ -853,7 +878,7 @@ an explanation of why the change was not ported.
 
 For reproducible unfused arithmetic, configure `PFFFT_DISABLE_FMA=ON` and
 disable compiler contraction (for GCC/Clang, `-ffp-contract=off`). This option
-disables explicit FMA in x86, NEON, AltiVec and relaxed WebAssembly SIMD
-backends; it defaults to OFF. Direct source builds may define
+disables explicit FMA in x86, NEON, AltiVec, VSX, RVV and relaxed WebAssembly
+SIMD backends; it defaults to OFF. Direct source builds may define
 `PFFFT_DISABLE_FMA=1` instead. Setup allocation failures return NULL and
 release all partial allocations.

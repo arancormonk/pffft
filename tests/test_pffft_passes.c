@@ -110,7 +110,10 @@ static int t_within(double err, double limit) {
    folded into t_max_err() and t_within(), they stop the build with warning
    C4756 (overflow in constant arithmetic) as an error. A volatile value
    cannot be folded: DBL_MAX times 2 is an infinity, and an infinity minus
-   itself is a NaN (no division by zero, which is warning C4723). */
+   itself is a NaN (no division by zero, which is warning C4723). The two
+   reads of the volatile are separate statements: in one expression their
+   order is unsequenced, which the clang of Emscripten 7.0.1 reports
+   (-Wunsequenced-volatile). */
 static double t_inf(void) {
   volatile double big = DBL_MAX;
   return big * 2.0;
@@ -118,7 +121,9 @@ static double t_inf(void) {
 
 static double t_nan(void) {
   volatile double inf = t_inf();
-  return inf - inf;
+  const double a = inf;
+  const double b = inf;
+  return a - b;
 }
 
 /* t_max_err() and t_within(): an error that is NaN or infinite, anywhere

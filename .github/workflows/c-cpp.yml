@@ -222,14 +222,17 @@ jobs:
             qemu: qemu-ppc64le
             flags: ""
           # ubuntu-26.04 for GCC 15: GCC lowers fixed-length vector types to
-          # RVV from version 14 on, ubuntu-24.04 has GCC 13. The two VLENs
-          # cover 4 doubles in two registers and in one.
+          # RVV from version 14 on, ubuntu-24.04 has GCC 13. Its riscv64
+          # libraries need the RVA23 profile (which includes V), hence the
+          # rva23u64 CPU. The two VLENs cover 4 doubles in two registers
+          # and in one. EMU_CPU, not QEMU_CPU: qemu-user reads QEMU_CPU
+          # from the environment, also in the steps that run ctest.
           - name: riscv64-rvv-vlen128
             os: ubuntu-26.04
             triple: riscv64-linux-gnu
             processor: riscv64
             qemu: qemu-riscv64
-            qemu_cpu: rv64,v=true,vlen=128
+            qemu_cpu: rva23u64,vlen=128
             flags: -march=rv64gcv
             backend: "float: RVV, double: RVV"
           - name: riscv64-rvv-vlen256
@@ -237,7 +240,7 @@ jobs:
             triple: riscv64-linux-gnu
             processor: riscv64
             qemu: qemu-riscv64
-            qemu_cpu: rv64,v=true,vlen=256
+            qemu_cpu: rva23u64,vlen=256
             flags: -march=rv64gcv_zvl256b
             backend: "float: RVV, double: RVV"
     name: build_linux_cross_qemu (${{ matrix.name }})
@@ -257,7 +260,7 @@ jobs:
         TRIPLE: ${{ matrix.triple }}
         PROCESSOR: ${{ matrix.processor }}
         QEMU: ${{ matrix.qemu }}
-        QEMU_CPU: ${{ matrix.qemu_cpu }}
+        EMU_CPU: ${{ matrix.qemu_cpu }}
         FLAGS: ${{ matrix.flags }}
         BACKEND: ${{ matrix.backend }}
       run: |
@@ -266,7 +269,7 @@ jobs:
           -DCMAKE_C_COMPILER="$TRIPLE-gcc" -DCMAKE_CXX_COMPILER="$TRIPLE-g++" \
           -DCMAKE_C_FLAGS="$FLAGS" -DCMAKE_CXX_FLAGS="$FLAGS" \
           -DMATH_LIBRARY="/usr/$TRIPLE/lib/libm.so" \
-          "-DCMAKE_CROSSCOMPILING_EMULATOR=$QEMU;-L;/usr/$TRIPLE${QEMU_CPU:+;-cpu;$QEMU_CPU}" \
+          "-DCMAKE_CROSSCOMPILING_EMULATOR=$QEMU;-L;/usr/$TRIPLE${EMU_CPU:+;-cpu;$EMU_CPU}" \
           -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DPFFFT_BUILD_EXAMPLES=OFF \
           > configure.log
         cat configure.log
@@ -284,7 +287,7 @@ jobs:
         TRIPLE: ${{ matrix.triple }}
         PROCESSOR: ${{ matrix.processor }}
         QEMU: ${{ matrix.qemu }}
-        QEMU_CPU: ${{ matrix.qemu_cpu }}
+        EMU_CPU: ${{ matrix.qemu_cpu }}
         FLAGS: ${{ matrix.flags }}
       run: |
         cmake -S . -B build_passes_off -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
@@ -292,7 +295,7 @@ jobs:
           -DCMAKE_C_COMPILER="$TRIPLE-gcc" -DCMAKE_CXX_COMPILER="$TRIPLE-g++" \
           -DCMAKE_C_FLAGS="$FLAGS" -DCMAKE_CXX_FLAGS="$FLAGS" \
           -DMATH_LIBRARY="/usr/$TRIPLE/lib/libm.so" \
-          "-DCMAKE_CROSSCOMPILING_EMULATOR=$QEMU;-L;/usr/$TRIPLE${QEMU_CPU:+;-cpu;$QEMU_CPU}" \
+          "-DCMAKE_CROSSCOMPILING_EMULATOR=$QEMU;-L;/usr/$TRIPLE${EMU_CPU:+;-cpu;$EMU_CPU}" \
           -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DPFFFT_BUILD_EXAMPLES=OFF \
           -DPFFFT_TERMINAL_RADIX8=OFF -DPFFFT_INPLACE_FIRST_PASS=OFF
         cmake --build build_passes_off --parallel

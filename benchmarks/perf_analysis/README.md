@@ -230,8 +230,6 @@ small differences are especially insufficient evidence of a win.
 | x86-64 | SSE float, SSE2 pairs or AVX double | Measured on this host. GCC mixer vectorization is the largest new loop win; AVX double selection is an existing build win. |
 | ARM64 | NEON float, two NEON registers per four doubles | FFT fusion uses existing macros and passed ARM64 correctness tests under QEMU. Mixer prototype also compiled and passed the stated continuity/low-rate checks. Physical ARM64 performance still needs measurement. |
 | ARMv7 | NEON float; scalar fallback for double | Shared FFT fusion is structurally applicable. Compiler load/store behavior needs native measurement. |
-| PowerPC | AltiVec float / VSX double | Shared FFT layout macros make fusion applicable in principle. No performance result claimed. |
-| WebAssembly | SIMD128 float and paired double | Fusion can remove a memory traversal without requiring relaxed SIMD. No browser/runtime performance result claimed. |
 | Scalar fallback | Scalar or four-element scalar representation | Preserve this path; it is not evidence for vector hardware speedups. |
 
 ARM64 already has NEON FMA paths in the FFT headers. The x86 SSE2→AVX width
@@ -380,7 +378,7 @@ the gate is 0.001 across all tested rates. The original library fails this test.
 Release presets provide baseline, native, explicit Haswell, and native unfused
 configurations. `PFFFT_DISABLE_FMA` now reaches PFDSP as well as PFFFT. CI tests
 all four presets with GCC and Clang, and the mixer regression test joins the
-existing ARM64, ARMv7, PowerPC, WebAssembly, Windows, and macOS matrix.
+existing ARM64, ARMv7, Windows, and macOS matrix.
 
 Local validation passed 24/24 tests for GCC baseline/native/Haswell/unfused,
 Clang native, and both scalar configurations; AddressSanitizer passed 22/22
@@ -526,8 +524,7 @@ runtime, see the top-level [README](../../README.md#x86-8-lane-avx2-float-transf
 Independently of the lane count, the complex transforms now deinterleave
 their input inside the first FFTPACK pass and interleave the result inside
 the last backward pass ([pffft_passes_impl.h](../../src/pffft_passes_impl.h)),
-for all 4-lane backends (SSE, AVX double, NEON, AltiVec/VSX, WASM, scalar
-vectors) as well.
+for all 4-lane backends (SSE, AVX double, NEON, and scalar vectors) as well.
 
 ### Why the width, not the radix
 
@@ -1283,9 +1280,8 @@ these.
 
 ### Not measured
 
-- PowerPC (AltiVec/VSX) and ARMv7 only run the test suite, under emulation
-  in CI; WebAssembly only runs the tests. MSVC builds and 32-bit x86 were
-  not timed.
+- ARMv7 runs the test suite under emulation in CI. MSVC builds and 32-bit
+  x86 were not timed.
 - No Intel CPU other than the Haswell-EP Xeon. Desktop Zen 3 (Vermeer),
   which has a size table of its own, only in the two code-placement files
   of the Ryzen 9 5950X (item 1).

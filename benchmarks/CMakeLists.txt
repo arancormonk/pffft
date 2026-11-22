@@ -71,7 +71,6 @@ if (PFFFT_USE_TYPE_FLOAT)
     if ( (CMAKE_SYSTEM_PROCESSOR STREQUAL "i686") OR (CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64") )
       # has chances to work
     else()
-      # other PROCESSORs could be "ppc", "ppc64",  "arm", "aarch64", "armv7l" - or something else?!
       message(WARNING "using Intel MKL on '${CMAKE_SYSTEM_PROCESSOR}' might fail.")
     endif()
     message(STATUS "In case compiling/linking with Intel MKL fails, check CMakeLists.txt or deactivate PFFFT_USE_BENCH_MKL")
@@ -109,7 +108,6 @@ if (PFFFT_USE_TYPE_DOUBLE)
     if ( (CMAKE_SYSTEM_PROCESSOR STREQUAL "i686") OR (CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64") )
       # has chances to work
     else()
-      # other PROCESSORs could be "ppc", "ppc64",  "arm", "aarch64", "armv7l" - or something else?!
       message(WARNING "using Intel MKL on '${CMAKE_SYSTEM_PROCESSOR}' might fail.")
     endif()
     message(STATUS "In case compiling/linking with Intel MKL fails, check CMakeLists.txt or deactivate PFFFT_USE_BENCH_MKL")
@@ -121,6 +119,8 @@ endif()
 ######################################################
 
 if (PFFFT_USE_TYPE_FLOAT)
+    find_package(PAPI)
+    find_package(MIPP)
 
     add_executable(bench_pf_mixer_float   bench_mixers.cpp papi_perf_counter.h)
     set_property(TARGET bench_pf_mixer_float PROPERTY CXX_STANDARD 11)

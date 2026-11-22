@@ -38,8 +38,7 @@
    - 1D transforms only, with 32-bit single precision.
 
    - all (float*) pointers in the functions below are expected to
-   have an "simd-compatible" alignment, that is 16 bytes on x86 and
-   powerpc CPUs.
+   be aligned to a 16-byte boundary.
   
    You can allocate such buffers with the functions
    pffft_aligned_malloc / pffft_aligned_free (or with stuff like
@@ -176,7 +175,7 @@ extern "C" {
   PFFASTCONV_EXPORT void *pffastconv_malloc(size_t nb_bytes);
   PFFASTCONV_EXPORT void pffastconv_free(void *);
 
-  /* return 4 or 1 wether support SSE/Altivec instructions was enabled when building pffft.c */
+  /* Return the lane count of the build's default implementation (4 or 1). */
   PFFASTCONV_EXPORT int pffastconv_simd_size(void);
 
 

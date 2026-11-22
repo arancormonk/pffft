@@ -3,15 +3,15 @@
 # Typical usage:
 #    *) install cross compiler: `sudo apt-get install mingw-w64`
 #    *) cd build
-#    *) cmake -DCMAKE_TOOLCHAIN_FILE=~/mingw-w32-i686.cmake ..
+#    *) cmake -DCMAKE_TOOLCHAIN_FILE=../mingw-w32-i686.cmake ..
 #
 # build for Windows' 32 bit architecture
 
 set(CMAKE_SYSTEM_NAME Windows)
-set(CMAKE_SYSTEM_PROCESSOR x86_64)
+set(CMAKE_SYSTEM_PROCESSOR i686)
 set(TOOLCHAIN_PREFIX i686-w64-mingw32)
 
-# cross compilers to use for C, C++ and Fortran
+# cross compilers to use for C, C++ and Windows resources
 set(CMAKE_C_COMPILER ${TOOLCHAIN_PREFIX}-gcc)
 set(CMAKE_CXX_COMPILER ${TOOLCHAIN_PREFIX}-g++)
 set(CMAKE_RC_COMPILER ${TOOLCHAIN_PREFIX}-windres)

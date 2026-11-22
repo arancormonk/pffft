@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   msvc:
-    runs-on: windows-2022
+    runs-on: windows-latest
     strategy:
       fail-fast: false
       matrix:
@@ -57,7 +57,7 @@ jobs:
       run: |
         mkdir -p out
         { cl -Bv 2>&1 || true; clang-cl --version 2>&1 || true; clang --version 2>&1 | head -1 || true; objdump --version | head -1 || true; } | tee out/versions.txt
-        wmic cpu get name 2>/dev/null | tee -a out/versions.txt || true
+        pwsh -NoProfile -Command '(Get-CimInstance Win32_Processor).Name' | tee -a out/versions.txt
     - name: configure
       shell: bash
       run: |
@@ -96,7 +96,7 @@ jobs:
         path: out
 
   mingw:
-    runs-on: windows-2022
+    runs-on: windows-latest
     defaults:
       run:
         shell: msys2 {0}
@@ -126,7 +126,7 @@ jobs:
 
   msvc-bench:
     # benchmark drivers for the MSVC builds, run on the Zen 3 host under wine
-    runs-on: windows-2022
+    runs-on: windows-latest
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:

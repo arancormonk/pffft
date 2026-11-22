@@ -52,17 +52,17 @@ ctest -R test_pffft_passes_float   # white-box tests of the passes, plans and pa
 ctest -R test_pffft_passes_double
 ctest -R test_pffft_pass_config    # pffft_pass_config.h: defaults; any definition becomes the literal 0 or 1
 
-# Run specific test executable directly (after build)
-./test_fft_factors
-./test_pffft_float
-./test_pffft_double
-./test_pffastconv --no-bench --quick
+# Run test executables from the build directory
+./tests/test_fft_factors
+./tests/test_pffft_float
+./tests/test_pffft_double
+./tests/test_pffastconv --no-bench --quick
 
-# Run benchmark tests
-./bench_pffft_float --max-len 128 --quick
-./bench_pffft_float --non-pow2 --max-len 192 --quick
-./bench_mixers
-./bench_conv
+# Run benchmarks from the build directory
+./benchmarks/bench_pffft_float --max-len 128 --quick
+./benchmarks/bench_pffft_float --non-pow2 --max-len 192 --quick
+./benchmarks/bench_pf_mixer_float
+./benchmarks/bench_pf_conv_float
 
 # Debug with AddressSanitizer (must rebuild)
 cmake -DPFFFT_USE_DEBUG_ASAN=ON ..

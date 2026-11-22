@@ -49,8 +49,8 @@
    PFFFT : a Pretty Fast FFT.
 
    This is basically an adaptation of the single precision fftpack
-   (v4) as found on netlib taking advantage of SIMD instruction found
-   on cpus such as intel x86 (SSE1), powerpc (Altivec), and arm (NEON).
+   (v4) as found on netlib using SIMD instructions
+   on x86 (SSE) and Arm (NEON).
    
    For architectures where no SIMD instruction is available, the code
    falls back to a scalar version.  
@@ -68,8 +68,7 @@
    also accept a = 4, scalar builds much smaller N), and N <= 2^26.
 
    - all (float*) pointers in the functions below are expected to
-   have an "simd-compatible" alignment, that is 16 bytes on x86 and
-   powerpc CPUs.
+   be aligned to a 16-byte boundary.
   
    You can allocate such buffers with the functions
    pffft_aligned_malloc / pffft_aligned_free (or with stuff like
@@ -291,7 +290,7 @@ extern "C" {
   */
   PFFFT_EXPORT void PFFFT_DEPRECATED pffft_zconvolve_no_accu(const PFFFT_Setup *setup, const float *dft_a, const float *dft_b, float *dft_ab, float scaling);
 
-  /* return 4 or 1 wether support SSE/NEON/Altivec instructions was enabled when building pffft.c */
+  /* Return the lane count of the build's default implementation (4 or 1). */
   PFFFT_EXPORT int pffft_simd_size(void);
 
   /* number of SIMD lanes the implementation behind 'setup' uses: usually
@@ -300,7 +299,7 @@ extern "C" {
      for what that means for the unordered spectrum layout) */
   PFFFT_EXPORT int pffft_setup_simd_size(const PFFFT_Setup *setup);
 
-  /* return string identifier of used architecture (SSE/NEON/Altivec/..) */
+  /* Return the name of the build's default SIMD or scalar backend. */
   PFFFT_EXPORT const char * pffft_simd_arch(void);
 
 
@@ -333,9 +332,7 @@ extern "C" {
   PFFFT_EXPORT int pffft_nearest_transform_size(int N, pffft_transform_t cplx, int higher);
 
   /*
-    the float buffers must have the correct alignment (16-byte boundary
-    on intel and powerpc). This function may be used to obtain such
-    correctly aligned buffers.
+    Allocate a buffer with the 16-byte alignment required for portable use.
   */
   PFFFT_EXPORT void *pffft_aligned_malloc(size_t nb_bytes);
   PFFFT_EXPORT void pffft_aligned_free(void *);

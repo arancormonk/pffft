@@ -5,3 +5,10 @@ build_*
 
 __pycache__/
 *.pyc
+
+# FFT benchmark output written in the repository root
+/bench-fft-table-*.txt
+/simd-cplx-*.csv
+/simd-real-*.csv
+/scal-cplx-*.csv
+/scal-real-*.csv

@@ -12,7 +12,7 @@
 # be wrong or surprising:
 #   - pffft is built as a dependency (add_subdirectory / FetchContent),
 #   - cross compiling, Android, iOS (also through an iOS/tvOS/watchOS/visionOS
-#     CMAKE_OSX_SYSROOT) or Emscripten,
+#     CMAKE_OSX_SYSROOT),
 #   - CMAKE_OSX_ARCHITECTURES names several or a non-host architecture,
 #   - the compiler flags of any configuration already select an ISA (-march=,
 #     -mcpu=, /arch:), which also covers distribution CFLAGS such as makepkg's
@@ -67,7 +67,7 @@ function(pffft_native_arch_default lang out_var)
         set(_reason "built as a dependency")
     elseif (CMAKE_CROSSCOMPILING)
         set(_reason "cross compiling")
-    elseif (ANDROID OR IOS OR EMSCRIPTEN)
+    elseif (ANDROID OR IOS)
         set(_reason "${CMAKE_SYSTEM_NAME} target")
     elseif (_pffft_osx_sysroot MATCHES "(iphone|appletv|watch|xr)(os|simulator)")
         set(_reason "CMAKE_OSX_SYSROOT='${CMAKE_OSX_SYSROOT}' is not a macOS SDK")

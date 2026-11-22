@@ -24,18 +24,17 @@
 
 ## Brief description:
 
-PFFFT does 1D Fast Fourier Transforms, of single precision real and
-complex vectors. It tries do it fast, it tries to be correct, and it
-tries to be small. Computations do take advantage of SSE1/AVX/AVX2 instructions
-on x86 cpus, Altivec (float) and VSX (double) on powerpc cpus, NEON on ARM cpus
-(including Apple Silicon), RVV on RISC-V and WASM SIMD on WebAssembly. The
-license is BSD-like.
+PFFFT computes one-dimensional real and complex FFTs in single and double
+precision. The supported architectures are 32-bit and 64-bit x86 and Arm,
+including Apple Silicon. The license is BSD-like.
 
-The SIMD backend is picked at compile time from what the compiler targets:
-NEON whenever it is enabled (always on AArch64; on 32-bit ARM with e.g.
-`-mfpu=neon`), VSX with e.g. `-mcpu=power7` (the ppc64le default), RVV with
-e.g. `-march=rv64gcv`, WASM SIMD with `-msimd128`. `cmake` reports the
-choice, e.g. `Detected SIMD backend for PFFFT: float: NEON, double: NEON`.
+On x86, the compiler target selects SSE for float and SSE2 or AVX for double.
+On x86-64, eligible float transforms can also use AVX2 at runtime. Arm uses
+NEON for float and, on AArch64, for double. On 32-bit Arm, a compiler flag
+such as `-mfpu=neon` enables the float backend. Each precision falls back
+to scalar code when its SIMD backend is unavailable or SIMD is disabled.
+CMake reports the selected backends, for example
+`Detected SIMD backend for PFFFT: float: NEON, double: NEON`.
 
 PFFFT is a fork of [Julien Pommier's library on bitbucket](https://bitbucket.org/jpommier/pffft/)
 with some changes and additions. This repository,
@@ -147,9 +146,8 @@ sudo apt-get install cmake-curses-gui
 Some of the options:
 * `PFFFT_USE_TYPE_FLOAT` to activate single precision 'float' (default: ON)
 * `PFFFT_USE_TYPE_DOUBLE` to activate 'double' precision float (default: ON)
-* `PFFFT_USE_SIMD` to use SIMD (SSE/AVX/NEON/ALTIVEC/VSX/RVV/WASM SIMD) CPU features? (default: ON)
+* `PFFFT_USE_SIMD` enables x86 or Arm SIMD instructions (default: ON)
 * `PFFFT_USE_SCALAR_VECT` to use 4-element vector scalar operations (if no other SIMD) (default: ON)
-* `PFFFT_USE_WASM_RELAXED_SIMD` to use WebAssembly Relaxed SIMD multiply-add instructions, which may be fused when supported by the runtime (default: OFF)
 
 Options can be passed to `cmake` at command line, e.g.
 ```
@@ -179,20 +177,6 @@ ctest -C Release
 
 see [https://cmake.org/cmake/help/v3.15/manual/cmake-generators.7.html#visual-studio-generators](https://cmake.org/cmake/help/v3.15/manual/cmake-generators.7.html#visual-studio-generators)
 
-With [Emscripten](https://emscripten.org/) for WebAssembly (requires the [Emscripten SDK](https://emscripten.org/docs/getting_started/downloads.html)):
-
-```sh
-mkdir build
-cd build
-emcmake cmake ..
-cmake --build .
-ctest
-```
-
-WASM SIMD is enabled automatically when building with Emscripten; see
-[Performance and architecture notes](#performance-and-architecture-notes) for
-the Relaxed SIMD option and the non-CMake build flags.
-
 ## Performance and architecture notes
 
 Compiler- and architecture-specific tips for getting the best performance out
@@ -210,7 +194,7 @@ of the 8-lane AVX2 float implementation per setup, see
 
 The default stays at the compiler's baseline ISA (`none`) when host tuning would
 be wrong: when pffft is built as a dependency (`add_subdirectory`,
-`FetchContent`), when cross compiling (Android, iOS and Emscripten included),
+`FetchContent`), when cross compiling (including Android and iOS),
 when `CMAKE_OSX_ARCHITECTURES` names several or a non-host architecture, when
 `CMAKE_C_FLAGS`/`CMAKE_CXX_FLAGS` already select an ISA (`-march=`, `-mcpu=`,
 `/arch:`, as distribution build flags usually do), or when the compiler rejects
@@ -486,8 +470,8 @@ on its two runners, per size down to 0.920 at N >= 4096, and
 `pffft_zreorder` in float reads 1.11 to 1.71; neither shows in the x86-64
 baseline build on the same runners, and the cause was not examined.
 The slower cases (among them the real in-place transforms at N = 2048 on 4
-lanes and the Cortex-A53 at middle sizes), what was not measured (PowerPC,
-ARMv7 and WebAssembly only run the tests; MSVC builds, 32-bit x86 and
+lanes and the Cortex-A53 at middle sizes), what was not measured (ARMv7 only runs
+the tests in CI, and MSVC builds, 32-bit x86 and
 Intel CPUs other than the Haswell-EP Xeon were not timed), the method and
 the raw samples are in the [performance
 analysis](benchmarks/perf_analysis/README.md#terminal-radix-8-pass-and-in-place-first-pass).
@@ -518,46 +502,6 @@ by the ARM maintainer. So we recommend to **use Clang when targeting ARMv7**.
 
 `cmake` prints a reminder when it sees gcc targeting ARMv7. Note that this applies
 only to 32-bit ARM, on AArch64 both compilers are fine.
-
-### WebAssembly: SIMD backend and Relaxed SIMD
-
-pffft has a dedicated WASM SIMD backend using native `wasm_simd128.h`
-intrinsics for both float and double precision.
-
-> **Performance tip:** enable [Relaxed SIMD](https://github.com/WebAssembly/relaxed-simd) for a measured **6-11% throughput gain** on FFT sizes of 1024 and up, on [runtimes that support it](https://caniuse.com/mdn-webassembly_relaxed-simd) (e.g. V8/Chrome, Node.js):
->
-> ```sh
-> emcmake cmake -DPFFFT_USE_WASM_RELAXED_SIMD=ON ..
-> ```
->
-> This uses relaxed multiply-add instructions, which the runtime may fuse into a single-rounding FMA, or fall back to a two-rounding multiply followed by add/subtract. It is **off by default** because relaxed SIMD results are not guaranteed bit-identical across engines or hardware (unlike the default WASM SIMD path); enable it only if your application tolerates ULP-level differences between runtimes.
-
-If you build for Emscripten without the bundled CMake config (e.g. a raw
-`emcc`/Makefile/Bazel invocation), compile with `-msimd128` to select the WASM
-SIMD backend; `PFFFT_ENABLE_WASM` is no longer needed.
-
-### RISC-V: RVV backend
-
-The RVV backend (`src/simd/pf_rvv_float.h`, `src/simd/pf_rvv_double.h`, by
-Michael Neuling, from marton78/pffft) uses fixed-length GCC/Clang vector types,
-which the compiler lowers to RVV 1.0 instructions: 4 floats need VLEN >= 128,
-4 doubles are one register with VLEN >= 256 and two with VLEN = 128. It is
-selected when the compiler targets vector floats with VLEN >= 128 (the V
-extension, or Zve32f / Zve64d with Zvl128b; Zve64d or V for double), as with
-every other backend; the usual toolchain default `rv64gc` keeps the scalar code. Cross
-builds therefore need the architecture, e.g.
-
-```sh
-cmake -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=riscv64 \
-      -DCMAKE_C_COMPILER=riscv64-linux-gnu-gcc -DCMAKE_CXX_COMPILER=riscv64-linux-gnu-g++ \
-      -DTARGET_C_ARCH=rv64gcv -DTARGET_CXX_ARCH=rv64gcv \
-      "-DCMAKE_CROSSCOMPILING_EMULATOR=qemu-riscv64;-L;/usr/riscv64-linux-gnu;-cpu;rv64,v=true,vlen=128" ..
-```
-
-and `rv64gcv_zvl256b` tells the compiler VLEN >= 256, so 4 doubles fit one
-register. Native builds use `-march=native` where the compiler accepts it.
-Fused multiply-add is explicit, as on the other backends (GCC does not contract
-`a * b + c` in ISO C mode); `PFFFT_DISABLE_FMA` turns it off.
 
 ## Using pffft in your CMake project
 
@@ -668,8 +612,8 @@ marton78/pffft, maintained by arancormonk, adds:
   in-place first complex pass, each one sweep over the data fewer where it
   applies; see [Pass schedule](#pass-schedule-terminal-radix-8-pass-and-in-place-first-pass)
 * host-tuned top-level builds with portable CI archives, warnings as errors on
-  every platform, CI on Linux, Windows, macOS, ARM64, ARMv7, ppc64le and
-  WebAssembly, and CodeQL scanning
+  every platform, CI on Linux, Windows and macOS with x86 and Arm coverage, and
+  CodeQL scanning
 
 The original repository has also continued to evolve independently, receiving
 portability fixes and warning cleanups from various contributors. Those changes
@@ -878,7 +822,6 @@ an explanation of why the change was not ported.
 
 For reproducible unfused arithmetic, configure `PFFFT_DISABLE_FMA=ON` and
 disable compiler contraction (for GCC/Clang, `-ffp-contract=off`). This option
-disables explicit FMA in x86, NEON, AltiVec, VSX, RVV and relaxed WebAssembly
-SIMD backends; it defaults to OFF. Direct source builds may define
-`PFFFT_DISABLE_FMA=1` instead. Setup allocation failures return NULL and
+disables explicit FMA in the x86 and Arm SIMD backends and defaults to OFF.
+Direct source builds may define `PFFFT_DISABLE_FMA=1` instead. Setup allocation failures return NULL and
 release all partial allocations.

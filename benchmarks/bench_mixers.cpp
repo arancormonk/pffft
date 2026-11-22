@@ -38,33 +38,17 @@
 #define SAVE_BY_DEFAULT  0
 #define SAVE_LIMIT_MSPS           16
 
-#if 0
-  #define BENCH_FILE_SHIFT_MATH_CC           "/home/ayguen/WindowsDesktop/mixer_test/A_shift_math_cc.bin"
-  #define BENCH_FILE_ADD_FAST_CC             "/home/ayguen/WindowsDesktop/mixer_test/C_shift_addfast_cc.bin"
-  #define BENCH_FILE_ADD_FAST_INP_C          "/home/ayguen/WindowsDesktop/mixer_test/C_shift_addfast_inp_c.bin"
-  #define BENCH_FILE_UNROLL_INP_C            "/home/ayguen/WindowsDesktop/mixer_test/D_shift_unroll_inp_c.bin"
-  #define BENCH_FILE_LTD_UNROLL_INP_C        "/home/ayguen/WindowsDesktop/mixer_test/E_shift_limited_unroll_inp_c.bin"
-  #define BENCH_FILE_LTD_UNROLL_A_SSE_INP_C  "/home/ayguen/WindowsDesktop/mixer_test/F_shift_limited_unroll_A_sse_inp_c.bin"
-  #define BENCH_FILE_LTD_UNROLL_B_SSE_INP_C  "/home/ayguen/WindowsDesktop/mixer_test/G_shift_limited_unroll_B_sse_inp_c.bin"
-  #define BENCH_FILE_LTD_UNROLL_C_SSE_INP_C  "/home/ayguen/WindowsDesktop/mixer_test/H_shift_limited_unroll_C_sse_inp_c.bin"
-  #define BENCH_FILE_REC_OSC_CC              ""
-  #define BENCH_FILE_REC_OSC_INP_C           "/home/ayguen/WindowsDesktop/mixer_test/I_shift_recursive_osc_inp_c.bin"
-  #define BENCH_FILE_REC_OSC_SSE_INP_C       "/home/ayguen/WindowsDesktop/mixer_test/J_shift_recursive_osc_sse_inp_c.bin"
-#else
-  #define BENCH_FILE_SHIFT_MATH_CC           ""
-  #define BENCH_FILE_ADD_FAST_CC             ""
-  #define BENCH_FILE_ADD_FAST_INP_C          ""
-  #define BENCH_FILE_UNROLL_INP_C            ""
-  #define BENCH_FILE_LTD_UNROLL_INP_C        ""
-  #define BENCH_FILE_LTD_UNROLL_A_SSE_INP_C  ""
-  #define BENCH_FILE_LTD_UNROLL_B_SSE_INP_C  ""
-  #define BENCH_FILE_LTD_UNROLL_C_SSE_INP_C  ""
-  #define BENCH_FILE_REC_OSC_CC              ""
-  #define BENCH_FILE_REC_OSC_INP_C           ""
-  #define BENCH_FILE_REC_OSC_SSE_INP_C       ""
-#endif
-
-
+#define BENCH_FILE_SHIFT_MATH_CC           ""
+#define BENCH_FILE_ADD_FAST_CC             ""
+#define BENCH_FILE_ADD_FAST_INP_C          ""
+#define BENCH_FILE_UNROLL_INP_C            ""
+#define BENCH_FILE_LTD_UNROLL_INP_C        ""
+#define BENCH_FILE_LTD_UNROLL_A_SSE_INP_C  ""
+#define BENCH_FILE_LTD_UNROLL_B_SSE_INP_C  ""
+#define BENCH_FILE_LTD_UNROLL_C_SSE_INP_C  ""
+#define BENCH_FILE_REC_OSC_CC              ""
+#define BENCH_FILE_REC_OSC_INP_C           ""
+#define BENCH_FILE_REC_OSC_SSE_INP_C       ""
 
 #if defined(HAVE_SYS_TIMES)
     static double ttclk = 0.;

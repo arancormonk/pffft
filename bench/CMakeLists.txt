@@ -14,7 +14,7 @@ else()
 endif()
 
 # architecture/optimization options
-option(PFFFT_USE_SIMD        "use SIMD (SSE/AVX/NEON/ALTIVEC/WASM SIMD/RVV) CPU features?" ON)
+option(PFFFT_USE_SIMD        "Use x86 or Arm SIMD instructions" ON)
 option(PFFFT_USE_SCALAR_VECT "use 4-element vector scalar operations (if no other SIMD)" ON)
 
 option(PFFFT_USE_BENCH_FFTW   "use (system-installed) FFTW3 in fft benchmark?" OFF)

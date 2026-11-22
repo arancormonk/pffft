@@ -26,15 +26,6 @@
 /* benchmark duration: 250 ms */
 #define BENCH_TEST_DURATION_IN_SEC      0.5
 
-/* 
-   vector support macros: the rest of the code is independant of
-   SSE/Altivec/NEON -- adding support for other platforms with 4-element
-   vectors should be limited to these macros 
-*/
-#if 0
-#include "simd/pf_float.h"
-#endif
-
 #if defined(_MSC_VER)
 #  define RESTRICT __restrict
 #elif defined(__GNUC__)

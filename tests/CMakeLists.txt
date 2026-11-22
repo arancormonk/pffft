@@ -17,11 +17,6 @@ if (PFFFT_USE_FFTPACK)
     string(TOUPPER "${prec}" PREC)
     add_executable(test_fftpack_accuracy_${prec} test_fftpack_accuracy.c)
     target_link_libraries(test_fftpack_accuracy_${prec} FFTPACK_${PREC} ${ASANLIB} ${MATHLIB})
-    if (EMSCRIPTEN)
-      # the wsave checks at n = 2 * 3^13 need ~100 MiB (float) to ~200 MiB
-      # (double): far more than Emscripten's fixed 16 MiB heap
-      target_link_options(test_fftpack_accuracy_${prec} PRIVATE "-sALLOW_MEMORY_GROWTH=1")
-    endif()
     add_test(NAME test_fftpack_accuracy_${prec} COMMAND test_fftpack_accuracy_${prec})
   endforeach()
 endif()
@@ -61,7 +56,7 @@ if (PFFFT_USE_TYPE_FLOAT)
   target_link_libraries( test_pffft_wide  PFFFT ${ASANLIB} ${MATHLIB} )
   target_include_directories( test_pffft_wide PRIVATE ${PFFFT_SOURCE_DIR}/src )
   find_package(Threads)
-  if (Threads_FOUND AND NOT WIN32 AND NOT EMSCRIPTEN)
+  if (Threads_FOUND AND NOT WIN32)
     target_compile_definitions( test_pffft_wide PRIVATE PFFFT_TEST_THREADS )
     target_link_libraries( test_pffft_wide Threads::Threads )
   endif()
@@ -227,11 +222,6 @@ foreach(prec float double)
     target_compile_definitions(test_pffft_accuracy_${prec} PRIVATE PFFFT_ENABLE_${PREC})
     target_link_libraries( test_pffft_accuracy_${prec}  PFFFT ${ASANLIB} ${MATHLIB} )
     target_include_directories( test_pffft_accuracy_${prec} PRIVATE ${PFFFT_SOURCE_DIR}/src )
-    if (EMSCRIPTEN)
-      # work == NULL puts 2*N scalars of scratch on the stack (128 KiB for
-      # complex double at N = 8192): more than Emscripten's default stack
-      target_link_options(test_pffft_accuracy_${prec} PRIVATE "-sSTACK_SIZE=1048576")
-    endif()
     add_test(NAME test_pffft_accuracy_${prec} COMMAND test_pffft_accuracy_${prec})
   endif()
 endforeach()
@@ -266,11 +256,6 @@ foreach(prec float double)
     target_include_directories(${_pffft_passes_t} PRIVATE $<TARGET_PROPERTY:PFFFT,INCLUDE_DIRECTORIES>)
     set_target_properties(${_pffft_passes_t} PROPERTIES C_VISIBILITY_PRESET hidden)
     target_link_libraries(${_pffft_passes_t} ${ASANLIB} ${MATHLIB})
-    if (EMSCRIPTEN)
-      # the large-N tests allocate up to about 200 MiB: far more than
-      # Emscripten's fixed 16 MiB heap
-      target_link_options(${_pffft_passes_t} PRIVATE "-sALLOW_MEMORY_GROWTH=1")
-    endif()
     add_test(NAME ${_pffft_passes_t} COMMAND ${_pffft_passes_t})
     if (PFFFT_TEST_REQUIRE_WIDE AND prec STREQUAL "float")
       set_tests_properties(${_pffft_passes_t} PROPERTIES ENVIRONMENT "PFFFT_TEST_REQUIRE_WIDE=1")
@@ -294,14 +279,6 @@ foreach(prec FLOAT DOUBLE)
   endif()
 endforeach()
 target_link_libraries( test_pffft_cpp_api  PFFFT ${STDCXXLIB} ${ASANLIB} )
-if (EMSCRIPTEN)
-  # work memory of up to 4096 complex doubles lives on the stack
-  target_link_options(test_pffft_cpp_api PRIVATE "-sSTACK_SIZE=1048576")
-  # the test catches PFAlloc's std::bad_alloc; Emscripten aborts on throw
-  # unless exception support is enabled
-  target_compile_options(test_pffft_cpp_api PRIVATE "-fexceptions")
-  target_link_options(test_pffft_cpp_api PRIVATE "-fexceptions")
-endif()
 add_test(NAME test_pffft_cpp_api COMMAND test_pffft_cpp_api)
 
 ######################################################
@@ -326,11 +303,6 @@ if (PFFFT_USE_TYPE_DOUBLE)
   target_compile_definitions(test_pffft_cpp PRIVATE PFFFT_ENABLE_DOUBLE)
 endif()
 target_link_libraries( test_pffft_cpp  PFFFT ${STDCXXLIB} ${ASANLIB} )
-if (EMSCRIPTEN)
-  # Fft<> keeps its scratch on the stack up to 4096 points (64 KiB for
-  # complex double): all of Emscripten's default stack.
-  target_link_options(test_pffft_cpp PRIVATE "-sSTACK_SIZE=1048576")
-endif()
 
 ######################################################
 
@@ -343,11 +315,6 @@ if (PFFFT_USE_TYPE_DOUBLE)
   target_compile_definitions(test_pffft_cpp_11 PRIVATE PFFFT_ENABLE_DOUBLE)
 endif()
 target_link_libraries( test_pffft_cpp_11  PFFFT ${STDCXXLIB} ${ASANLIB} )
-if (EMSCRIPTEN)
-  # Fft<> keeps its scratch on the stack up to 4096 points (64 KiB for
-  # complex double): all of Emscripten's default stack.
-  target_link_options(test_pffft_cpp_11 PRIVATE "-sSTACK_SIZE=1048576")
-endif()
 
 set_property(TARGET test_pffft_cpp_11 PROPERTY CXX_STANDARD 11)
 set_property(TARGET test_pffft_cpp_11 PROPERTY CXX_STANDARD_REQUIRED ON)
@@ -368,9 +335,6 @@ if (PFFFT_USE_TYPE_FLOAT)
   endif()
   target_include_directories(test_pffastconv PRIVATE ${PFFFT_SOURCE_DIR}/src)
   target_link_libraries( test_pffastconv  PFFASTCONV ${ASANLIB} ${MATHLIB} )
-  if (EMSCRIPTEN)
-    target_link_options(test_pffastconv PRIVATE "-sALLOW_MEMORY_GROWTH=1")
-  endif()
 
   add_executable(test_pffastconv_modes test_pffastconv_modes.c)
   target_link_libraries(test_pffastconv_modes PFFASTCONV ${ASANLIB} ${MATHLIB})

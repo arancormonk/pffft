@@ -43,18 +43,13 @@ set(GCC_EXTRA_OPT_neon_rpi4_a72 "-mfloat-abi=hard" "-mfpu=neon-fp-armv8" "-mtune
 set(GCC_EXTRA_OPT_apple_m1      "-mcpu=apple-m1")
 
 # pffft is compiled with the toolchain's default target flags, plus
-# TARGET_C_ARCH / TARGET_C_EXTRA if set; on WebAssembly,
-# target_set_c_arch_flags() adds its own flags instead. pf_float.h /
+# TARGET_C_ARCH / TARGET_C_EXTRA if set. pf_float.h /
 # pf_double.h select the SIMD backend from the compiler's predefined macros
-# (__SSE__, __ARM_NEON, __ALTIVEC__, ...). E.g. the Android NDK enables NEON
+# (__SSE__, __ARM_NEON, ...). E.g. the Android NDK enables NEON
 # for armeabi-v7a by default, so pffft uses NEON there; Debian's armhf gcc
 # needs -mfpu=neon or a neon_* preset for it.
 #
 # These targets get extra handling, recognised by PFFFT_TARGET_PROCESSOR:
-#   - WebAssembly: target_set_c_arch_flags() adds -msimd128 for WASM SIMD,
-#     and -mrelaxed-simd with PFFFT_USE_WASM_RELAXED_SIMD, in place of
-#     TARGET_C_ARCH / TARGET_C_EXTRA. Checked first, as Emscripten's
-#     toolchain file reports "x86".
 #   - x86: the FMA reminder and the baseline check below, the /arch choices
 #     offered for MSVC, and the build host's /arch level as the MSVC default
 #     (native_arch.cmake).
@@ -79,9 +74,7 @@ if ((CMAKE_C_COMPILER_ID STREQUAL "MSVC" OR CMAKE_C_SIMULATE_ID STREQUAL "MSVC")
 else()
     string(TOLOWER "${CMAKE_SYSTEM_PROCESSOR}" PFFFT_TARGET_PROCESSOR)
 endif()
-if (EMSCRIPTEN OR (PFFFT_TARGET_PROCESSOR MATCHES "^wasm"))
-    set(PFFFT_TARGET_IS_WASM TRUE)
-elseif (PFFFT_TARGET_PROCESSOR MATCHES "^(x86|x86_64|x64|amd64|i[3-6]86)$")
+if (PFFFT_TARGET_PROCESSOR MATCHES "^(x86|x86_64|x64|amd64|i[3-6]86)$")
     set(PFFFT_TARGET_IS_X86 TRUE)
 elseif (PFFFT_TARGET_PROCESSOR MATCHES "^armv7(-?a|h?l)?$|^armv8l$")
     set(PFFFT_TARGET_IS_ARMV7 TRUE)
@@ -132,21 +125,17 @@ macro(_pffft_drop_choice_list entry)
 endmacro()
 
 # _pffft_gcc_clang_options(<C|CXX> <display name>)
-# WebAssembly gets neither option, as target_set_c_arch_flags() applies its
-# own flags there.
 macro(_pffft_gcc_clang_options lang langname)
-    if (NOT PFFFT_TARGET_IS_WASM)
-        _pffft_save_normal(TARGET_${lang}_ARCH)
-        _pffft_save_normal(TARGET_${lang}_EXTRA)
-        _pffft_drop_choice_list(TARGET_${lang}_ARCH)
-        set(TARGET_${lang}_ARCH "${_pffft_${lang}_arch_default}" CACHE STRING "")
-        set_property(CACHE TARGET_${lang}_ARCH PROPERTY HELPSTRING "gcc/clang ${langname} ${_pffft_march_desc}")
-        set(TARGET_${lang}_EXTRA "none" CACHE STRING "")
-        set_property(CACHE TARGET_${lang}_EXTRA PROPERTY HELPSTRING "gcc/clang ${langname} ${_pffft_extra_desc}")
-        set_property(CACHE TARGET_${lang}_EXTRA PROPERTY STRINGS ${GCC_EXTRA_VALUES})
-        _pffft_restore_normal(TARGET_${lang}_ARCH)
-        _pffft_restore_normal(TARGET_${lang}_EXTRA)
-    endif()
+    _pffft_save_normal(TARGET_${lang}_ARCH)
+    _pffft_save_normal(TARGET_${lang}_EXTRA)
+    _pffft_drop_choice_list(TARGET_${lang}_ARCH)
+    set(TARGET_${lang}_ARCH "${_pffft_${lang}_arch_default}" CACHE STRING "")
+    set_property(CACHE TARGET_${lang}_ARCH PROPERTY HELPSTRING "gcc/clang ${langname} ${_pffft_march_desc}")
+    set(TARGET_${lang}_EXTRA "none" CACHE STRING "")
+    set_property(CACHE TARGET_${lang}_EXTRA PROPERTY HELPSTRING "gcc/clang ${langname} ${_pffft_extra_desc}")
+    set_property(CACHE TARGET_${lang}_EXTRA PROPERTY STRINGS ${GCC_EXTRA_VALUES})
+    _pffft_restore_normal(TARGET_${lang}_ARCH)
+    _pffft_restore_normal(TARGET_${lang}_EXTRA)
 endmacro()
 
 # _pffft_msvc_options(<C|CXX> <display name>)
@@ -299,17 +288,6 @@ function(pffft_native_feature_warning lang target arch)
 endfunction()
 
 function(target_set_c_arch_flags target)
-    # WebAssembly SIMD (Emscripten or WASI-SDK / plain clang)
-    if (PFFFT_TARGET_IS_WASM)
-        target_compile_options(${target} PRIVATE "-msimd128")
-        if (PFFFT_USE_WASM_RELAXED_SIMD)
-            message(STATUS "WebAssembly target: enabling WASM SIMD + Relaxed SIMD for C target ${target}")
-            target_compile_options(${target} PRIVATE "-mrelaxed-simd")
-        else()
-            message(STATUS "WebAssembly target: enabling WASM SIMD for C target ${target}")
-        endif()
-        return()
-    endif()
     if ( ("${TARGET_C_ARCH}" STREQUAL "") OR ("${TARGET_C_ARCH}" STREQUAL "none") )
         message(STATUS "TARGET_C_ARCH not set for target ${target}, using default")
     else()
@@ -352,17 +330,6 @@ function(target_set_c_arch_flags target)
 endfunction()
 
 function(target_set_cxx_arch_flags target)
-    # WebAssembly SIMD (Emscripten or WASI-SDK / plain clang)
-    if (PFFFT_TARGET_IS_WASM)
-        target_compile_options(${target} PRIVATE "-msimd128")
-        if (PFFFT_USE_WASM_RELAXED_SIMD)
-            message(STATUS "WebAssembly target: enabling WASM SIMD + Relaxed SIMD for C++ target ${target}")
-            target_compile_options(${target} PRIVATE "-mrelaxed-simd")
-        else()
-            message(STATUS "WebAssembly target: enabling WASM SIMD for C++ target ${target}")
-        endif()
-        return()
-    endif()
     if ( ("${TARGET_CXX_ARCH}" STREQUAL "") OR ("${TARGET_CXX_ARCH}" STREQUAL "none") )
         message(STATUS "TARGET_CXX_ARCH not set for target ${target}, using default")
     else()

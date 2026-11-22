@@ -35,7 +35,7 @@
 #define PF_SCAL_FLT_H
 
 /*
-  fallback mode(s) for situations where SSE/AVX/NEON/Altivec are not available, use scalar mode instead
+  Scalar backends for builds without SIMD.
 */
 
 #if !defined(SIMD_SZ) && defined(PFFFT_SCALVEC_ENABLED)

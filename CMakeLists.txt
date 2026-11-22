@@ -28,9 +28,8 @@ option(PFFFT_WIDE_UNKNOWN_CPUS "use the 8-lane AVX2 implementation on every AVX2
 option(PFFFT_TEST_REQUIRE_WIDE "tests: fail instead of skipping when the 8-lane AVX2 backend is not available (CI on AVX2 machines)" OFF)
 option(PFFFT_WIDE_INFERRED "use the 8-lane AVX2 implementation by default also on the inferred (not measured) CPU classes" OFF)
 option(PFFFT_WIDE_ALL_SIZES "benchmarking only: use the 8-lane AVX2 implementation at every size it supports, on every CPU that can run it" OFF)
-option(PFFFT_USE_SIMD        "use SIMD (SSE/AVX/NEON/ALTIVEC) CPU features? - " ON)
+option(PFFFT_USE_SIMD        "Use x86 or Arm SIMD instructions" ON)
 option(PFFFT_USE_SCALAR_VECT "use 4-element vector scalar operations (if no other SIMD)" ON)
-option(PFFFT_USE_WASM_RELAXED_SIMD "use WebAssembly Relaxed SIMD for higher performance? requires a browser/runtime with Relaxed SIMD support" OFF)
 # pass schedule switches (src/pffft_pass_config.h): AUTO is the default of
 # that header, on, except the terminal radix-8 pass on the single-lane scalar
 # build (SIMD_SZ == 1: PFFFT_USE_SCALAR_VECT=OFF, and PFFFT_USE_SIMD=OFF or a
@@ -103,15 +102,6 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/")
 include(cmake/target_optimizations.cmake)
 include(cmake/compiler_warnings.cmake)
 include(cmake/simd_backend_probe.cmake)
-find_package(PAPI)
-find_package(MIPP)
-if (MIPP_FOUND)
-# if (TARGET MIPP)
-    message(STATUS "found MIPP")
-else()
-    message(STATUS "NOT found MIPP")
-endif()
-
 
 if (PFFFT_USE_DEBUG_ASAN)
   set(ASANLIB "-fsanitize=address")
@@ -179,8 +169,8 @@ if (MINGW)
 endif()
 
 
-set( SIMD_FLOAT_HDRS ${PFFFT_SOURCE_DIR}/src/simd/pf_float.h ${PFFFT_SOURCE_DIR}/src/simd/pf_sse1_float.h ${PFFFT_SOURCE_DIR}/src/simd/pf_altivec_float.h ${PFFFT_SOURCE_DIR}/src/simd/pf_neon_float.h ${PFFFT_SOURCE_DIR}/src/simd/pf_wasm_float.h ${PFFFT_SOURCE_DIR}/src/simd/pf_rvv_float.h ${PFFFT_SOURCE_DIR}/src/simd/pf_scalar_float.h ${PFFFT_SOURCE_DIR}/src/simd/pf_fma_x86.h )
-set( SIMD_DOUBLE_HDRS ${PFFFT_SOURCE_DIR}/src/simd/pf_double.h ${PFFFT_SOURCE_DIR}/src/simd/pf_avx_double.h ${PFFFT_SOURCE_DIR}/src/simd/pf_sse2_double.h ${PFFFT_SOURCE_DIR}/src/simd/pf_neon_double.h ${PFFFT_SOURCE_DIR}/src/simd/pf_vsx_double.h ${PFFFT_SOURCE_DIR}/src/simd/pf_wasm_double.h ${PFFFT_SOURCE_DIR}/src/simd/pf_rvv_double.h ${PFFFT_SOURCE_DIR}/src/simd/pf_scalar_double.h ${PFFFT_SOURCE_DIR}/src/simd/pf_fma_x86.h )
+set( SIMD_FLOAT_HDRS ${PFFFT_SOURCE_DIR}/src/simd/pf_float.h ${PFFFT_SOURCE_DIR}/src/simd/pf_sse1_float.h ${PFFFT_SOURCE_DIR}/src/simd/pf_neon_float.h ${PFFFT_SOURCE_DIR}/src/simd/pf_scalar_float.h ${PFFFT_SOURCE_DIR}/src/simd/pf_fma_x86.h )
+set( SIMD_DOUBLE_HDRS ${PFFFT_SOURCE_DIR}/src/simd/pf_double.h ${PFFFT_SOURCE_DIR}/src/simd/pf_avx_double.h ${PFFFT_SOURCE_DIR}/src/simd/pf_sse2_double.h ${PFFFT_SOURCE_DIR}/src/simd/pf_neon_double.h ${PFFFT_SOURCE_DIR}/src/simd/pf_scalar_double.h ${PFFFT_SOURCE_DIR}/src/simd/pf_fma_x86.h )
 
 if (PFFFT_USE_TYPE_FLOAT)
   set( FLOAT_SOURCES src/pffft.c include/pffft/pffft.h ${SIMD_FLOAT_HDRS} )

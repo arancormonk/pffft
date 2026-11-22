@@ -232,11 +232,21 @@ if (MSVC AND NOT CMAKE_C_COMPILER_ID STREQUAL "Clang" AND MSVC_C_ARCHITECTURE_ID
     AND NOT CMAKE_C_FLAGS MATCHES "[/-][Aa][Rr][Mm]64[Ee][Cc]"
     AND PFFFT_USE_TYPE_FLOAT AND PFFFT_USE_SIMD AND PFFFT_ENABLE_WIDE_DISPATCH)
   set(PFFFT_WIDE_TU_BUILD ON)
-  target_sources(PFFFT PRIVATE src/pffft_wide_tu.c)
-  # /GL-: also under LTCG this object holds machine code, which
-  # tests/check_isa_baseline.py checks, and no AVX2 code is inlined from it
-  set_source_files_properties(src/pffft_wide_tu.c PROPERTIES COMPILE_OPTIONS "/arch:AVX2;/GL-")
   target_compile_definitions(PFFFT PRIVATE PFFFT_WIDE_TU=1)
+  # Keep the AVX2 object out of LTCG even when the caller enables IPO for
+  # a specific configuration. The same machine code is used by the pass tests.
+  add_library(pffft_wide_object OBJECT src/pffft_wide_tu.c)
+  set_property(TARGET pffft_wide_object PROPERTY INTERPROCEDURAL_OPTIMIZATION OFF)
+  foreach(_cfg IN LISTS CMAKE_CONFIGURATION_TYPES CMAKE_BUILD_TYPE)
+    string(TOUPPER "${_cfg}" _cfg)
+    set_property(TARGET pffft_wide_object PROPERTY INTERPROCEDURAL_OPTIMIZATION_${_cfg} OFF)
+  endforeach()
+  target_compile_definitions(pffft_wide_object PRIVATE
+    $<TARGET_PROPERTY:PFFFT,COMPILE_DEFINITIONS> PFFFT_STATIC_DEFINE)
+  target_include_directories(pffft_wide_object PRIVATE $<TARGET_PROPERTY:PFFFT,INCLUDE_DIRECTORIES>)
+  target_compile_options(pffft_wide_object PRIVATE $<TARGET_PROPERTY:PFFFT,COMPILE_OPTIONS>)
+  set_source_files_properties(src/pffft_wide_tu.c PROPERTIES COMPILE_OPTIONS "/arch:AVX2;/GL-")
+  target_sources(PFFFT PRIVATE $<TARGET_OBJECTS:pffft_wide_object>)
 endif()
 if (MSVC)
   # a map file for tests/check_isa_baseline.py's audit of a DLL's linked code

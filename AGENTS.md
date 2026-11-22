@@ -299,7 +299,7 @@ cmake -DPFFFT_USE_BENCH_FFTW=ON ..
   with `PFFFT_WIDE_TU` defined (CMake does it); nothing in that file may run before the CPU check
 - x86-64 baseline builds (`TARGET_C_ARCH` `none`, `SSE2` or `x86-64`; not `none` when the
   compiler's own default is above SSE2) run `check_isa_baseline` (needs GNU objdump; on
-  Windows e.g. MSYS2 `mingw-w64-x86_64-binutils` on PATH) and `check_isa_baseline_selftest`
+  Windows e.g. MSYS2 `mingw-w64-ucrt-x86_64-binutils` on PATH) and `check_isa_baseline_selftest`
 - Windows MinGW: Cross-compilation scripts available
 - macOS: Works with native toolchain; Accelerate framework optional
 - Linux: Works with GCC or Clang; standard `libm` linked by default

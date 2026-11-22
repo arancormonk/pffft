@@ -153,6 +153,9 @@ if (PFFFT_USE_TYPE_FLOAT)
       get_target_property(_pffft_ipo_cfg PFFFT INTERPROCEDURAL_OPTIMIZATION_${_pffft_cfg})
       if (MSVC)
         set(_pffft_isa_files $<TARGET_OBJECTS:PFFFT> --skip-empty --all-il-ok)
+        if (PFFFT_WIDE_TU_BUILD)
+          list(APPEND _pffft_isa_files $<TARGET_OBJECTS:pffft_wide_object>)
+        endif()
       elseif (NOT _pffft_type STREQUAL "SHARED_LIBRARY" AND (_pffft_ipo OR _pffft_ipo_cfg))
         set(_pffft_isa_files $<TARGET_FILE:test_pffft_wide>)
       else()
@@ -237,18 +240,13 @@ endforeach()
 # (pffft_pass_config.h); the test checks the default of a switch that the
 # build (CMake option, compiler flags, a parent project's definitions) leaves
 # to the header.
-if (PFFFT_WIDE_TU_BUILD)
-  # as for the library: source file properties are per directory
-  set_source_files_properties(${PFFFT_SOURCE_DIR}/src/pffft_wide_tu.c
-                              PROPERTIES COMPILE_OPTIONS "/arch:AVX2;/GL-")
-endif()
 foreach(prec float double)
   string(TOUPPER "${prec}" PREC)
   if (PFFFT_USE_TYPE_${PREC})
     set(_pffft_passes_t test_pffft_passes_${prec})
     add_executable(${_pffft_passes_t} test_pffft_passes.c ${PFFFT_SOURCE_DIR}/src/pffft_common.c)
     if (PFFFT_WIDE_TU_BUILD AND prec STREQUAL "float")
-      target_sources(${_pffft_passes_t} PRIVATE ${PFFFT_SOURCE_DIR}/src/pffft_wide_tu.c)
+      target_sources(${_pffft_passes_t} PRIVATE $<TARGET_OBJECTS:pffft_wide_object>)
     endif()
     target_compile_definitions(${_pffft_passes_t} PRIVATE $<TARGET_PROPERTY:PFFFT,COMPILE_DEFINITIONS>
                                PFFFT_ENABLE_${PREC} PFFFT_STATIC_DEFINE)

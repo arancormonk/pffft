@@ -19,8 +19,6 @@ if(MIPP_FOUND AND NOT TARGET MIPP)
     target_compile_definitions(MIPP INTERFACE HAVE_MIPP=1)
     target_include_directories(MIPP SYSTEM INTERFACE ${MIPP_INCLUDE_DIRS})
     target_compile_features(MIPP INTERFACE cxx_std_11)
-else()
-    message(WARNING "MIPP not found.")
 endif()
 
 mark_as_advanced(MIPP_INCLUDE_DIRS)

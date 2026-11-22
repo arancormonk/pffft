@@ -41,17 +41,17 @@ jobs:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         persist-credentials: false
-    - uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756
+    - uses: compnerd/gha-setup-vsdevenv@452f99effa381b81c025ccfbdccaca509bff1b29 # v7
       with:
         arch: x64
     - uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2.33.0
       id: msys2
       with:
-        msystem: MINGW64
-        install: mingw-w64-x86_64-binutils
+        msystem: UCRT64
+        install: mingw-w64-ucrt-x86_64-binutils
     - name: GNU objdump on PATH (ISA audit)
       shell: bash
-      run: echo "${{ steps.msys2.outputs.msys2-location }}\mingw64\bin" >> "$GITHUB_PATH"
+      run: echo "${{ steps.msys2.outputs.msys2-location }}\ucrt64\bin" >> "$GITHUB_PATH"
     - name: Use the Clang toolchain bundled with Visual Studio
       if: matrix.cc == 'clang-cl'
       shell: pwsh
@@ -110,13 +110,13 @@ jobs:
         persist-credentials: false
     - uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2.33.0
       with:
-        msystem: MINGW64
-        install: gcc cmake make python
+        msystem: UCRT64
+        pacboy: gcc:p cmake:p ninja:p python:p
     - name: build and test
       run: |
         mkdir -p out
         gcc --version | head -1 | tee out/versions.txt
-        CC=gcc cmake -DMINGW=ON -DCMAKE_BUILD_TYPE=Release -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DTARGET_CXX_ARCH=none -DTARGET_C_ARCH=none -S . -B build 2>&1 | tee out/configure.txt
+        cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DTARGET_CXX_ARCH=none -DTARGET_C_ARCH=none -S . -B build 2>&1 | tee out/configure.txt
         cmake --build build 2>&1 | tee out/build.txt
         ctest --test-dir build --output-on-failure -j 4 2>&1 | tee out/ctest.txt
         ./build/tests/test_pffft_wide 2>&1 | tail -8 | tee out/wide.txt
@@ -135,7 +135,7 @@ jobs:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         persist-credentials: false
-    - uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756
+    - uses: compnerd/gha-setup-vsdevenv@452f99effa381b81c025ccfbdccaca509bff1b29 # v7
       with:
         arch: x64
     - name: build

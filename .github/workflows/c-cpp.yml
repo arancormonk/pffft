@@ -82,10 +82,8 @@ jobs:
           repository: hayguen/MIPP
           path: ./MIPP
           persist-credentials: false
-    - name: cmake configure MIPP
-      run: cmake -S MIPP -B MIPP_build -DCMAKE_INSTALL_PREFIX="$HOME/.local" -DCMAKE_POLICY_VERSION_MINIMUM=3.5
-    - name: cmake install MIPP headers
-      run: cmake --build MIPP_build --target install && ls -alh "$HOME/.local/" && ls -alh "$HOME/.local/include/"
+    - name: Install MIPP headers
+      run: cmake -E copy_directory MIPP/src "$HOME/.local/include/mipp"
 
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
@@ -155,7 +153,11 @@ jobs:
 
     steps:
     - name: Install build and emulation tools
+      env:
+        DEBIAN_FRONTEND: noninteractive
       run: |
+        # The minimal image excludes the man pages used by update-alternatives.
+        echo 'path-include=/usr/share/man/man1/*' > /etc/dpkg/dpkg.cfg.d/zz-ci-manpages
         apt-get update
         apt-get install -y --no-install-recommends build-essential cmake ca-certificates git qemu-user python3
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -235,8 +237,8 @@ jobs:
     - name: prerequisites
       run: |
         sudo dpkg --add-architecture i386
-        sudo apt -qq update
-        sudo apt -yqq install gcc-mingw-w64 g++-mingw-w64 wine64 wine32:i386
+        sudo apt-get -qq update
+        sudo apt-get -yqq install gcc-mingw-w64 g++-mingw-w64 wine64 wine32:i386
         WINEDEBUG=-all wineboot --init
 
     - name: check out MIPP
@@ -245,12 +247,8 @@ jobs:
           repository: hayguen/MIPP
           path: ./MIPP
           persist-credentials: false
-    - name: cmake configure MIPP
-      working-directory: ${{ github.workspace }}/..
-      run: cmake -S pffft/MIPP -B MIPP_build -DCMAKE_INSTALL_PREFIX="$(pwd)" -DCMAKE_POLICY_VERSION_MINIMUM=3.5
-    - name: cmake install MIPP headers
-      working-directory: ${{ github.workspace }}/..
-      run: cmake --build MIPP_build --target install
+    - name: Install MIPP headers
+      run: cmake -E copy_directory MIPP/src ../include/mipp
 
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
@@ -309,13 +307,8 @@ jobs:
           repository: hayguen/MIPP
           path: ./MIPP
           persist-credentials: false
-    - name: cmake configure MIPP
-      shell: bash
-      working-directory: ${{ github.workspace }}/..
-      run: cmake -S pffft/MIPP -B MIPP_build -DCMAKE_INSTALL_PREFIX="$(pwd)" -DCMAKE_POLICY_VERSION_MINIMUM=3.5
-    - name: cmake install MIPP headers
-      working-directory: ${{ github.workspace }}/..
-      run: cmake --build MIPP_build --target install
+    - name: Install MIPP headers
+      run: cmake -E copy_directory MIPP/src ../include/mipp
 
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
@@ -323,11 +316,11 @@ jobs:
     - uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2.33.0
       id: msys2
       with:
-        msystem: MINGW64
-        install: mingw-w64-x86_64-binutils
+        msystem: UCRT64
+        install: mingw-w64-ucrt-x86_64-binutils
     - name: GNU objdump on PATH (ISA audit)
       shell: bash
-      run: echo "${{ steps.msys2.outputs.msys2-location }}\mingw64\bin" >> "$GITHUB_PATH"
+      run: echo "${{ steps.msys2.outputs.msys2-location }}\ucrt64\bin" >> "$GITHUB_PATH"
 
     - name: Configure CMake No-SIMD
       shell: bash
@@ -409,12 +402,13 @@ jobs:
 
     - name: compress
       working-directory: ${{ github.workspace }}/..
-      run: tar zcvf pffft_windows-msvc-amd64.tar.gz --exclude=CMakeFiles --exclude=*.cmake --exclude=Makefile --exclude=CMakeCache.txt  build_no-simd build_sse2 build_avx build_avx2
+      run: tar zcvf "$env:GITHUB_WORKSPACE/pffft_windows-msvc-amd64.tar.gz" --exclude=CMakeFiles --exclude=*.cmake --exclude=Makefile --exclude=CMakeCache.txt  build_no-simd build_sse2 build_avx build_avx2
     - name: 'Upload Artifact'
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       with:
         name: pffft_windows-msvc-amd64
         path: pffft_windows-msvc-amd64.tar.gz
+        if-no-files-found: error
 
 
   build_win_msvc_wide:
@@ -474,17 +468,17 @@ jobs:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         persist-credentials: false
-    - uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756
+    - uses: compnerd/gha-setup-vsdevenv@452f99effa381b81c025ccfbdccaca509bff1b29 # v7
       with:
         arch: x64
     - uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2.33.0
       id: msys2
       with:
-        msystem: MINGW64
-        install: mingw-w64-x86_64-binutils
+        msystem: UCRT64
+        install: mingw-w64-ucrt-x86_64-binutils
     - name: GNU objdump on PATH (ISA audit)
       shell: bash
-      run: echo "${{ steps.msys2.outputs.msys2-location }}\\mingw64\\bin" >> "$GITHUB_PATH"
+      run: echo "${{ steps.msys2.outputs.msys2-location }}\\ucrt64\\bin" >> "$GITHUB_PATH"
     - name: Use the Clang toolchain bundled with Visual Studio
       if: matrix.cc == 'clang-cl'
       shell: pwsh
@@ -555,7 +549,11 @@ jobs:
       SDE_URL: https://media.githubusercontent.com/media/petarpetrovt/setup-sde/6d2773bc0ef3005fd52e0ae0bb91782321793aec/binaries/sde-external-10.13.1-2026-07-28-lin.tar.xz
     steps:
     - name: Install build and emulation tools
+      env:
+        DEBIAN_FRONTEND: noninteractive
       run: |
+        # The minimal image excludes the man pages used by update-alternatives.
+        echo 'path-include=/usr/share/man/man1/*' > /etc/dpkg/dpkg.cfg.d/zz-ci-manpages
         apt-get update
         apt-get install -y --no-install-recommends build-essential cmake ca-certificates git curl python3 xz-utils
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -646,10 +644,6 @@ jobs:
 
   build_win_mingw:
     runs-on: windows-latest
-    strategy:
-      matrix:
-        compiler: [gcc]
-        msystem: [MINGW64]
     defaults:
       run:
         shell: msys2 {0}
@@ -659,10 +653,10 @@ jobs:
         persist-credentials: false
     - uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2.33.0
       with:
-        msystem: MINGW64
-        install: gcc cmake make
+        msystem: UCRT64
+        pacboy: gcc:p cmake:p ninja:p python:p
     - name: Configure cmake
-      run: CC=gcc cmake -DMINGW=ON -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DTARGET_CXX_ARCH=none -DTARGET_C_ARCH=none -DPFFFT_TEST_REQUIRE_WIDE=ON -S . -B build_mgw64
+      run: cmake -G Ninja -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DTARGET_CXX_ARCH=none -DTARGET_C_ARCH=none -DPFFFT_TEST_REQUIRE_WIDE=ON -S . -B build_mgw64
     - name: Build
       run: cmake --build build_mgw64
     - name: Test
@@ -671,7 +665,7 @@ jobs:
       # -O0: GCC leaves the 8-lane code out on Windows (it cannot align
       # 32-byte stack slots there), the 4-lane code must build and pass
       run: |
-        CC=gcc cmake -DMINGW=ON -DCMAKE_BUILD_TYPE=Debug -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DTARGET_CXX_ARCH=none -DTARGET_C_ARCH=none -DPFFFT_BUILD_BENCHMARKS=OFF -S . -B build_mgw64_dbg
+        cmake -G Ninja -DCMAKE_BUILD_TYPE=Debug -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DTARGET_CXX_ARCH=none -DTARGET_C_ARCH=none -DPFFFT_BUILD_BENCHMARKS=OFF -S . -B build_mgw64_dbg
         cmake --build build_mgw64_dbg
         ctest --test-dir build_mgw64_dbg --output-on-failure -j 4
 
@@ -722,10 +716,8 @@ jobs:
           repository: hayguen/MIPP
           path: ./MIPP
           persist-credentials: false
-    - name: cmake configure MIPP
-      run: cmake -S MIPP -B MIPP_build -DCMAKE_INSTALL_PREFIX="$HOME/.local" -DCMAKE_POLICY_VERSION_MINIMUM=3.5
-    - name: cmake install MIPP headers
-      run: cmake --build MIPP_build --target install && ls -alh "$HOME/.local/" && ls -alh "$HOME/.local/include/"
+    - name: Install MIPP headers
+      run: cmake -E copy_directory MIPP/src "$HOME/.local/include/mipp"
 
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:

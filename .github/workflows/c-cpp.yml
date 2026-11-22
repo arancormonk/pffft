@@ -150,13 +150,17 @@ jobs:
     # without AVX2/FMA, and must use it on CPUs with them: run the float
     # tests under QEMU emulating Nehalem, SandyBridge and Haswell.
     runs-on: ubuntu-latest
+    # The emulated pre-AVX2 CPUs need baseline x86-64 binaries, including libc.
+    container: ubuntu:24.04@sha256:9c7f200c07e3d4a03e7249d2c16bf66a51120fb876aa2242cf31451412543289
 
     steps:
+    - name: Install build and emulation tools
+      run: |
+        apt-get update
+        apt-get install -y --no-install-recommends build-essential cmake ca-certificates git qemu-user python3
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         persist-credentials: false
-    - name: install_qemu
-      run: sudo apt-get update && sudo apt-get install -y qemu-user binutils python3
     - name: emulated_cpu_tests
       run: tests/run_emulated_cpu_tests.sh build_emulated
 
@@ -542,12 +546,18 @@ jobs:
   sde_linux:
     # Linux baseline build under Intel SDE (tests/run_sde_checks.sh)
     runs-on: ubuntu-latest
+    # The emulated pre-AVX2 CPUs need baseline x86-64 binaries, including libc.
+    container: ubuntu:24.04@sha256:9c7f200c07e3d4a03e7249d2c16bf66a51120fb876aa2242cf31451412543289
     env:
       SDE_KIT: sde-external-10.13.1-2026-07-28-lin.tar.xz
       # Intel's published SHA-256 (intel.com download 684897)
       SDE_SHA256: 94e97d623fec54385686e1e7ba65ebc9941748c05ee451423948334892bf2b50
       SDE_URL: https://media.githubusercontent.com/media/petarpetrovt/setup-sde/6d2773bc0ef3005fd52e0ae0bb91782321793aec/binaries/sde-external-10.13.1-2026-07-28-lin.tar.xz
     steps:
+    - name: Install build and emulation tools
+      run: |
+        apt-get update
+        apt-get install -y --no-install-recommends build-essential cmake ca-certificates git curl python3 xz-utils
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         persist-credentials: false

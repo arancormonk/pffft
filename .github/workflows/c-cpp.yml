@@ -481,6 +481,10 @@ jobs:
     - name: GNU objdump on PATH (ISA audit)
       shell: bash
       run: echo "${{ steps.msys2.outputs.msys2-location }}\\mingw64\\bin" >> "$GITHUB_PATH"
+    - name: Use the Clang toolchain bundled with Visual Studio
+      if: matrix.cc == 'clang-cl'
+      shell: pwsh
+      run: $env:llvmX64 >> $env:GITHUB_PATH
     - name: toolchain
       shell: bash
       run: |

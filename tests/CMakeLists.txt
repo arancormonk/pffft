@@ -152,10 +152,11 @@ if (PFFFT_USE_TYPE_FLOAT)
       get_target_property(_pffft_ipo PFFFT INTERPROCEDURAL_OPTIMIZATION)
       get_target_property(_pffft_ipo_cfg PFFFT INTERPROCEDURAL_OPTIMIZATION_${_pffft_cfg})
       if (MSVC)
-        set(_pffft_isa_files $<TARGET_OBJECTS:PFFFT> --skip-empty --all-il-ok)
+        set(_pffft_msvc_objects $<TARGET_OBJECTS:PFFFT>)
         if (PFFFT_WIDE_TU_BUILD)
-          list(APPEND _pffft_isa_files $<TARGET_OBJECTS:pffft_wide_object>)
+          list(APPEND _pffft_msvc_objects $<TARGET_OBJECTS:pffft_wide_object>)
         endif()
+        set(_pffft_isa_files ${_pffft_msvc_objects} --skip-empty --all-il-ok)
       elseif (NOT _pffft_type STREQUAL "SHARED_LIBRARY" AND (_pffft_ipo OR _pffft_ipo_cfg))
         set(_pffft_isa_files $<TARGET_FILE:test_pffft_wide>)
       else()
@@ -193,7 +194,7 @@ if (PFFFT_USE_TYPE_FLOAT)
                  COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/check_isa_baseline.py
                          ${_pffft_isa_args} --map-objects ${_pffft_map_objects}
                          --require "${_pffft_required}" --require-unless-ltcg "${_pffft_public}"
-                         --ltcg-objects "$<TARGET_OBJECTS:PFFFT>"
+                         --ltcg-objects "${_pffft_msvc_objects}"
                          $<$<BOOL:${PFFFT_TEST_REQUIRE_WIDE}>:--require-wide> ${_pffft_image})
       endif()
       # negative and positive controls: assembly fixtures in tests/isa_audit

@@ -72,35 +72,6 @@ jobs:
         cmake --build build_passes_scalar_on --parallel 2
         ctest --test-dir build_passes_scalar_on -j 2 --output-on-failure
 
-  build_w_mipp_ubuntu-amd64:
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: check out MIPP
-      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      with:
-          repository: hayguen/MIPP
-          path: ./MIPP
-          persist-credentials: false
-    - name: Install MIPP headers
-      run: cmake -E copy_directory MIPP/src "$HOME/.local/include/mipp"
-
-    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      with:
-        persist-credentials: false
-    - name: cmake_make_simd_float_double
-      run: mkdir build_simd_full && cmake -S . -B build_simd_full -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DTARGET_CXX_ARCH=x86-64 -DTARGET_C_ARCH=x86-64  && cmake --build build_simd_full && ctest --test-dir build_simd_full --output-on-failure -j 4
-    - name: cmake_make_simd_float
-      run: mkdir build_simd_float && cmake -S . -B build_simd_float -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_TYPE_DOUBLE=OFF -DTARGET_CXX_ARCH=x86-64 -DTARGET_C_ARCH=x86-64  && cmake --build build_simd_float && ctest --test-dir build_simd_float --output-on-failure -j 4
-    - name: cmake_make_simd_double
-      run: mkdir build_simd_double && cmake -S . -B build_simd_double -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_TYPE_FLOAT=OFF -DTARGET_CXX_ARCH=x86-64 -DTARGET_C_ARCH=x86-64  && cmake --build build_simd_double && ctest --test-dir build_simd_double --output-on-failure -j 4
-    - name: cmake_make_no-simd_float_double
-      run: mkdir build_no-simd_full && cmake -S . -B build_no-simd_full -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_SIMD=OFF -DTARGET_CXX_ARCH=x86-64 -DTARGET_C_ARCH=x86-64  && cmake --build build_no-simd_full && ctest --test-dir build_no-simd_full --output-on-failure -j 4
-    - name: cmake_make_no-simd_novect_float_double
-      run: mkdir build_no-simd_novect && cmake -S . -B build_no-simd_novect -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_SIMD=OFF -DPFFFT_USE_SCALAR_VECT=OFF -DTARGET_CXX_ARCH=x86-64 -DTARGET_C_ARCH=x86-64 && cmake --build build_no-simd_novect
-    - name: ctest_no-simd_novect
-      run: ctest --test-dir build_no-simd_novect --output-on-failure
-
   build_ubuntu-amd64:
     runs-on: ubuntu-latest
 
@@ -120,6 +91,18 @@ jobs:
       run: mkdir build_no-simd_novect && cmake -S . -B build_no-simd_novect -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_SIMD=OFF -DPFFFT_USE_SCALAR_VECT=OFF -DTARGET_CXX_ARCH=x86-64 -DTARGET_C_ARCH=x86-64 && cmake --build build_no-simd_novect
     - name: ctest_no-simd_novect
       run: ctest --test-dir build_no-simd_novect --output-on-failure
+
+    - name: Check out MIPP headers
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        repository: hayguen/MIPP
+        ref: ec2fa3a22cd1ac08e4725ff69bd546dd6f5d75cc
+        path: MIPP
+        persist-credentials: false
+    - name: Compile the convolution benchmark with MIPP
+      run: |
+        cmake -S . -B build_simd_float -DMIPP_INCLUDE_DIRS="$GITHUB_WORKSPACE/MIPP/src"
+        cmake --build build_simd_float --parallel --target bench_pf_conv_float
 
   build_ubuntu-arm64:
     # native AArch64 with gcc: NEON float and double, and the sse2neon mixer
@@ -193,15 +176,6 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - name: check out MIPP
-      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      with:
-          repository: hayguen/MIPP
-          path: ./MIPP
-          persist-credentials: false
-    - name: Install MIPP headers
-      run: cmake -E copy_directory MIPP/src ../include/mipp
-
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         persist-credentials: false
@@ -231,7 +205,7 @@ jobs:
     - name: Configure CMake SSE2
       shell: bash
       working-directory: ${{ github.workspace }}/..
-      run: cmake -S "$GITHUB_WORKSPACE" -B build_sse2 -A x64 -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DTARGET_CXX_ARCH=SSE2 -DTARGET_C_ARCH=SSE2 -DPFFFT_TEST_REQUIRE_WIDE=ON -DMIPP_INCLUDE_DIRS="$(pwd)"/include/mipp
+      run: cmake -S "$GITHUB_WORKSPACE" -B build_sse2 -A x64 -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DTARGET_CXX_ARCH=SSE2 -DTARGET_C_ARCH=SSE2 -DPFFFT_TEST_REQUIRE_WIDE=ON
     - name: Build SSE2
       shell: bash
       working-directory: ${{ github.workspace }}/..
@@ -247,7 +221,7 @@ jobs:
       # access regardless of the host operating system
       shell: bash
       working-directory: ${{ github.workspace }}/..
-      run: cmake -S "$GITHUB_WORKSPACE" -B build_avx -A x64 -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DTARGET_CXX_ARCH=AVX -DTARGET_C_ARCH=AVX -DPFFFT_TEST_REQUIRE_WIDE=ON -DMIPP_INCLUDE_DIRS="$(pwd)"/include/mipp
+      run: cmake -S "$GITHUB_WORKSPACE" -B build_avx -A x64 -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DTARGET_CXX_ARCH=AVX -DTARGET_C_ARCH=AVX -DPFFFT_TEST_REQUIRE_WIDE=ON
     - name: Build AVX
       working-directory: ${{ github.workspace }}/..
       shell: bash
@@ -263,7 +237,7 @@ jobs:
       # access regardless of the host operating system
       shell: bash
       working-directory: ${{ github.workspace }}/..
-      run: cmake -S "$GITHUB_WORKSPACE" -B build_avx2 -A x64 -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DTARGET_CXX_ARCH=AVX2 -DTARGET_C_ARCH=AVX2 -DPFFFT_TEST_REQUIRE_WIDE=ON -DMIPP_INCLUDE_DIRS="$(pwd)"/include/mipp
+      run: cmake -S "$GITHUB_WORKSPACE" -B build_avx2 -A x64 -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DTARGET_CXX_ARCH=AVX2 -DTARGET_C_ARCH=AVX2 -DPFFFT_TEST_REQUIRE_WIDE=ON
     - name: Build AVX2
       working-directory: ${{ github.workspace }}/..
       shell: bash
@@ -457,29 +431,3 @@ jobs:
     - name: pass schedule switches off (the previous passes)
       # the pass schedule switches default to on; the other position
       run: mkdir build_simd_passes_off && cmake -S . -B build_simd_passes_off -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DTARGET_CXX_ARCH=none -DTARGET_C_ARCH=none -DPFFFT_TERMINAL_RADIX8=OFF -DPFFFT_INPLACE_FIRST_PASS=OFF && cmake --build build_simd_passes_off && ctest --test-dir build_simd_passes_off --output-on-failure -j 4
-
-  build_w_mipp_macos:
-    # copied from build_w_mipp_ubuntu-amd64 with minor renaming
-    runs-on: macos-latest
-
-    steps:
-    - name: check out MIPP
-      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      with:
-          repository: hayguen/MIPP
-          path: ./MIPP
-          persist-credentials: false
-    - name: Install MIPP headers
-      run: cmake -E copy_directory MIPP/src "$HOME/.local/include/mipp"
-
-    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      with:
-        persist-credentials: false
-    - name: cmake_make_simd_float_double
-      run: mkdir build_simd_full && cmake -S . -B build_simd_full -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DTARGET_CXX_ARCH=none -DTARGET_C_ARCH=none  && cmake --build build_simd_full && ctest --test-dir build_simd_full --output-on-failure -j 4
-    - name: cmake_make_simd_float
-      run: mkdir build_simd_float && cmake -S . -B build_simd_float -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_TYPE_DOUBLE=OFF -DTARGET_CXX_ARCH=none -DTARGET_C_ARCH=none  && cmake --build build_simd_float && ctest --test-dir build_simd_float --output-on-failure -j 4
-    - name: cmake_make_simd_double
-      run: mkdir build_simd_double && cmake -S . -B build_simd_double -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_TYPE_FLOAT=OFF -DTARGET_CXX_ARCH=none -DTARGET_C_ARCH=none  && cmake --build build_simd_double && ctest --test-dir build_simd_double --output-on-failure -j 4
-    - name: cmake_make_no-simd_float_double
-      run: mkdir build_no-simd_full && cmake -S . -B build_no-simd_full -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_SIMD=OFF -DTARGET_CXX_ARCH=none -DTARGET_C_ARCH=none  && cmake --build build_no-simd_full && ctest --test-dir build_no-simd_full --output-on-failure -j 4

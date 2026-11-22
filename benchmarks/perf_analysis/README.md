@@ -345,10 +345,10 @@ python3 benchmarks/perf_analysis/summarize.py build_perf_matrix.csv \
   --output build_perf_summary.csv
 ```
 
-The original [evidence](results) includes 5534 raw samples in compressed CSVs,
-[medians and spread](results/summary.csv) for 994 case groups, compiler commands,
+The original [evidence](https://github.com/arancormonk/pffft/tree/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results) includes 5534 raw samples in compressed CSVs,
+[medians and spread](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/summary.csv) for 994 case groups, compiler commands,
 host/library fingerprints, hardware profiles, disassembly and correctness logs.
-[Environment metadata](results/environment.json)
+[Environment metadata](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/environment.json)
 records the rejected sweeps and the load-limit change used when resuming the
 confirmation. `--resume` retains accepted samples and requires unchanged
 binaries and benchmark parameters.
@@ -385,8 +385,8 @@ Clang native, and both scalar configurations; AddressSanitizer passed 22/22
 with benchmark/example targets disabled. ARM64 under QEMU passed the 300 mixer
 cases and the float/double accuracy suites (52 real and 68 complex sizes each).
 
-The [production results](results/production-summary.csv) contain 640 FFT
-samples and 42 mixer samples; [metadata](results/production-environment.json)
+The [production results](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/production-summary.csv) contain 640 FFT
+samples and 42 mixer samples; [metadata](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/production-environment.json)
 records the library/source hashes and measurement conditions. Representative
 native FFT medians (ns per call):
 
@@ -468,11 +468,11 @@ c++ -O3 -std=c++11 -DPFDSP_STATIC_DEFINE -Iinclude \
 taskset -c 14 build_after/bench_table table-inplace 4096 7 0.08
 ```
 
-The [follow-up results](results/followup-summary.csv) compare against `c21f0ba`
+The [follow-up results](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/followup-summary.csv) compare against `c21f0ba`
 on a Ryzen 9 5950X. They include 1040 FFT samples, 168 mixer samples, and 18
-additional control samples. The [metadata](results/followup-environment.json)
+additional control samples. The [metadata](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/followup-environment.json)
 records source/library hashes, compiler commands, and measurement conditions;
-the [validation log](results/followup-validation.log) records the local checks.
+the [validation log](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/followup-validation.log) records the local checks.
 Each comparison uses randomized before/after processes pinned to CPU 14,
 rejecting samples when aggregate host load exceeds 2.5 busy CPUs. Raw samples
 are retained in the accompanying compressed CSV files.
@@ -547,9 +547,9 @@ Ryzen 9 5950X (Zen 3), GCC 16.2.1, host-tuned Release builds, CPU 14, at most
 case and build in randomized order (15 for the small-size confirmation).
 Three builds of this revision's sources: `orig` is master 77a7ecd, `native4`
 the final code with `PFFFT_ENABLE_WIDE_DISPATCH=OFF`, `wide` the final code.
-Raw samples: [float](results/wide-final-float.csv.gz) (8910 samples, 27
-sizes from 64 to 2^20, 11 operations), [double](results/wide-final-double.csv.gz),
-[small sizes](results/wide-small-sizes.csv.gz), [fused-pass A/B](results/wide-b1-ab.csv.gz).
+Raw samples: [float](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/wide-final-float.csv.gz) (8910 samples, 27
+sizes from 64 to 2^20, 11 operations), [double](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/wide-final-double.csv.gz),
+[small sizes](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/wide-small-sizes.csv.gz), [fused-pass A/B](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/wide-b1-ab.csv.gz).
 
 Median ns per call, `orig` → `wide`:
 
@@ -584,14 +584,14 @@ non-overlapping interquartile ranges, and `pffft_zreorder` and
 `pffft_zconvolve` were at least 0.97x. For Zen 3 these are the two sweeps on
 the Ryzen 9 5950X described here and seven on EPYC 7763 runner VMs
 ([below](#measuring-another-cpu)). The two desktop sweeps
-([1](results/wide-sweep1.csv.gz), [2](results/wide-sweep2.csv.gz), 26532
+([1](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/wide-sweep1.csv.gz), [2](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/wide-sweep2.csv.gz), 26532
 samples each) cover all 201 complex and 167 real sizes from 64 to 2^20 that
 the 8-lane code supports, all eleven operations, 3 samples per case and
 build in randomized interleaved order, with the `native4` and `wide` builds
 above. The other settings are those of the measurement above, except that
 the host-load limit was raised to 4 busy CPUs (sweep 1 started at 2.5) to
 make progress on a shared host; the IQR condition guards against the extra
-noise. Per-size verdicts: [wide-size-table.txt](results/wide-size-table.txt).
+noise. Per-size verdicts: [wide-size-table.txt](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/wide-size-table.txt).
 
 Enabled on Zen 3 desktop parts (`pffft_wide_zen3_desktop_*`, from these two
 sweeps): 192 complex and 152 real sizes, where the gated modes measured
@@ -652,7 +652,7 @@ under 10%) of the final code as packages build it (`TARGET_C_ARCH=none`, the
 5950X, CPU 14, against FFTW 3.3.10 built with `--enable-sse2 --enable-avx
 --enable-avx2` (float, `FFTW_MEASURE` and `FFTW_ESTIMATE` plans) and the
 bundled Green, Kiss and Pocket FFTs (same baseline flags);
-[tables](results/library-comparison.txt). Ratios of PFFFT's unordered
+[tables](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/library-comparison.txt). Ratios of PFFFT's unordered
 transform (PFFFT-U; ordered output costs up to 16% more) to the others:
 
 | | FFTW MEASURE | FFTW ESTIMATE | Pocket | Green | Kiss |
@@ -697,7 +697,7 @@ compiler inlines the driver, differs in register allocation.
 
 A/B against the same tree without the change (host-tuned 4-lane builds, 5
 interleaved samples per case, at most 2.5 busy CPUs;
-[samples](results/inplace-parity-ab.csv.gz)), unordered in place, at the
+[samples](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/inplace-parity-ab.csv.gz)), unordered in place, at the
 sizes with an even pass count (N = 64, 384..1280, 6144..16384):
 
 - float: 1.01-1.13x (1.04-1.13x from N = 384); in place now takes 0.94-1.03x
@@ -709,7 +709,7 @@ Timings at double N = 768..1280 depend on where the process's pages land:
 each process is stable, but processes differ by up to 37% in the new code
 (up to 16% before), also with address randomization disabled, so presumably
 physical placement. Over 30 processes per build
-([samples](results/inplace-parity-processes.csv.gz)) the mean ratio is
+([samples](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/inplace-parity-processes.csv.gz)) the mean ratio is
 0.99-1.01x at 768 and 1024 and 0.94x (forward) and 0.97x (backward) at
 1280, with the slowest decile at 0.88-0.89x; the change costs there. The
 same measurement at other even-pass sizes, including ones not in the A/B,
@@ -721,15 +721,15 @@ Paths the change does not alter measured 0.93-1.03x (float) and 0.91-1.23x
 (double); the deviations repeat within a build but not across builds. Float
 N = 96 and 128 forward, in and out of place, are 0.92-0.97x with
 non-overlapping interquartile ranges (15 samples,
-[confirmation](results/inplace-parity-confirm.csv.gz)), although their
+[confirmation](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/inplace-parity-confirm.csv.gz)), although their
 driver code is unchanged. We attribute this to code layout, an inference
 from the following: the first version of this change, which modified the
 shared driver, showed the same deficit in the backward direction at these
-sizes instead ([samples](results/inplace-parity-ab-v1.csv.gz),
-[confirmation](results/inplace-parity-confirm-v1.csv.gz)), and rebuilding
+sizes instead ([samples](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/inplace-parity-ab-v1.csv.gz),
+[confirmation](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/inplace-parity-confirm-v1.csv.gz)), and rebuilding
 the unchanged tree with `-falign-functions=64` alone moved its N = 96
 backward time from 75 to 91 ns
-([control](results/inplace-parity-align-control-v1.csv.gz)). On Zen 3,
+([control](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/inplace-parity-align-control-v1.csv.gz)). On Zen 3,
 float N = 128 uses the 8-lane code anyway.
 
 ### CPU classes
@@ -762,7 +762,7 @@ the inferred table, all eight modes. Its rule was fixed before the data:
 calibration within 15% of the speedups measured on Zen 3 in every case, a
 Zen 1 control (256-bit operations split) at most 1.05x after correction for
 the model's bias, and then every inferred model at least 1.10x. Result
-([summary](results/mca-crosscheck.txt), [cases](results/mca-crosscheck.csv.gz)):
+([summary](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/mca-crosscheck.txt), [cases](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/mca-crosscheck.csv.gz)):
 calibration deviation median 4.8% but up to 18.9% (fail), Zen 1 predicted
 1.42x (fail: the model cannot tell the datapath widths apart; the gain it
 predicts comes from fewer instructions, loads and stores per element). The
@@ -780,17 +780,17 @@ orders are independent, then `wide_size_table.py` and a per-model entry in
 `pffft_x86_wide_class()`.
 
 Two batches of six such sweeps (host-tuned GCC builds, 4 vCPUs, host-load
-gate inside the VM; [CPUs](results/runner-cpus.txt)) landed on four CPUs.
+gate inside the VM; [CPUs](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/runner-cpus.txt)) landed on four CPUs.
 Each figure below is the ratio of the medians (`native4` time / `wide`
 time) of one case (transform type, N, operation) in one sweep, over all
 eleven operations and every sweep of the CPU:
 
 | CPU | sweeps | passes the rule in its own sweeps (complex / real sizes) | at the sizes it now uses |
 | --- | ---: | ---: | --- |
-| Zen 4, EPYC 9V74 (19h model 11h) | 3 ([1](results/runner-zen4-epyc9v74-1.csv.gz), [2](results/runner-zen4-epyc9v74-2.csv.gz), [3](results/runner-zen4-epyc9v74-3.csv.gz)) | 186 / 163 | Zen 4 table: median 1.38x, lowest 0.97x |
-| Zen 3, EPYC 7763 (19h model 01h) | 7 ([1](results/runner-zen3-epyc7763-1.csv.gz), [2](results/runner-zen3-epyc7763-2.csv.gz), [3](results/runner-zen3-epyc7763-3.csv.gz), [4](results/runner-zen3-epyc7763-4.csv.gz), [5](results/runner-zen3-epyc7763-5.csv.gz), [6](results/runner-zen3-epyc7763-6.csv.gz), [7](results/runner-zen3-epyc7763-7.csv.gz)) | 143 / 115 | Zen 3 server table: median 1.44x, lowest 0.97x |
-| Zen 5, EPYC 9V45 (1Ah model 02h) | 1 ([1](results/runner-zen5-epyc9v45-1.csv.gz)) | (one sweep) | none by default; opted in, the inferred table within its 1 MB L2: median 1.53x, lowest 1.07x |
-| Intel Xeon Platinum 8573C | 1 ([1](results/runner-intel-xeon8573c-1.csv.gz)) | (one sweep) | none (Intel server parts are off) |
+| Zen 4, EPYC 9V74 (19h model 11h) | 3 ([1](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/runner-zen4-epyc9v74-1.csv.gz), [2](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/runner-zen4-epyc9v74-2.csv.gz), [3](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/runner-zen4-epyc9v74-3.csv.gz)) | 186 / 163 | Zen 4 table: median 1.38x, lowest 0.97x |
+| Zen 3, EPYC 7763 (19h model 01h) | 7 ([1](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/runner-zen3-epyc7763-1.csv.gz), [2](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/runner-zen3-epyc7763-2.csv.gz), [3](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/runner-zen3-epyc7763-3.csv.gz), [4](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/runner-zen3-epyc7763-4.csv.gz), [5](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/runner-zen3-epyc7763-5.csv.gz), [6](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/runner-zen3-epyc7763-6.csv.gz), [7](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/runner-zen3-epyc7763-7.csv.gz)) | 143 / 115 | Zen 3 server table: median 1.44x, lowest 0.97x |
+| Zen 5, EPYC 9V45 (1Ah model 02h) | 1 ([1](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/runner-zen5-epyc9v45-1.csv.gz)) | (one sweep) | none by default; opted in, the inferred table within its 1 MB L2: median 1.53x, lowest 1.07x |
+| Intel Xeon Platinum 8573C | 1 ([1](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/runner-intel-xeon8573c-1.csv.gz)) | (one sweep) | none (Intel server parts are off) |
 
 Zen 4 is therefore a measured class with its own table from its three
 sweeps (`pffft_wide_zen4_*` in `pffft_wide_sizes.h`). The Zen 3 server part
@@ -838,8 +838,8 @@ intrinsics compiled without `/arch` (same translation unit). That works
 (all tests, ISA and SSE/AVX transition audit clean in optimized builds), but
 the generated code is slower. Interleaved measurement on the Zen 3 host
 (CPU 14, MSVC 19.44 binaries under wine, 5 samples per case and build,
-host-load gate; [samples](results/windows-gate.csv.gz),
-[table](results/windows-gate.txt)), speedup over the 4-lane code of the same
+host-load gate; [samples](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/windows-gate.csv.gz),
+[table](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/windows-gate.txt)), speedup over the 4-lane code of the same
 compiler at the 144 table-size cases (9 sizes, all 9 gated modes):
 
 | Build | complex min / median | real min / median |
@@ -853,8 +853,8 @@ within 10% of GCC's in every case; it was within 10% in 26 of 144 (median
 0.84 of GCC's), while the whole-library `/arch:AVX2` experiment was within
 10% in 111 of 144. MSVC therefore builds the 8-lane code as its own
 translation unit, `pffft_wide_tu.c`, with `/arch:AVX2`, and `pffft.c` for the
-baseline. Measured the same way as that build ([samples](results/windows-gate-tu.csv.gz),
-[table](results/windows-gate-tu.txt), 4-lane code of the baseline MSVC build
+baseline. Measured the same way as that build ([samples](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/windows-gate-tu.csv.gz),
+[table](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/windows-gate-tu.txt), 4-lane code of the baseline MSVC build
 as the reference): complex 1.28 / 1.59x, real 1.25 / 1.56x (min / median),
 within 10% of GCC's speedup in 114 of 144 cases (median 0.96), never below
 1.25x. Rules for that file: it holds nothing that
@@ -867,7 +867,7 @@ and the CPU check also requires the rest of x86-64-v3.
 
 | Candidate | Result |
 | --- | --- |
-| Radix-8 first pass replacing the radix-2 and one radix-4 pass (8-lane complex, N/8 = 2·4^k) | 0.80-1.19x, no consistent gain ([samples](results/wide-radix8-rejected.csv.gz)); consistent with the arm64 radix-8 result in 2ce8a89. That experiment replaced the first pass; the [terminal radix-8 pass](#terminal-radix-8-pass-and-in-place-first-pass) replaces the last, where it needs no twiddles |
+| Radix-8 first pass replacing the radix-2 and one radix-4 pass (8-lane complex, N/8 = 2·4^k) | 0.80-1.19x, no consistent gain ([samples](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/wide-radix8-rejected.csv.gz)); consistent with the arm64 radix-8 result in 2ce8a89. That experiment replaced the first pass; the [terminal radix-8 pass](#terminal-radix-8-pass-and-in-place-first-pass) replaces the last, where it needs no twiddles |
 | 8x8 transpose with the 128-bit exchange done by `vinsertf128` loads | 0.96-1.04x: finalize is not bound by the shuffle ports alone |
 | Half-length complex FFT for real input on 8 lanes | not built: same pass work as the 8-way real combination plus two extra sweeps |
 | Split-radix / conjugate-pair, four-step / cache-oblivious, planner | not attempted: no measured speed gain in the literature at these sizes, PFFFT already leads FFTW at large N |
@@ -1020,16 +1020,16 @@ count.
 
 | CPU | compiler, conditions | builds (raw samples) |
 | --- | --- | --- |
-| Ryzen 7 5800HS (Zen 3, Cezanne) | GCC 16.2.1, CPU 14 with its SMT sibling idle, host load at most 2.5 CPUs | host-tuned, 4 lanes, no dispatch ([samples](results/pass-schedule-survey-zen3-5800hs-w4.csv.gz)); host-tuned, 8 lanes at every size ([samples](results/pass-schedule-survey-zen3-5800hs-w8.csv.gz)); host-tuned default as shipped, dispatch with the common Zen 3 size table, float only ([samples](results/pass-schedule-survey-zen3-5800hs-disp.csv.gz)) |
-| Xeon E5-2697 v3 (Haswell-EP) | GCC 16.2.1, one core per socket, SMT sibling idle | host-tuned default ([samples](results/pass-schedule-survey-haswell-e5-2697v3-native.csv.gz)); x86-64 baseline ([samples](results/pass-schedule-survey-haswell-e5-2697v3-x8664.csv.gz)); 4xScalar ([samples](results/pass-schedule-survey-haswell-e5-2697v3-scalar4.csv.gz)); single-lane scalar ([samples](results/pass-schedule-survey-haswell-e5-2697v3-scalar.csv.gz)); host-tuned, 8 lanes at every size, float only, not what this CPU runs by default: no size table covers it ([samples](results/pass-schedule-survey-haswell-e5-2697v3-wide8.csv.gz)) |
-| Cortex-A53 (Raspberry Pi 3 Model B) | GCC 14.2, CPU 3, `ondemand` governor | default, NEON; float complex, float real, double complex ([samples](results/pass-schedule-survey-cortex-a53-rpi3-neon.csv.gz)) |
-| Neoverse-N2 (three GitHub-hosted ARM64 runners, 4 vCPUs) | GCC 13.3.0, CPU 1, host load at most 2.5 CPUs | default, NEON ([1](results/pass-schedule-survey-neoverse-n2-runner1-neon.csv.gz), [2](results/pass-schedule-survey-neoverse-n2-runner2-neon.csv.gz), [3](results/pass-schedule-survey-neoverse-n2-runner3-neon.csv.gz)); single-lane scalar ([1](results/pass-schedule-survey-neoverse-n2-runner1-scalar.csv.gz), [2](results/pass-schedule-survey-neoverse-n2-runner2-scalar.csv.gz), [3](results/pass-schedule-survey-neoverse-n2-runner3-scalar.csv.gz)) |
-| EPYC 7763 (Zen 3 server; three GitHub-hosted runners, 4 vCPUs) | GCC 13.3.0, CPU 1, host load at most 2.5 CPUs | host-tuned default ([1](results/pass-schedule-survey-epyc7763-runner1-native.csv.gz), [2](results/pass-schedule-survey-epyc7763-runner2-native.csv.gz), [3](results/pass-schedule-survey-epyc7763-runner3-native.csv.gz)); x86-64 baseline ([1](results/pass-schedule-survey-epyc7763-runner1-x8664.csv.gz), [2](results/pass-schedule-survey-epyc7763-runner2-x8664.csv.gz), [3](results/pass-schedule-survey-epyc7763-runner3-x8664.csv.gz)) |
-| EPYC 9V74 (Zen 4 server; one GitHub-hosted runner, 4 vCPUs) | GCC 13.3.0, CPU 1, host load at most 2.5 CPUs | host-tuned default ([samples](results/pass-schedule-survey-epyc9v74-runner1-native.csv.gz)); x86-64 baseline ([samples](results/pass-schedule-survey-epyc9v74-runner1-x8664.csv.gz)) |
-| EPYC 9V45 (Zen 5 server; two GitHub-hosted runners, 4 vCPUs) | GCC 13.3.0, CPU 1, host load at most 2.5 CPUs | host-tuned default ([1](results/pass-schedule-survey-epyc9v45-runner1-native.csv.gz), [2](results/pass-schedule-survey-epyc9v45-runner2-native.csv.gz)); x86-64 baseline ([1](results/pass-schedule-survey-epyc9v45-runner1-x8664.csv.gz), [2](results/pass-schedule-survey-epyc9v45-runner2-x8664.csv.gz)) |
+| Ryzen 7 5800HS (Zen 3, Cezanne) | GCC 16.2.1, CPU 14 with its SMT sibling idle, host load at most 2.5 CPUs | host-tuned, 4 lanes, no dispatch ([samples](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/pass-schedule-survey-zen3-5800hs-w4.csv.gz)); host-tuned, 8 lanes at every size ([samples](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/pass-schedule-survey-zen3-5800hs-w8.csv.gz)); host-tuned default as shipped, dispatch with the common Zen 3 size table, float only ([samples](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/pass-schedule-survey-zen3-5800hs-disp.csv.gz)) |
+| Xeon E5-2697 v3 (Haswell-EP) | GCC 16.2.1, one core per socket, SMT sibling idle | host-tuned default ([samples](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/pass-schedule-survey-haswell-e5-2697v3-native.csv.gz)); x86-64 baseline ([samples](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/pass-schedule-survey-haswell-e5-2697v3-x8664.csv.gz)); 4xScalar ([samples](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/pass-schedule-survey-haswell-e5-2697v3-scalar4.csv.gz)); single-lane scalar ([samples](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/pass-schedule-survey-haswell-e5-2697v3-scalar.csv.gz)); host-tuned, 8 lanes at every size, float only, not what this CPU runs by default: no size table covers it ([samples](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/pass-schedule-survey-haswell-e5-2697v3-wide8.csv.gz)) |
+| Cortex-A53 (Raspberry Pi 3 Model B) | GCC 14.2, CPU 3, `ondemand` governor | default, NEON; float complex, float real, double complex ([samples](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/pass-schedule-survey-cortex-a53-rpi3-neon.csv.gz)) |
+| Neoverse-N2 (three GitHub-hosted ARM64 runners, 4 vCPUs) | GCC 13.3.0, CPU 1, host load at most 2.5 CPUs | default, NEON ([1](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/pass-schedule-survey-neoverse-n2-runner1-neon.csv.gz), [2](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/pass-schedule-survey-neoverse-n2-runner2-neon.csv.gz), [3](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/pass-schedule-survey-neoverse-n2-runner3-neon.csv.gz)); single-lane scalar ([1](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/pass-schedule-survey-neoverse-n2-runner1-scalar.csv.gz), [2](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/pass-schedule-survey-neoverse-n2-runner2-scalar.csv.gz), [3](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/pass-schedule-survey-neoverse-n2-runner3-scalar.csv.gz)) |
+| EPYC 7763 (Zen 3 server; three GitHub-hosted runners, 4 vCPUs) | GCC 13.3.0, CPU 1, host load at most 2.5 CPUs | host-tuned default ([1](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/pass-schedule-survey-epyc7763-runner1-native.csv.gz), [2](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/pass-schedule-survey-epyc7763-runner2-native.csv.gz), [3](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/pass-schedule-survey-epyc7763-runner3-native.csv.gz)); x86-64 baseline ([1](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/pass-schedule-survey-epyc7763-runner1-x8664.csv.gz), [2](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/pass-schedule-survey-epyc7763-runner2-x8664.csv.gz), [3](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/pass-schedule-survey-epyc7763-runner3-x8664.csv.gz)) |
+| EPYC 9V74 (Zen 4 server; one GitHub-hosted runner, 4 vCPUs) | GCC 13.3.0, CPU 1, host load at most 2.5 CPUs | host-tuned default ([samples](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/pass-schedule-survey-epyc9v74-runner1-native.csv.gz)); x86-64 baseline ([samples](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/pass-schedule-survey-epyc9v74-runner1-x8664.csv.gz)) |
+| EPYC 9V45 (Zen 5 server; two GitHub-hosted runners, 4 vCPUs) | GCC 13.3.0, CPU 1, host load at most 2.5 CPUs | host-tuned default ([1](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/pass-schedule-survey-epyc9v45-runner1-native.csv.gz), [2](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/pass-schedule-survey-epyc9v45-runner2-native.csv.gz)); x86-64 baseline ([1](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/pass-schedule-survey-epyc9v45-runner1-x8664.csv.gz), [2](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/pass-schedule-survey-epyc9v45-runner2-x8664.csv.gz)) |
 
 The single-lane scalar builds were measured with the terminal radix-8 pass
-forced on, the measurement that decided its default there. The [invocation records](results/pass-schedule-survey-records.txt)
+forced on, the measurement that decided its default there. The [invocation records](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/pass-schedule-survey-records.txt)
 give each file's start and end, rows, seed and the SHA-256 of both driver
 binaries. To repeat one part of the survey (one transform type and
 precision per invocation, each with a seed of its own):
@@ -1041,7 +1041,9 @@ cmake -S build_old_src -B build_old -DCMAKE_BUILD_TYPE=Release
 cmake -S . -B build_new -DCMAKE_BUILD_TYPE=Release
 cmake --build build_old --parallel
 cmake --build build_new --parallel
-SIZES=$(zcat benchmarks/perf_analysis/results/pass-schedule-survey-haswell-e5-2697v3-native.csv.gz |
+archive=20aed333bd9f77680e520b7c28889ceefbab357c
+sample=benchmarks/perf_analysis/results/pass-schedule-survey-haswell-e5-2697v3-native.csv.gz
+SIZES=$(git show "$archive:$sample" | gzip -dc |
         awk -F, '$4 == "complex" {print $6}' | sort -nu)
 python3 benchmarks/perf_analysis/run_matrix.py \
   --build base=build_old --build new=build_new \
@@ -1147,8 +1149,8 @@ these.
    figure of 0.978 with 44 cases below 0.97 in the table; without
    `zreorder` those cases are at 1.00. Samples, 12 pairs per case, with the
    forward transform and `zconvolve` as controls at 1.00:
-   [default placement](results/pass-schedule-placement-zreorder-p0.csv.gz),
-   [aligned](results/pass-schedule-placement-zreorder-p1.csv.gz). Single
+   [default placement](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/pass-schedule-placement-zreorder-p0.csv.gz),
+   [aligned](https://github.com/arancormonk/pffft/blob/20aed333bd9f77680e520b7c28889ceefbab357c/benchmarks/perf_analysis/results/pass-schedule-placement-zreorder-p1.csv.gz). Single
    cases on Zen 3 move by such amounts with code placement alone, so a
    single case there says little.
 2. **Complex N = 2560 and 7680 on Zen 3** (plans 5x4x4x8 and 5x3x4x4x8,

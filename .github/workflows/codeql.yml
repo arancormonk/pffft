@@ -56,9 +56,7 @@ jobs:
         run: |
           set -euxo pipefail
           build() {
-            cmake -S . -B "build_$1" -DCMAKE_BUILD_TYPE=Debug \
-              -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF \
-              -DPFFFT_USE_BENCH_POCKET=OFF "${@:2}"
+            cmake -S . -B "build_$1" -DCMAKE_BUILD_TYPE=Debug "${@:2}"
             cmake --build "build_$1" --parallel
           }
           build simd

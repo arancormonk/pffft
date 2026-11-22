@@ -4,32 +4,12 @@
 
   Small test & bench for PFFFT, comparing its performance with the scalar FFTPACK, FFTW, Intel MKL, and Apple vDSP
 
-  How to build: 
-
-  on linux, with fftw3:
-  gcc -o test_pffft -DHAVE_FFTW -msse -mfpmath=sse -O3 -Wall -W pffft.c test_pffft.c fftpack.c -L/usr/local/lib -I/usr/local/include/ -lfftw3f -lm
-
-  on macos, without fftw3:
-  clang -o test_pffft -DHAVE_VECLIB -O3 -Wall -W pffft.c test_pffft.c fftpack.c -L/usr/local/lib -I/usr/local/include/ -framework Accelerate
-
-  on macos, with fftw3:
-  clang -o test_pffft -DHAVE_FFTW -DHAVE_VECLIB -O3 -Wall -W pffft.c test_pffft.c fftpack.c -L/usr/local/lib -I/usr/local/include/ -lfftw3f -framework Accelerate
-
-  as alternative: replace clang by gcc.
-
-  on macos, with fftw3 and Intel MKL:
-  clang -o test_pffft -I /opt/intel/mkl/include -DHAVE_FFTW -DHAVE_VECLIB -DHAVE_MKL  -O3 -Wall -W pffft.c test_pffft.c fftpack.c -L/usr/local/lib -I/usr/local/include/ -lfftw3f -framework Accelerate /opt/intel/mkl/lib/libmkl_{intel_lp64,sequential,core}.a
-
-  on windows, with visual c++:
-  cl /Ox -D_USE_MATH_DEFINES /arch:SSE test_pffft.c pffft.c fftpack.c
-  
-  build without SIMD instructions:
-  gcc -o test_pffft -DPFFFT_SIMD_DISABLE -O3 -Wall -W pffft.c test_pffft.c fftpack.c -lm
-
+  Build from the repository root:
+    cmake -S . -B build -DPFFFT_BUILD_BENCHMARKS=ON
+    cmake --build build --config Release --target bench_pffft_float bench_pffft_double
  */
 
 #define CONCAT_TOKENS(A, B)  A ## B
-#define CONCAT_THREE_TOKENS(A, B, C)  A ## B ## C
 
 #ifdef PFFFT_ENABLE_FLOAT
 #include "pffft/pffft.h"
@@ -52,38 +32,6 @@ typedef PFFFTD_Setup PFFFT_SETUP;
 #ifdef HAVE_FFTPACK
 #include "fftpack.h"
 #endif
-
-#ifdef PFFFT_ENABLE_FLOAT
-
-#ifdef HAVE_GREEN_FFTS
-#include "fftext.h"
-#endif
-
-#ifdef HAVE_KISS_FFT
-#include <kiss_fft.h>
-#include <kiss_fftr.h>
-#endif
-
-#endif
-
-#ifdef HAVE_POCKET_FFT
-#include <pocketfft_double.h>
-#include <pocketfft_single.h>
-#endif
-
-#ifdef PFFFT_ENABLE_FLOAT
-  #define POCKFFTR_PRE(R)   CONCAT_TOKENS(rffts, R)
-  #define POCKFFTC_PRE(R)   CONCAT_TOKENS(cffts, R)
-  #define POCKFFTR_MID(L,R) CONCAT_THREE_TOKENS(L, rffts, R)
-  #define POCKFFTC_MID(L,R) CONCAT_THREE_TOKENS(L, cffts, R)
-#else
-  #define POCKFFTR_PRE(R)   CONCAT_TOKENS(rfft, R)
-  #define POCKFFTC_PRE(R)   CONCAT_TOKENS(cfft, R)
-  #define POCKFFTR_MID(L,R) CONCAT_THREE_TOKENS(L, rfft, R)
-  #define POCKFFTC_MID(L,R) CONCAT_THREE_TOKENS(L, cfft, R)
-#endif
-
-
 
 #include <math.h>
 #include <stdio.h>
@@ -125,18 +73,15 @@ typedef fftw_complex FFTW_COMPLEX;
 #endif
 
 
-#define NUM_FFT_ALGOS  10
 enum {
   ALGO_FFTPACK = 0,
   ALGO_VECLIB,
   ALGO_FFTW_ESTIM,
   ALGO_FFTW_AUTO,
-  ALGO_GREEN,
-  ALGO_KISS,
-  ALGO_POCKET,
   ALGO_MKL,
-  ALGO_PFFFT_U, /* = 8 */
-  ALGO_PFFFT_O  /* = 9 */
+  ALGO_PFFFT_U,
+  ALGO_PFFFT_O,
+  NUM_FFT_ALGOS
 };
 
 #define NUM_TYPES      7
@@ -155,9 +100,6 @@ const char * algoName[NUM_FFT_ALGOS] = {
   "vDSP (vec)   ",
   "FFTW F(estim)",
   "FFTW F(auto) ",
-  "Green        ",
-  "Kiss         ",
-  "Pocket       ",
   "Intel MKL    ",
   "PFFFT-U(simd)",  /* unordered */
   "PFFFT (simd) "   /* ordered */
@@ -181,21 +123,6 @@ int compiledInAlgo[NUM_FFT_ALGOS] = {
 #else
   0, 0,
 #endif
-#if defined(HAVE_GREEN_FFTS) && defined(PFFFT_ENABLE_FLOAT)
-  1, /* "Green      " */
-#else
-  0,
-#endif
-#if defined(HAVE_KISS_FFT) && defined(PFFFT_ENABLE_FLOAT)
-  1, /* "Kiss       " */
-#else
-  0,
-#endif
-#if defined(HAVE_POCKET_FFT)
-  1, /* "Pocket     " */
-#else
-  0,
-#endif
 #if defined(HAVE_MKL)
   1, /* "Intel MKL  " */
 #else
@@ -210,9 +137,6 @@ const char * algoTableHeader[NUM_FFT_ALGOS][2] = {
 { "|  real   vDSP ", "|  cplx   vDSP " },
 { "|real FFTWestim", "|cplx FFTWestim" },
 { "|real FFTWauto ", "|cplx FFTWauto " },
-{ "|  real  Green ", "|  cplx  Green " },
-{ "|  real   Kiss ", "|  cplx   Kiss " },
-{ "|  real Pocket ", "|  cplx Pocket " },
 { "|  real   MKL  ", "|  cplx   MKL  " },
 { "| real PFFFT-U ", "| cplx PFFFT-U " },
 { "|  real  PFFFT ", "|  cplx  PFFFT " } };
@@ -525,7 +449,7 @@ double cal_benchmark(int N, int cplx) {
 void benchmark_ffts(int N, int cplx, int withFFTWfullMeas, double iterCal, double tmeas[NUM_TYPES][NUM_FFT_ALGOS], int haveAlgo[NUM_FFT_ALGOS], FILE *tableFile ) {
   const int log2N = Log2(N);
   int nextPow2N = PFFFT_FUNC(next_power_of_two)(N);
-#if (defined(HAVE_VECLIB) || defined(HAVE_GREEN_FFTS)) && defined(PFFFT_ENABLE_FLOAT)
+#if defined(HAVE_VECLIB) && defined(PFFFT_ENABLE_FLOAT)
   int log2NextN = Log2(nextPow2N);
 #endif
   int pffftPow2N = nextPow2N;
@@ -762,167 +686,6 @@ void benchmark_ffts(int N, int cplx, int withFFTWfullMeas, double iterCal, doubl
 #else
   (void)withFFTWfullMeas;
 #endif
-
-#if defined(HAVE_GREEN_FFTS) && defined(PFFFT_ENABLE_FLOAT)
-  Nmax = (cplx ? nextPow2N*2 : nextPow2N);
-  X[Nmax] = checkVal;
-  if ( 1 || PFFFT_FUNC(is_power_of_two)(N) )
-  {
-    te = uclock_sec();
-    fftInit(log2NextN);
-
-    t0 = uclock_sec();
-    tstop = t0 + max_test_duration;
-    max_iter = 0;
-    do {
-      for ( k = 0; k < step_iter; ++k ) {
-        if (cplx) {
-          assert( X[Nmax] == checkVal );
-          ffts(X, log2NextN, 1);
-          assert( X[Nmax] == checkVal );
-          iffts(X, log2NextN, 1);
-          assert( X[Nmax] == checkVal );
-        } else {
-          rffts(X, log2NextN, 1);
-          riffts(X, log2NextN, 1);
-        }
-
-        ++max_iter;
-      }
-      t1 = uclock_sec();
-    } while ( t1 < tstop );
-
-    fftFree();
-
-    flops = (max_iter*2) * ((cplx ? 5 : 2.5)*N*log((double)N)/M_LN2); /* see http://www.fftw.org/speed/method.html */
-    tmeas[TYPE_ITER][ALGO_GREEN] = max_iter;
-    tmeas[TYPE_MFLOPS][ALGO_GREEN] = flops/1e6/(t1 - t0 + 1e-16);
-    tmeas[TYPE_DUR_TOT][ALGO_GREEN] = t1 - t0;
-    tmeas[TYPE_DUR_NS][ALGO_GREEN] = show_output("Green", N, cplx, flops, t0, t1, max_iter, tableFile);
-    tmeas[TYPE_PREP][ALGO_GREEN] = (t0 - te) * 1e3;
-    haveAlgo[ALGO_GREEN] = 1;
-  } else {
-    show_output("Green", N, cplx, -1, -1, -1, -1, tableFile);
-  }
-#endif
-
-#if defined(HAVE_KISS_FFT) && defined(PFFFT_ENABLE_FLOAT)
-  Nmax = (cplx ? nextPow2N*2 : nextPow2N);
-  X[Nmax] = checkVal;
-  if ( 1 || PFFFT_FUNC(is_power_of_two)(N) )
-  {
-    kiss_fft_cfg stf;
-    kiss_fft_cfg sti;
-    kiss_fftr_cfg stfr;
-    kiss_fftr_cfg stir;
-
-    te = uclock_sec();
-    if (cplx) {
-      stf = kiss_fft_alloc(nextPow2N, 0, 0, 0);
-      sti = kiss_fft_alloc(nextPow2N, 1, 0, 0);
-    } else {
-      stfr = kiss_fftr_alloc(nextPow2N, 0, 0, 0);
-      stir = kiss_fftr_alloc(nextPow2N, 1, 0, 0);
-    }
-
-    t0 = uclock_sec();
-    tstop = t0 + max_test_duration;
-    max_iter = 0;
-    do {
-      for ( k = 0; k < step_iter; ++k ) {
-        if (cplx) {
-          assert( X[Nmax] == checkVal );
-          kiss_fft(stf, (const kiss_fft_cpx *)X, (kiss_fft_cpx *)Y);
-          assert( X[Nmax] == checkVal );
-          kiss_fft(sti, (const kiss_fft_cpx *)Y, (kiss_fft_cpx *)X);
-          assert( X[Nmax] == checkVal );
-        } else {
-          assert( X[Nmax] == checkVal );
-          kiss_fftr(stfr, X, (kiss_fft_cpx *)Y);
-          assert( X[Nmax] == checkVal );
-          kiss_fftri(stir, (const kiss_fft_cpx *)Y, X);
-          assert( X[Nmax] == checkVal );
-        }
-        ++max_iter;
-      }
-      t1 = uclock_sec();
-    } while ( t1 < tstop );
-
-    kiss_fft_cleanup();
-
-    flops = (max_iter*2) * ((cplx ? 5 : 2.5)*N*log((double)N)/M_LN2); /* see http://www.fftw.org/speed/method.html */
-    tmeas[TYPE_ITER][ALGO_KISS] = max_iter;
-    tmeas[TYPE_MFLOPS][ALGO_KISS] = flops/1e6/(t1 - t0 + 1e-16);
-    tmeas[TYPE_DUR_TOT][ALGO_KISS] = t1 - t0;
-    tmeas[TYPE_DUR_NS][ALGO_KISS] = show_output("Kiss", N, cplx, flops, t0, t1, max_iter, tableFile);
-    tmeas[TYPE_PREP][ALGO_KISS] = (t0 - te) * 1e3;
-    haveAlgo[ALGO_KISS] = 1;
-  } else {
-    show_output("Kiss", N, cplx, -1, -1, -1, -1, tableFile);
-  }
-#endif
-
-#if defined(HAVE_POCKET_FFT)
-
-  Nmax = (cplx ? nextPow2N*2 : nextPow2N);
-  X[Nmax] = checkVal;
-  if ( 1 || PFFFT_FUNC(is_power_of_two)(N) )
-  {
-    POCKFFTR_PRE(_plan) planr;
-    POCKFFTC_PRE(_plan) planc;
-
-    te = uclock_sec();
-    if (cplx) {
-      planc = POCKFFTC_MID(make_,_plan)(nextPow2N);
-    } else {
-      planr = POCKFFTR_MID(make_,_plan)(nextPow2N);
-    }
-
-    t0 = uclock_sec();
-    tstop = t0 + max_test_duration;
-    max_iter = 0;
-    do {
-      for ( k = 0; k < step_iter; ++k ) {
-        if (cplx) {
-          assert( X[Nmax] == checkVal );
-          memcpy(Y, X, 2*nextPow2N * sizeof(pffft_scalar) );
-          POCKFFTC_PRE(_forward)(planc, Y, 1.);
-          assert( X[Nmax] == checkVal );
-          memcpy(X, Y, 2*nextPow2N * sizeof(pffft_scalar) );
-          POCKFFTC_PRE(_backward)(planc, X, 1./nextPow2N);
-          assert( X[Nmax] == checkVal );
-        } else {
-          assert( X[Nmax] == checkVal );
-          memcpy(Y, X, nextPow2N * sizeof(pffft_scalar) );
-          POCKFFTR_PRE(_forward)(planr, Y, 1.);
-          assert( X[Nmax] == checkVal );
-          memcpy(X, Y, nextPow2N * sizeof(pffft_scalar) );
-          POCKFFTR_PRE(_backward)(planr, X, 1./nextPow2N);
-          assert( X[Nmax] == checkVal );
-        }
-        ++max_iter;
-      }
-      t1 = uclock_sec();
-    } while ( t1 < tstop );
-
-    if (cplx) {
-      POCKFFTC_MID(destroy_,_plan)(planc);
-    } else {
-      POCKFFTR_MID(destroy_,_plan)(planr);
-    }
-
-    flops = (max_iter*2) * ((cplx ? 5 : 2.5)*N*log((double)N)/M_LN2); /* see http://www.fftw.org/speed/method.html */
-    tmeas[TYPE_ITER][ALGO_POCKET] = max_iter;
-    tmeas[TYPE_MFLOPS][ALGO_POCKET] = flops/1e6/(t1 - t0 + 1e-16);
-    tmeas[TYPE_DUR_TOT][ALGO_POCKET] = t1 - t0;
-    tmeas[TYPE_DUR_NS][ALGO_POCKET] = show_output("Pocket", N, cplx, flops, t0, t1, max_iter, tableFile);
-    tmeas[TYPE_PREP][ALGO_POCKET] = (t0 - te) * 1e3;
-    haveAlgo[ALGO_POCKET] = 1;
-  } else {
-    show_output("Pocket", N, cplx, -1, -1, -1, -1, tableFile);
-  }
-#endif
-
 
 #if defined(HAVE_MKL)
   {

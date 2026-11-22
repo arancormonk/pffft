@@ -18,9 +18,6 @@ option(PFFFT_USE_SIMD        "Use x86 or Arm SIMD instructions" ON)
 option(PFFFT_USE_SCALAR_VECT "use 4-element vector scalar operations (if no other SIMD)" ON)
 
 option(PFFFT_USE_BENCH_FFTW   "use (system-installed) FFTW3 in fft benchmark?" OFF)
-option(PFFFT_USE_BENCH_GREEN  "use Green FFT in fft benchmark? - if exists in subdir" ON)
-option(PFFFT_USE_BENCH_KISS   "use KissFFT in fft benchmark? - if exists in subdir" ON)
-option(PFFFT_USE_BENCH_POCKET "use PocketFFT in fft benchmark? - if exists in subdir" ON)
 option(PFFFT_USE_BENCH_MKL    "use Intel MKL in fft benchmark? needs to be installed" OFF)
 
 
@@ -71,9 +68,6 @@ add_custom_command(OUTPUT "${benchdir}/info.txt"
   COMMAND ${CMAKE_COMMAND} -E echo "config PFFFT_USE_SIMD=${PFFFT_USE_SIMD}"                   >> "${benchdir}/info.txt"
   COMMAND ${CMAKE_COMMAND} -E echo "config PFFFT_USE_SCALAR_VECT=${PFFFT_USE_SCALAR_VECT}"     >> "${benchdir}/info.txt"
   COMMAND ${CMAKE_COMMAND} -E echo "config PFFFT_USE_BENCH_FFTW=${PFFFT_USE_BENCH_FFTW}"       >> "${benchdir}/info.txt"
-  COMMAND ${CMAKE_COMMAND} -E echo "config PFFFT_USE_BENCH_GREEN=${PFFFT_USE_BENCH_GREEN}"     >> "${benchdir}/info.txt"
-  COMMAND ${CMAKE_COMMAND} -E echo "config PFFFT_USE_BENCH_KISS=${PFFFT_USE_BENCH_KISS}"       >> "${benchdir}/info.txt"
-  COMMAND ${CMAKE_COMMAND} -E echo "config PFFFT_USE_BENCH_POCKET=${PFFFT_USE_BENCH_POCKET}"   >> "${benchdir}/info.txt"
   COMMAND ${CMAKE_COMMAND} -E echo "config PFFFT_USE_BENCH_MKL=${PFFFT_USE_BENCH_MKL}"         >> "${benchdir}/info.txt"
 )
 
@@ -127,9 +121,6 @@ add_custom_target(build_float
                         -DPFFFT_USE_SIMD=${PFFFT_USE_SIMD}
                         -DPFFFT_USE_SCALAR_VECT=${PFFFT_USE_SCALAR_VECT}
                         -DPFFFT_USE_BENCH_FFTW=${PFFFT_USE_BENCH_FFTW}
-                        -DPFFFT_USE_BENCH_GREEN=${PFFFT_USE_BENCH_GREEN}
-                        -DPFFFT_USE_BENCH_KISS=${PFFFT_USE_BENCH_KISS}
-                        -DPFFFT_USE_BENCH_POCKET=${PFFFT_USE_BENCH_POCKET}
                         -DPFFFT_USE_BENCH_MKL=${PFFFT_USE_BENCH_MKL}
                         "${CMAKE_SOURCE_DIR}/.."
   # COMMAND ${CMAKE_COMMAND} -E echo "start cmake --build . for float in ${builddir_flt}"
@@ -150,9 +141,6 @@ add_custom_target(build_double
                         -DPFFFT_USE_SIMD=${PFFFT_USE_SIMD}
                         -DPFFFT_USE_SCALAR_VECT=${PFFFT_USE_SCALAR_VECT}
                         -DPFFFT_USE_BENCH_FFTW=${PFFFT_USE_BENCH_FFTW}
-                        -DPFFFT_USE_BENCH_GREEN=${PFFFT_USE_BENCH_GREEN}
-                        -DPFFFT_USE_BENCH_KISS=${PFFFT_USE_BENCH_KISS}
-                        -DPFFFT_USE_BENCH_POCKET=${PFFFT_USE_BENCH_POCKET}
                         -DPFFFT_USE_BENCH_MKL=${PFFFT_USE_BENCH_MKL}
                         "${CMAKE_SOURCE_DIR}/.."
   COMMAND ${CMAKE_COMMAND} -E echo "start cmake --build . for double in ${builddir_dbl}"

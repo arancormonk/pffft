@@ -520,7 +520,7 @@ finalize/preprocess steps combine the lanes (8x8 transposes and a radix-8
 butterfly; the real transform needs an 8-way real combination with its own
 DC/Nyquist and sub-Nyquist boundary terms). It lives in
 [pffft_wide_impl.h](../../src/pffft_wide_impl.h) and is selected per setup at
-runtime, see the top-level [README](../../README.md#x86-8-lane-avx2-float-transforms).
+runtime according to [CPU class](#cpu-classes) and [transform size](#size-table).
 Independently of the lane count, the complex transforms now deinterleave
 their input inside the first FFTPACK pass and interleave the result inside
 the last backward pass ([pffft_passes_impl.h](../../src/pffft_passes_impl.h)),
@@ -824,7 +824,7 @@ generated with
 ### Windows
 
 GCC and Clang build the 8-lane code with target pragmas on Windows as
-elsewhere (MinGW-w64 GCC 13 and 15, clang-cl 19 in CI). The pragmas are not
+elsewhere (tested with MinGW-w64 GCC 13 and 15 and clang-cl 19). The pragmas are not
 what makes it safe: every vector load and store is an explicit unaligned
 `VLD`/`VST` (the 4-lane, scalar, NEON, Altivec and WASM objects were shown
 unchanged by comparing disassembly with relocations and the referenced

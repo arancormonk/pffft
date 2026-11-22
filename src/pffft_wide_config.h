@@ -26,11 +26,11 @@
 #  define PFFFT_WIDE_SEPARATE 1  /* the backend is in pffft_wide_tu.c */
 #endif
 #if defined(__clang__) && (defined(_WIN32) || defined(__CYGWIN__))
-#  define PFFFT_WIDE_COMPILER (__clang_major__ >= 19)    /* clang-cl 19.1 in CI */
+#  define PFFFT_WIDE_COMPILER (__clang_major__ >= 19)
 #elif defined(__clang__)
 #  define PFFFT_WIDE_COMPILER (__clang_major__ >= 10)
 #elif defined(__GNUC__) && (defined(_WIN32) || defined(__CYGWIN__))
-/* MinGW-w64 GCC 13 and 15 in CI. Not unoptimized: GCC cannot align 32-byte
+/* Tested with MinGW-w64 GCC 13 and 15. GCC cannot align 32-byte
    stack slots on Windows (GCC bug 54412), which -O0 spills of 256-bit values
    need; GCC 16 stops there with an internal compiler error */
 #  if defined(__OPTIMIZE__)

@@ -1,37 +1,3 @@
-if (PFFFT_USE_BENCH_GREEN)
-  if (EXISTS "${PFFFT_SOURCE_DIR}/greenffts/CMakeLists.txt")
-    message(STATUS "found subdir greenffts")
-    set(PATH_GREEN "${PFFFT_SOURCE_DIR}/greenffts")
-    add_subdirectory( "${PATH_GREEN}" "${CMAKE_CURRENT_BINARY_DIR}/greenffts" )
-  else()
-    message(WARNING "GreenFFT not found in subdir greenffts")
-  endif()
-endif()
-
-if (PFFFT_USE_BENCH_KISS)
-  # git submodule add https://github.com/hayguen/kissfft.git
-  if (EXISTS "${PFFFT_SOURCE_DIR}/kissfft/CMakeLists.txt")
-    message(STATUS "found subdir kissfft")
-    set(PATH_KISS "${PFFFT_SOURCE_DIR}/kissfft")
-    add_subdirectory( "${PATH_KISS}" "${CMAKE_CURRENT_BINARY_DIR}/kissfft" )
-  else()
-    message(WARNING "KissFFT not found in subdir kissfft")
-  endif()
-endif()
-
-if (PFFFT_USE_BENCH_POCKET)
-  # git submodule add https://github.com/hayguen/pocketfft.git
-  if (EXISTS "${PFFFT_SOURCE_DIR}/pocketfft/pocketfft_double.c")
-    message(STATUS "found subdir pocketfft")
-    set(PATH_POCKET "${PFFFT_SOURCE_DIR}/pocketfft")
-    add_subdirectory( "${PATH_POCKET}" "${CMAKE_CURRENT_BINARY_DIR}/pocketfft" )
-  else()
-    message(WARNING "PocketFFT not found in subdir pocketfft")
-  endif()
-endif()
-
-######################################################
-
 if (PFFFT_USE_TYPE_FLOAT)
   add_executable(bench_pffft_float   bench_pffft.c)
   target_compile_definitions(bench_pffft_float PRIVATE _USE_MATH_DEFINES)
@@ -50,21 +16,6 @@ if (PFFFT_USE_TYPE_FLOAT)
   if (PFFFT_USE_BENCH_FFTW)
     target_compile_definitions(bench_pffft_float PRIVATE HAVE_FFTW=1)
     target_link_libraries(bench_pffft_float  fftw3f)
-  endif()
-
-  if (PATH_GREEN AND PFFFT_USE_BENCH_GREEN)
-    target_compile_definitions(bench_pffft_float PRIVATE HAVE_GREEN_FFTS=1)
-    target_link_libraries(bench_pffft_float  GreenFFT)
-  endif()
-
-  if (PATH_KISS AND PFFFT_USE_BENCH_KISS)
-    target_compile_definitions(bench_pffft_float PRIVATE HAVE_KISS_FFT=1)
-    target_link_libraries(bench_pffft_float  KissFFT)
-  endif()
-
-  if (PATH_POCKET AND PFFFT_USE_BENCH_POCKET)
-    target_compile_definitions(bench_pffft_float PRIVATE HAVE_POCKET_FFT=1)
-    target_link_libraries(bench_pffft_float  PocketFFT)
   endif()
 
   if (PFFFT_USE_BENCH_MKL)
@@ -97,11 +48,6 @@ if (PFFFT_USE_TYPE_DOUBLE)
   if (PFFFT_USE_BENCH_FFTW)
     target_compile_definitions(bench_pffft_double PRIVATE HAVE_FFTW=1)
     target_link_libraries(bench_pffft_double  fftw3)
-  endif()
-
-  if (PATH_POCKET AND PFFFT_USE_BENCH_POCKET)
-    target_compile_definitions(bench_pffft_double PRIVATE HAVE_POCKET_FFT=1)
-    target_link_libraries(bench_pffft_double  PocketFFT)
   endif()
 
   if (PFFFT_USE_BENCH_MKL)

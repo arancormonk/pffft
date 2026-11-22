@@ -22,10 +22,6 @@ query-filters:
   - exclude:
       id: cpp/include-non-header
 
-# Keep benchmark-only submodules and vendored upstream headers out of
-# project-owned CodeQL results.
+# Exclude the vendored upstream header from project-owned results.
 paths-ignore:
-  - "greenffts/**"
-  - "kissfft/**"
-  - "pocketfft/**"
   - "src/sse2neon.h"

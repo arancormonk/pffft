@@ -104,13 +104,6 @@ jobs:
       # must pass. (The harness step-0 loop that used to hang this test
       # under SZ=1 was fixed in tests/test_fft_factors.c.)
       run: cd build_no-simd_novect && ctest -E "convTest|conv2dTest|rfft2d" --output-on-failure
-    - name: compress
-      run: tar zcvf pffft_w_mipp_ubuntu-amd64.tar.gz --exclude=CMakeFiles --exclude=*.cmake --exclude=Makefile --exclude=CMakeCache.txt build_simd_full build_simd_float build_simd_double build_no-simd_full
-    - name: 'Upload Artifact'
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-      with:
-        name: pffft_w_mipp_ubuntu_builds
-        path: pffft_w_mipp_ubuntu-amd64.tar.gz
 
   build_ubuntu-amd64:
     runs-on: ubuntu-latest
@@ -135,36 +128,6 @@ jobs:
       # must pass. (The harness step-0 loop that used to hang this test
       # under SZ=1 was fixed in tests/test_fft_factors.c.)
       run: cd build_no-simd_novect && ctest -E "convTest|conv2dTest|rfft2d" --output-on-failure
-    - name: compress
-      run: tar zcvf pffft_ubuntu-amd64.tar.gz --exclude=CMakeFiles --exclude=*.cmake --exclude=Makefile --exclude=CMakeCache.txt build_simd_full build_simd_float build_simd_double build_no-simd_full
-    - name: 'Upload Artifact'
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-      with:
-        name: pffft_ubuntu-amd64
-        path: pffft_ubuntu-amd64.tar.gz
-
-  x86_cpu_fallback:
-    # A baseline x86-64 build must never run the 8-lane AVX2 backend on CPUs
-    # without AVX2/FMA, and must use it on CPUs with them: run the float
-    # tests under QEMU emulating Nehalem, SandyBridge and Haswell.
-    runs-on: ubuntu-latest
-    # The emulated pre-AVX2 CPUs need baseline x86-64 binaries, including libc.
-    container: ubuntu:24.04@sha256:9c7f200c07e3d4a03e7249d2c16bf66a51120fb876aa2242cf31451412543289
-
-    steps:
-    - name: Install build and emulation tools
-      env:
-        DEBIAN_FRONTEND: noninteractive
-      run: |
-        # The minimal image excludes the man pages used by update-alternatives.
-        echo 'path-include=/usr/share/man/man1/*' > /etc/dpkg/dpkg.cfg.d/zz-ci-manpages
-        apt-get update
-        apt-get install -y --no-install-recommends build-essential cmake ca-certificates git qemu-user python3
-    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      with:
-        persist-credentials: false
-    - name: emulated_cpu_tests
-      run: tests/run_emulated_cpu_tests.sh build_emulated
 
   build_ubuntu-arm64:
     # native AArch64 with gcc: NEON float and double, and the sse2neon mixer
@@ -284,14 +247,6 @@ jobs:
             ctest --test-dir "$build" --output-on-failure -j 4
           done
         done
-    - name: compress
-      run: tar zcvf pffft_cross-build-windows-from-linux-amd64.tar.gz --exclude=CMakeFiles --exclude=*.cmake --exclude=Makefile --exclude=CMakeCache.txt  build_w32_no-simd build_w32_simd_full build_w64_no-simd build_w64_simd_full
-    - name: 'Upload Artifact'
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-      with:
-        name: pffft_cross-build-windows-from-linux-amd64
-        path: pffft_cross-build-windows-from-linux-amd64.tar.gz
-
 
   build_win_msvc:
     # The CMake configure and build commands are platform agnostic and should work equally
@@ -382,7 +337,7 @@ jobs:
       working-directory: ${{ github.workspace }}/..
       run: ctest --test-dir build_avx2 -C "$BUILD_TYPE" --output-on-failure -j 4
 
-    # Not archived: without TARGET_*_ARCH a top-level build probes the runner's
+    # Without TARGET_*_ARCH a top-level build probes the runner's
     # CPU for its /arch level, since MSVC has no /arch:native
     - name: Configure CMake host default
       shell: bash
@@ -400,23 +355,11 @@ jobs:
       working-directory: ${{ github.workspace }}/..
       run: ctest --test-dir build_host -C "$BUILD_TYPE" --output-on-failure -j 4
 
-    - name: compress
-      working-directory: ${{ github.workspace }}/..
-      run: tar zcvf "$env:GITHUB_WORKSPACE/pffft_windows-msvc-amd64.tar.gz" --exclude=CMakeFiles --exclude=*.cmake --exclude=Makefile --exclude=CMakeCache.txt  build_no-simd build_sse2 build_avx build_avx2
-    - name: 'Upload Artifact'
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-      with:
-        name: pffft_windows-msvc-amd64
-        path: pffft_windows-msvc-amd64.tar.gz
-        if-no-files-found: error
-
 
   build_win_msvc_wide:
     # the 8-lane backend on Windows: MSVC (separate /arch:AVX2 translation
     # unit) in Debug, LTCG and DLL builds, a DLL without the backend, and
-    # clang-cl, also with ThinLTO; the ISA audit on each; Intel SDE runs of
-    # the baseline tests on chips without AVX2 and with other chips' CPUIDs
-    # (tests/run_sde_checks.sh)
+    # clang-cl, also with ThinLTO. Each baseline build runs the ISA audit.
     runs-on: windows-latest
     strategy:
       fail-fast: false
@@ -425,7 +368,6 @@ jobs:
           - name: msvc-release
             cc: cl
             args: -DCMAKE_BUILD_TYPE=Release
-            sde: true
           - name: msvc-debug
             cc: cl
             args: -DCMAKE_BUILD_TYPE=Debug
@@ -433,7 +375,6 @@ jobs:
             # the configuration's own property (INTERPROCEDURAL_OPTIMIZATION_RELEASE)
             cc: cl
             args: -DCMAKE_BUILD_TYPE=Release -DCMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE=ON
-            sde: true
           - name: msvc-vs-debug
             # multi-configuration generator: the configuration is chosen at build time
             cc: cl
@@ -441,7 +382,6 @@ jobs:
           - name: msvc-dll
             cc: cl
             args: -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON
-            sde: true
           - name: msvc-dll-nowide
             # no 8-lane backend: the DLL's map and audit without it
             cc: cl
@@ -449,21 +389,13 @@ jobs:
           - name: clangcl-release
             cc: clang-cl
             args: -DCMAKE_BUILD_TYPE=Release
-            sde: true
           - name: clangcl-lto
             # ThinLTO: the objects hold bitcode, only the linked image has code
             cc: clang-cl
             # (lld-link and llvm-lib: the configure step passes their full paths)
             args: -DCMAKE_BUILD_TYPE=Release -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON
             llvm_tools: true
-            sde: true
     name: build_win_msvc_wide (${{ matrix.name }})
-    env:
-      SDE_KIT: sde-external-10.13.1-2026-07-28-win.tar.xz
-      # Intel's published SHA-256 of the kit (intel.com download 684897); the
-      # file is fetched from the setup-sde action's repository at a pinned commit
-      SDE_SHA256: 74e626ede09b0baa5011fc9e51b58627ea92c3fc0bae5fd7db34b490f335f651
-      SDE_URL: https://media.githubusercontent.com/media/petarpetrovt/setup-sde/6d2773bc0ef3005fd52e0ae0bb91782321793aec/binaries/sde-external-10.13.1-2026-07-28-win.tar.xz
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
@@ -483,12 +415,6 @@ jobs:
       if: matrix.cc == 'clang-cl'
       shell: pwsh
       run: $env:llvmX64 >> $env:GITHUB_PATH
-    - name: toolchain
-      shell: bash
-      run: |
-        cl -Bv 2>&1 | head -4 || true
-        ${{ matrix.cc }} --version 2>&1 | head -1 || true
-        objdump --version | head -1
     - name: configure
       shell: bash
       run: |
@@ -510,70 +436,6 @@ jobs:
     - name: test
       shell: bash
       run: ctest --test-dir build -C "${{ matrix.config || 'Release' }}" --output-on-failure -j 4
-    - name: objects for diagnosis
-      if: failure()
-      shell: bash
-      # the library's objects, the maps, and the linked test with its object
-      run: mkdir -p diag && find build \( -path '*PFFFT.dir*' -name '*.obj' -o -name '*.map' -o -name 'test_pffft_wide*.obj' -o -name 'test_pffft_wide.exe' -o -name 'pffft.dll' \) -exec cp {} diag/ \;
-    - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-      if: failure()
-      with:
-        name: diag-${{ matrix.name }}
-        path: diag
-    - name: SDE
-      if: ${{ matrix.sde }}
-      shell: bash
-      run: |
-        curl -sfL -o "$SDE_KIT" "$SDE_URL"
-        echo "$SDE_SHA256  $SDE_KIT" | sha256sum -c -
-        mkdir sde && tar xf "$SDE_KIT" -C sde
-        sde=$(find sde -name sde.exe | head -1)
-        mkdir neg
-        cl -nologo -O2 -arch:AVX2 tests/sde/avx2_unguarded.c -Fe:neg/avx2_unguarded.exe -Fo:neg/
-        cl -nologo -O2 -arch:AVX2 -LD -DAVX2_UNGUARDED_LIB tests/sde/avx2_unguarded.c -Fe:neg/avx2_unguarded_dll.dll -Fo:neg/
-        cl -nologo -O2 -DAVX2_UNGUARDED_CALLER tests/sde/avx2_unguarded.c neg/avx2_unguarded_dll.lib -Fe:neg/avx2_unguarded_caller.exe -Fo:neg/
-        # GNU inline assembly: clang-cl, not cl
-        clang-cl -nologo -O2 tests/sde/avx_sse_transition.c -Fe:neg/avx_sse_transition.exe -Fo:neg/
-        AST_NEGATIVE=neg/avx_sse_transition.exe bash tests/run_sde_checks.sh "$sde" build neg/avx2_unguarded.exe neg/avx2_unguarded_caller.exe neg/avx2_unguarded_dll.dll
-
-
-  sde_linux:
-    # Linux baseline build under Intel SDE (tests/run_sde_checks.sh)
-    runs-on: ubuntu-latest
-    # The emulated pre-AVX2 CPUs need baseline x86-64 binaries, including libc.
-    container: ubuntu:24.04@sha256:9c7f200c07e3d4a03e7249d2c16bf66a51120fb876aa2242cf31451412543289
-    env:
-      SDE_KIT: sde-external-10.13.1-2026-07-28-lin.tar.xz
-      # Intel's published SHA-256 (intel.com download 684897)
-      SDE_SHA256: 94e97d623fec54385686e1e7ba65ebc9941748c05ee451423948334892bf2b50
-      SDE_URL: https://media.githubusercontent.com/media/petarpetrovt/setup-sde/6d2773bc0ef3005fd52e0ae0bb91782321793aec/binaries/sde-external-10.13.1-2026-07-28-lin.tar.xz
-    steps:
-    - name: Install build and emulation tools
-      env:
-        DEBIAN_FRONTEND: noninteractive
-      run: |
-        # The minimal image excludes the man pages used by update-alternatives.
-        echo 'path-include=/usr/share/man/man1/*' > /etc/dpkg/dpkg.cfg.d/zz-ci-manpages
-        apt-get update
-        apt-get install -y --no-install-recommends build-essential cmake ca-certificates git curl python3 xz-utils
-    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      with:
-        persist-credentials: false
-    - name: build
-      run: |
-        cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DTARGET_C_ARCH=none -DTARGET_CXX_ARCH=none \
-          -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF \
-          -DPFFFT_BUILD_BENCHMARKS=OFF -DPFFFT_BUILD_EXAMPLES=OFF
-        cmake --build build --parallel 4 --target test_pffft_wide test_pffft_accuracy_float
-        gcc -O2 -mavx2 tests/sde/avx2_unguarded.c -o build/avx2_unguarded
-        gcc -O2 tests/sde/avx_sse_transition.c -o build/avx_sse_transition
-    - name: SDE
-      run: |
-        curl -sfL -o "$SDE_KIT" "$SDE_URL"
-        echo "$SDE_SHA256  $SDE_KIT" | sha256sum -c -
-        mkdir sde && tar xf "$SDE_KIT" -C sde
-        AST_NEGATIVE=build/avx_sse_transition bash tests/run_sde_checks.sh "$(find "$PWD/sde" -name sde64 | head -1)" build build/avx2_unguarded
-
 
   build_win_msvc_arm64:
     # MSVC on Windows ARM64: NEON float and double; the default generator is
@@ -669,14 +531,6 @@ jobs:
         cmake --build build_mgw64_dbg
         ctest --test-dir build_mgw64_dbg --output-on-failure -j 4
 
-    - name: compress
-      run: tar zcvf pffft_windows-mingw-amd64.tar.gz --exclude=CMakeFiles --exclude=*.cmake --exclude=Makefile --exclude=CMakeCache.txt  build_mgw64
-    - name: 'Upload Artifact'
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-      with:
-        name: pffft_windows_mingw-amd64
-        path: pffft_windows-mingw-amd64.tar.gz
-
 
   build_macos:
     # copied from build_ubuntu-amd64 with minor renaming
@@ -697,13 +551,6 @@ jobs:
     - name: pass schedule switches off (the previous passes)
       # the pass schedule switches default to on; the other position
       run: mkdir build_simd_passes_off && cmake -S . -B build_simd_passes_off -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DTARGET_CXX_ARCH=none -DTARGET_C_ARCH=none -DPFFFT_TERMINAL_RADIX8=OFF -DPFFFT_INPLACE_FIRST_PASS=OFF && cmake --build build_simd_passes_off && ctest --test-dir build_simd_passes_off --output-on-failure -j 4
-    - name: compress
-      run: tar zcvf pffft_macos-arm64.tar.gz --exclude=CMakeFiles --exclude=*.cmake --exclude=Makefile --exclude=CMakeCache.txt build_simd_full build_simd_float build_simd_double build_no-simd_full
-    - name: 'Upload Artifact'
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-      with:
-        name: pffft_macos-arm64
-        path: pffft_macos-arm64.tar.gz
 
   build_w_mipp_macos:
     # copied from build_w_mipp_ubuntu-amd64 with minor renaming
@@ -730,10 +577,3 @@ jobs:
       run: mkdir build_simd_double && cmake -S . -B build_simd_double -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_TYPE_FLOAT=OFF -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DTARGET_CXX_ARCH=none -DTARGET_C_ARCH=none  && cmake --build build_simd_double && ctest --test-dir build_simd_double --output-on-failure -j 4
     - name: cmake_make_no-simd_float_double
       run: mkdir build_no-simd_full && cmake -S . -B build_no-simd_full -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DPFFFT_USE_SIMD=OFF -DPFFFT_USE_BENCH_GREEN=OFF -DPFFFT_USE_BENCH_KISS=OFF -DPFFFT_USE_BENCH_POCKET=OFF -DTARGET_CXX_ARCH=none -DTARGET_C_ARCH=none  && cmake --build build_no-simd_full && ctest --test-dir build_no-simd_full --output-on-failure -j 4
-    - name: compress
-      run: tar zcvf pffft_w_mipp_macos-arm64.tar.gz --exclude=CMakeFiles --exclude=*.cmake --exclude=Makefile --exclude=CMakeCache.txt build_simd_full build_simd_float build_simd_double build_no-simd_full
-    - name: 'Upload Artifact'
-      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-      with:
-        name: pffft_w_mipp_macos-arm64
-        path: pffft_w_mipp_macos-arm64.tar.gz

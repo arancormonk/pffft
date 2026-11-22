@@ -224,9 +224,7 @@ x86-64-v3 (AVX2, FMA) code by default. Configure reports it when the default is
 above baseline; with GCC or Clang on x86-64,
 `-DTARGET_C_ARCH=x86-64 -DTARGET_CXX_ARCH=x86-64` selects the baseline. On
 MSVC, select a level explicitly with `-DTARGET_C_ARCH=AVX2 -DTARGET_CXX_ARCH=AVX2`
-(or `SSE2`, `AVX`, `AVX512`). The archives uploaded by this repository's CI use
-the baseline ISA, except the MSVC builds labelled `build_sse2`, `build_avx` and
-`build_avx2`.
+(or `SSE2`, `AVX`, `AVX512`).
 
 On a Ryzen 5950X, selecting the native backend made a 1024-point double real
 forward FFT 2.08 times as fast as the baseline SSE2 build. The float transforms
@@ -611,7 +609,7 @@ marton78/pffft, maintained by arancormonk, adds:
 * a terminal radix-8 pass in place of the stand-alone radix-2 pass and an
   in-place first complex pass, each one sweep over the data fewer where it
   applies; see [Pass schedule](#pass-schedule-terminal-radix-8-pass-and-in-place-first-pass)
-* host-tuned top-level builds with portable CI archives, warnings as errors on
+* host-tuned top-level builds, warnings as errors on
   every platform, CI on Linux, Windows and macOS with x86 and Arm coverage, and
   CodeQL scanning
 

@@ -749,8 +749,8 @@ then uses a stricter table (every gated mode at least 1.25x in every
 measured sweep, Zen 3 and Zen 4: 81 complex, 67 real sizes) and only sizes
 whose working set (input, output, work and twiddles: 32N bytes complex, 16N
 real) fits in L2, read from CPUID leaf 4 (Intel) or 8000_001Dh/8000_0006h
-(AMD). Unit tests cover every range boundary and hole; Intel SDE runs in CI
-check the classes against the CPUIDs of 22 emulated Intel chips
+(AMD). Unit tests cover every range boundary and hole. The Intel SDE script
+checks the classes against the CPUIDs of 22 emulated Intel chips
 (`tests/run_sde_checks.sh`).
 
 The inferred class was meant to be backed by a static throughput model
@@ -777,10 +777,7 @@ it: a `native4` build (`-DPFFFT_ENABLE_WIDE_DISPATCH=OFF`) and a `wide` build
 `run_matrix.py --interleave --repeats 3` over all supported sizes and the
 eleven operations, each sweep with a `--seed` of its own so that the sweeps'
 orders are independent, then `wide_size_table.py` and a per-model entry in
-`pffft_x86_wide_class()`. The workflow
-[bench-runner-sweep.yml](../../.github/workflows/bench-runner-sweep.yml)
-runs such sweeps on GitHub-hosted runners (virtual machines whose CPU varies
-between AMD and Intel models) and records the CPU of each.
+`pffft_x86_wide_class()`.
 
 Two batches of six such sweeps (host-tuned GCC builds, 4 vCPUs, host-load
 gate inside the VM; [CPUs](results/runner-cpus.txt)) landed on four CPUs.
@@ -901,14 +898,14 @@ and the CPU check also requires the rest of x86-64-v3.
   It also found that the previous version passed vacuously with
   llvm-objdump (which CMake picks for Clang builds); it now requires GNU
   objdump and fails on output without instructions.
-- Intel SDE 10.13.1 in CI (Linux and MSVC/clang-cl builds, static and DLL):
+- Intel SDE 10.13.1 (Linux and MSVC/clang-cl builds, static and DLL):
   the tests pass on emulated Nehalem and Sandy Bridge without executing an
   instruction those chips lack, and an unguarded AVX2 instruction in an
   executable and in a DLL is reported; on emulated Haswell, SDE's AVX/SSE
   transition checker counts no transition while test_pffft_wide runs the
   8-lane code (0 in 17.5 billion instructions for the GCC baseline build;
   1000 of 1000 in its negative control).
-- `tests/run_emulated_cpu_tests.sh` (CI job `x86_cpu_fallback`): static
+- `tests/run_emulated_cpu_tests.sh`: static
   baseline binaries pass under QEMU emulating Nehalem and SandyBridge without
   selecting the backend (QEMU raises SIGILL for AVX2 there), and use and pass
   it on Haswell.

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright (C) 2026 by arancormonk <180709949+arancormonk@users.noreply.github.com>
 #
-# Runs the tests of a baseline x86-64 build under Intel SDE (CI):
+# Runs the tests of a baseline x86-64 build under Intel SDE:
 #  - chips without AVX2 (Nehalem, Sandy Bridge): the 8-lane backend must be
 #    unavailable and the tests must pass without executing anything the chip
 #    lacks in the checked images (the test executable, and pffft.dll in a

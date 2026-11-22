@@ -12,7 +12,7 @@ cmake -DCMAKE_BUILD_TYPE=Release ..
 # Portable build for other machines (compiler's default ISA, no arch flags)
 cmake -DCMAKE_BUILD_TYPE=Release -DTARGET_C_ARCH=none -DTARGET_CXX_ARCH=none ..
 # x86-64 GCC/Clang: explicit baseline, for compilers whose default is above it
-# (e.g. GCC on GitHub's ubuntu-26.04 runners emits x86-64-v3); CI archives use it
+# (e.g. GCC on GitHub's ubuntu-26.04 runners emits x86-64-v3); baseline CI builds use it
 cmake -DCMAKE_BUILD_TYPE=Release -DTARGET_C_ARCH=x86-64 -DTARGET_CXX_ARCH=x86-64 ..
 
 # Configure with specific compiler (clang example)
